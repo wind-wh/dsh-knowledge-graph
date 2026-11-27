@@ -37,6 +37,9 @@ def fetch(url: str, dest: Path) -> bool:
 def main():
     MIRROR.mkdir(parents=True, exist_ok=True)
 
+    # 0) 站点根首页（VitePress 404 页的「返回首页」指向 base 根，缺失会形成空 404）
+    fetch(f"{BASE}{PREFIX}/", MIRROR / "index.html")
+
     # 1) 首页 HTML + 提取资源
     index_url = f"{BASE}{PREFIX}/reference/"
     html = urllib.request.urlopen(index_url, timeout=60).read().decode("utf-8")
@@ -166,6 +169,14 @@ def main():
                    for c in full_chunks]
         full_ok = sum(f.result() for f in as_completed(results))
     print(f"full chunks downloaded: {full_ok}/{len(full_chunks)}")
+
+    # 根首页专用 chunk（从根首页 HTML 动态提取 index.md 的 hash）
+    root_html = MIRROR / "index.html"
+    if root_html.exists():
+        rt = root_html.read_text(encoding="utf-8", errors="replace")
+        for nm in set(re.findall(r'(/deepseek-harness/assets/index\.md\.[^"\']+\.js)', rt)):
+            file = nm.split("/assets/")[1]
+            fetch(BASE + nm, MIRROR / "assets" / file)
 
     # 2b) 改写 CSS 里的字体 URL：/assets/xxx → /deepseek-harness/assets/xxx
     css_path = MIRROR / "assets/style.6heebdof.css"
