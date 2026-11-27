@@ -49,7 +49,7 @@ def localize(text: str):
 def main():
     changed = 0
     total = 0
-    for p in SITE.rglob("*.html"):
+    for p in list(SITE.rglob("*.html")) + list(SITE.rglob("*.md")):
         if "src" in p.relative_to(SITE).parts:  # 源码查看器由 mirror_source 单独生成
             continue
         t = p.read_text(encoding="utf-8", errors="replace")

@@ -20,6 +20,8 @@ PREFIX = "/deepseek-harness"
 
 
 def fetch(url: str, dest: Path) -> bool:
+    if dest.parent.exists() and not dest.parent.is_dir():
+        return True  # 路径已被资源文件占用，跳过
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -79,25 +81,49 @@ def main():
     routes = sorted(set(routes + en_routes))
 
     page_chunks = set()
+    discovered = set()
 
     def dl_page(route):
         url = f"{BASE}{PREFIX}{route}"
         rel = route.strip("/") or "reference"
-        dest = MIRROR / rel / "index.html"
+        # .md 页面按原始文件名保存，其余按目录 index.html
+        if route.endswith(".md"):
+            dest = MIRROR / rel.lstrip("/")
+        else:
+            dest = MIRROR / rel / "index.html"
         success = fetch(url, dest)
         if success:
             t = dest.read_text(encoding="utf-8", errors="replace")
-            # VitePress 每页的内容 chunk：/deepseek-harness/assets/xxx.md.<hash>.lean.js
+            # VitePress 每页的内容 chunk
             for c in re.findall(r'(' + PREFIX + r'/assets/[^"\']+\.lean\.js)', t):
                 page_chunks.add(c)
+            # 递归发现站内链接（排除 assets / 锚点 / query）
+            for h in re.findall(r'href="(' + PREFIX + r'/[^"#?]+)"', t):
+                if "/assets/" in h or re.search(r'\.(svg|png|jpg|ico|woff2?|css|js)$', h):
+                    continue
+                r = h[len(PREFIX):]
+                if r not in routes and r not in discovered:
+                    discovered.add(r)
         return success, route
 
-    ok = 0
-    with ThreadPoolExecutor(8) as ex:
-        for f in as_completed([ex.submit(dl_page, r) for r in routes]):
-            success, r = f.result()
-            ok += success
-    print(f"pages downloaded: {ok}/{len(routes)}")
+    done = set()
+    todo = list(routes)
+    total_ok = 0
+    round_no = 0
+    while todo:
+        round_no += 1
+        batch = [r for r in todo if r not in done]
+        if not batch:
+            break
+        with ThreadPoolExecutor(8) as ex:
+            for f in as_completed([ex.submit(dl_page, r) for r in batch]):
+                success, r = f.result()
+                total_ok += success
+                done.add(r)
+        new = [r for r in sorted(discovered) if r not in done]
+        print(f"  round {round_no}: attempted {len(batch)}, total ok {total_ok}, discovered {len(new)} new")
+        todo = new
+    print(f"pages downloaded: {total_ok}/{len(done)}")
 
     # 下载每页的内容 chunk（SPA 路由必需）
     print(f"page chunks: {len(page_chunks)}")
