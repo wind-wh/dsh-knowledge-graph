@@ -6,7 +6,10 @@ function setProgress(p, label){
   const pct = document.getElementById('ldpct');
   if(pct) pct.textContent = Math.round(p) + '%';
   const st = document.getElementById('ldstage');
-  if(st && label) st.textContent = label;
+  if(st && label && st.textContent !== label){
+    st.style.opacity = '0';
+    setTimeout(()=>{ st.textContent = label; st.style.opacity = '1'; }, 140);
+  }
 }
 let loaderDone = false;
 function finishLoader(){
@@ -14,7 +17,9 @@ function finishLoader(){
   loaderDone = true;
   setProgress(100, '就绪');
   const l = document.getElementById('loader');
-  if(l){ l.classList.add('off'); setTimeout(()=>l.remove(), 400); }
+  if(l){
+    setTimeout(()=>{ l.classList.add('off'); setTimeout(()=>l.remove(), 420); }, 260); // 让 100% 动画走完
+  }
 }
 // ================= 视图与绘制 =================
 let inited = false;
