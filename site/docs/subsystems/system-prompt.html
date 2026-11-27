@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>系统提示词组装 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#组装上下文">组装上下文</a><a class="t2" href="#工具提供方结果">工具提供方结果</a><a class="t2" href="#提示词段落">提示词段落</a><a class="t2" href="#动态提示词上下文">动态提示词上下文</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.systemPrompt-—-SystemPrompt">ctx.systemPrompt — SystemPrompt</a><a class="t3" href="#system-prompt/-events">system-prompt/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 系统提示词组装</div>
+    <h1>系统提示词组装</h1>
+    <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/system-prompt.md</div>
+    <div class="body"><h1 id="系统提示词组装">系统提示词组装</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/system-prompt.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt">system-prompt 包</a>负责管理提示词贡献者与一次组装调用之间交换的数据。该包的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">README</a> 记录注册、排序、作用域与渲染行为；本页记录各插件实现或传递的确切跨包类型。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a>。</p>
+<h2 id="组装上下文">组装上下文</h2>
+<p><code>AssembleContext</code> 标识一次组装的作用域及可选接收 Session。传入 Session 时，组装结果的 <code>systemUpdates()</code> 在调用时将捕获的段与该 Session 的已提交状态比较；未传入时，它不返回写入。该上下文可合并扩展：<code>dsh-agent</code> 添加可选字段 <code>agent</code> 和 <code>modelSelection</code>。<code>assembleContextFor(agent, signal)</code> 提供 agent、Session、作用域与信号；循环添加重试期间保留的模型选择，省略推理强度时使用适配器默认值。</p>
+<pre><code>/** Merge-extensible context for one prompt assembly. */
+interface AssembleContext {
+  /** Session receiving system updates; omission produces a registry-only presentation. */
+  session?: Session
+  /**
+   * Scope whose providers and waterfall listeners participate. When absent,
+   * only global providers and subject-less listeners participate.
+   */
+  scope?: ScopeKey
+  /** Explicit control signal for the turn that requested this assembly, when any. */
+  signal?: AbortSignal
+}</code></pre>
+<p><code>TOOL_APPLY_PATCH</code> 的顺序为 1350，位于 <code>TOOL_EDIT</code>（1300）与 <code>TOOL_GLOB</code>（1400）之间。</p>
+<h2 id="工具提供方结果">工具提供方结果</h2>
+<p><code>ToolProviderResult.schemas</code> 是当前组装中对模型可见的工具 schema 集合。<code>knownNames</code> 是提供方在限制前的名称全集，用于区分「配置名拼写错误」与「已知工具在此作用域中被有意隐藏」。</p>
+<pre><code>/** Tool schemas visible in one assembly and their pre-restriction name set. */
+interface ToolProviderResult {
+  /** The schemas this provider contributes to THIS assembly. */
+  readonly schemas: readonly ToolSchema[]
+  /** The pre-restriction name universe for config validation (defaults to `schemas`&#x27; names). */
+  readonly knownNames?: readonly string[]
+}</code></pre>
+<h2 id="提示词段落">提示词段落</h2>
+<p>导出的 <code>PERSONA_PREFIX_SECTION</code>（<code>deployment:persona-prefix</code>）与 <code>PERSONA_SUFFIX_SECTION</code>（<code>deployment:persona-suffix</code>）为普通段命名，其部署默认值由系统服务注册。插件通过 <code>section()</code> 覆盖任一名称；前缀注册可携带完整模式。它们对应的 <code>PromptSectionOrderName</code> 项为 <code>DEPLOYMENT_PERSONA_PREFIX</code> 与 <code>DEPLOYMENT_PERSONA_SUFFIX</code>；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">包 README</a> 规定位置与模板配置。</p>
+<p><code>PromptSection</code> 注册文本以及可选的替换和退役通知。同名来源由最近作用域覆盖；同一作用域内，最后一个活跃注册生效。<code>AssembledSection</code> 在已求值文本之外保留 <code>name</code> 与 <code>order</code>；<code>PromptAssembly</code> 在 waterfall 的 <code>PromptPresentation</code> 上添加提供方拥有的工具和 <code>systemUpdates()</code>。返回的每个 <code>SystemUpdate</code> 包含一条系统消息及其 surface 意图：普通增量为追加，重建则先清空后续系统节点，再以一份完整提示词替换头节点。比较使用捕获的来源状态与调用时该 Session 的已提交文本。Cordis 清理移除一个注册；组装只为已提交且不再有可见注册的名称选择退役。提交退役后，该名称从最新投影移除。压缩后，下一次模型尝试根据捕获的来源提交完整重置，作为后续比较的基线。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">包 README</a> 规定时序、纯段内容块元数据与重建语义。</p>
+<pre><code>/** One contributed section of the system prompt (registry input). */
+interface PromptSection {
+  /** Logical source name; the nearest scope and latest registration in that scope win. */
+  readonly name: string
+  /**
+   * Sections are concatenated in ascending order. Equal orders use code-unit
+   * name order.
+   */
+  readonly order: number
+  /**
+   * Static text or a provider evaluated with that assembly&#x27;s {@link AssembleContext}
+   * only while this registration is effective. The text may reference `{{variable}}`s — they are
+   * interpolated later unless `interpolate` is false, then trimmed before rendering
+   * and admission. Interior whitespace is preserved.
+   */
+  readonly text: string | ((context: AssembleContext) =&gt; string)
+  /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
+  readonly interpolate?: boolean
+  /**
+   * Treat this contribution as the complete system prompt. Assembly still
+   * runs the cooperative waterfall so tools, contexts, and variables can be
+   * resolved, then restores this exact section as the sole prompt section.
+   * Admission appends prospective supersession notices on entry, changes,
+   * and exit; earlier messages retain their positions until compaction.
+   * More than one effective complete section makes assembly fail.
+   */
+  readonly complete?: boolean
+  /** Optional trimmed notice before changed text; blank text suppresses this notice. */
+  readonly replacement?: string
+  /**
+   * Literal notice, nonempty after trimming, sent when no visible registration remains
+   * to Sessions that previously admitted this name. The last disposed definition captured
+   * by the Session supplies the notice; omission uses a notice naming the section.
+   * A remaining or newly registered definition is compared as ordinary source text.
+   */
+  readonly retirement?: string
+}</code></pre>
+<h2 id="动态提示词上下文">动态提示词上下文</h2>
+<p><code>PromptContext</code> 是与 <code>PromptSection</code> 对应的缓存安全结构。组装会解析这些贡献并排序；agent loop（智能体循环）仅在完整当前快照发生变化或被压缩（compaction）移除时，才会将其记录在保留的模型历史之后。</p>
+<pre><code>/** Dynamic model context materialized as a durable user-role snapshot. */
+interface PromptContext {
+  /** Unique name — a duplicate registration throws (see {@link SystemPrompt.context}). */
+  readonly name: string
+  /** Contexts are joined in ascending order. */
+  readonly order: number
+  /** Static text or a provider evaluated at assembly and admission refresh. Empty text contributes nothing. */
+  readonly text: string | ((context: AssembleContext) =&gt; string)
+  /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
+  readonly interpolate?: boolean
+  /** Keep this operational context when optional runtime context is disabled. */
+  readonly required?: boolean
+}</code></pre>
+<p><code>required: true</code> 在可选运行时上下文被抑制时保留操作所需的贡献。<code>interpolate: false</code> 原样保留文本，包括看起来像变量的目录名。<code>AssembledContext</code> 将已求值文本及其插值选择传给渲染过程。</p>
+<pre><code>/** One resolved dynamic context contribution. */
+interface AssembledContext {
+  /** The contributing context&#x27;s unique name. */
+  name: string
+  /** The resolved text before variable interpolation. */
+  text: string
+  /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
+  interpolate?: boolean
+}</code></pre>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsystemprompt--systemprompt" class="anch"></a></p>
+<h3 id="ctx.systemPrompt-—-SystemPrompt"><span id="ctxsystemprompt--systemprompt" class="anch"></span><code>ctx.systemPrompt</code> — <code>SystemPrompt</code></h3>
+<p>Registry service for the prompt inputs assembled before each model step.</p>
+<pre><code>/**
+ * Register a section; the nearest scope wins, then the latest registration
+ * within that scope. Disposal reveals the next live definition. Retirement
+ * is admitted only after no registration remains in the visible scope chain.
+ * @param section - definition, canonical order and optional transition notices.
+ * @returns the exact Cordis disposer; retirement is observed at later assembly.
+ */
+section(section: PromptSection): () =&gt; void
+
+/**
+ * Resolve the centrally owned placement of a repository prompt section.
+ * @param name - stable section placement name.
+ * @returns the section&#x27;s numeric sort order.
+ */
+getSectionOrder(name: PromptSectionOrderName): number
+
+/**
+ * Resolve the centrally owned placement of a repository runtime context.
+ * @param name - stable context placement name.
+ * @returns the context&#x27;s numeric sort order.
+ */
+getContextOrder(name: PromptContextOrderName): number
+
+/**
+ * Register ordered dynamic context in the calling context&#x27;s scope. Scoped
+ * entries shadow global entries with the same name.
+ * @param context - the context contribution to register.
+ * @returns the exact Cordis effect disposer.
+ */
+context(context: PromptContext): () =&gt; void
+
+/**
+ * Suppress optional dynamic runtime-context contributions in the calling
+ * context&#x27;s scope without changing the services that own or enforce those
+ * facts. Multiple suppressors remain independently disposable.
+ * @returns the exact Cordis effect disposer.
+ */
+suppressRuntimeContext(): () =&gt; void
+
+/**
+ * Register a tool-schema provider in the calling context&#x27;s scope. Global and
+ * matching scoped providers both contribute; returning the reserved
+ * {@link TOOL_ORDER_REST} name makes assembly fail.
+ * @param provider - evaluated for each assembly with its context.
+ * @returns the exact Cordis effect disposer.
+ */
+tools(provider: (context: AssembleContext) =&gt; ToolProviderResult): () =&gt; void
+
+/**
+ * Register a prompt variable in the calling context&#x27;s scope. Scoped values
+ * shadow globals; invalid or duplicate names throw. A provider may return
+ * `undefined`, but rendering a section that references that value then fails.
+ * @param name - the `[a-z][a-z0-9_]*` reference name.
+ * @param provider - evaluated for each assembly.
+ * @returns the exact Cordis effect disposer.
+ */
+variable(name: string, provider: (context: AssembleContext) =&gt; string | undefined): () =&gt; void
+
+/**
+ * Refresh accepted registered runtime facts for request admission. Contexts
+ * added only by the assembly waterfall retain their accepted values. Current
+ * suppression removes optional contexts, and missing required registrations
+ * are restored in registry order. Sections, tools, and interpolation variables
+ * retain the accepted assembly; their providers and waterfall do not rerun.
+ * @param assembly - accepted assembly for this scope and step.
+ * @param context - the same scope and current plugin-defined assembly fields.
+ * @returns the accepted assembly with current runtime-context provider text.
+ */
+refreshContext(assembly: PromptAssembly, context: AssembleContext = {}): PromptAssembly
+
+/**
+ * Assemble global and scoped providers, detach tool parameters, apply
+ * canonical ordering, then run the presentation waterfall. Scoped variables
+ * shadow globals; section IDs have one effective owner. The waterfall&#x27;s text is authoritative except
+ * that an effective complete section is restored afterwards as the sole
+ * prompt section; tool declarations stay provider-owned. Section text and
+ * lifecycle are fixed here; `systemUpdates()` compares them with committed state later.
+ * @param context - the optional scope, step tool set, and plugin-defined assembly fields.
+ * @returns the post-waterfall presentation and the system updates for the supplied Session.
+ */
+async assemble(context: AssembleContext = {}): Promise&lt;PromptAssembly&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p><a id="system-prompt-events" class="anch"></a></p>
+<h3 id="system-prompt/-events"><span id="system-prompt-events" class="anch"></span><code>system-prompt/*</code> events</h3>
+<p><a id="system-promptassemble--waterfall" class="anch"></a></p>
+<h4 id="system-prompt/assemble-—-waterfall"><code>system-prompt/assemble</code> — waterfall</h4>
+<p>Presentation waterfall over assembled sections, contexts, and variables. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): scoped listeners receive only that scope's assemblies. Returned section text determines updates; omitting a previously admitted section leaves its instructions unchanged. Empty text withdraws its instructions; registration disposal retires it. Tool declarations remain provider-owned. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot add to or replace that scope's system prompt.</p>
+<pre><code>/**
+ * Presentation waterfall over assembled sections, contexts, and variables.
+ * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners
+ * receive only that scope&#x27;s assemblies. Returned section text determines updates;
+ * omitting a previously admitted section leaves its instructions unchanged.
+ * Empty text withdraws its instructions; registration disposal retires it.
+ * Tool declarations remain provider-owned.
+ * A supplied signal controls only this explicit assembly request and must not
+ * be retained to control later turns. A registered complete section is
+ * restored after this waterfall, so listeners cannot add to or replace
+ * that scope&#x27;s system prompt.
+ * @param assembly - the mutable assembly built from registered providers.
+ * @param context - the caller&#x27;s per-assembly context.
+ * @mode waterfall
+ */
+&#x27;system-prompt/assemble&#x27;(this: Scoped&lt;SystemPrompt&gt;, assembly: PromptPresentation, context: AssembleContext, next: () =&gt; Promise&lt;PromptPresentation&gt;): Promise&lt;PromptPresentation&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p><a id="system-promptchange--emit" class="anch"></a></p>
+<h4 id="system-prompt/change-—-emit"><code>system-prompt/change</code> — emit</h4>
+<p>Emitted when any prompt provider changes. This registry notification is unfiltered because a global change affects every scope.</p>
+<pre><code>/**
+ * Emitted when any prompt provider changes. This registry notification is
+ * unfiltered because a global change affects every scope.
+ * @mode emit
+ */
+&#x27;system-prompt/change&#x27;(): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/system-prompt">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用户交互 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#问题选项">问题选项</a><a class="t2" href="#呈现意图">呈现意图</a><a class="t2" href="#问题条目">问题条目</a><a class="t2" href="#提问请求">提问请求</a><a class="t2" href="#回答">回答</a><a class="t2" href="#计时问题与迟到回复">计时问题与迟到回复</a><a class="t2" href="#错误">错误</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.userQuestions-—-UserQuestionService">ctx.userQuestions — UserQuestionService</a><a class="t3" href="#user-questions/-events">user-questions/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 用户交互</div>
+    <h1>用户交互</h1>
+    <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/user-questions.md</div>
+    <div class="body"><h1 id="用户交互">用户交互</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/user-questions.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions">dsh-user-questions</a> 的用户交互 seam。它是工具或权限插件需要人类回答后 agent（智能体）才能继续时所使用的、提供方无关的词汇。Agent-scoped waterfall listener 组合可用的 UI 界面，其中包括转发到已连接 client 的 listener。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
+<h2 id="问题选项">问题选项</h2>
+<p><code>AskUserQuestionOption</code> 包含一个可供选择的选项。<code>label</code> 是面向用户的选项文字，同时也是面向模型的选中值；<code>description</code> 是可选的 UI 帮助文本。</p>
+<pre><code>/** One selectable answer offered to the user. */
+interface AskUserQuestionOption {
+  /** User-facing label. */
+  label: string
+  /** Optional extra context rendered by capable UIs. */
+  description?: string
+}</code></pre>
+<h2 id="呈现意图">呈现意图</h2>
+<p><code>AskUserQuestionIntent</code> 改变呈现方式，保留选项标签和调用方的决策规则。<code>plan-review</code> 指定批准选项，并要求提供计划正文。<code>approval</code> 要求只有一个阻塞式问题，带有说明以及互不相同的拒绝、允许和可选的始终允许标签，完整对应已提供的选项，不支持多选或计时等待。CUA 前端通过现有 composer 呈现自己的固定审批；普通问答和计划审阅继续使用原有呈现。</p>
+<pre><code>/**
+ * A caller-declared presentation intent: the question IS this kind of
+ * decision, so a UI that recognises the tag may present it as such instead of as a
+ * generic option list. Tagged so further intents can be added; a UI that does
+ * not know a tag renders the generic flow, and the answer encoding is identical
+ * either way — an intent changes presentation only, never the protocol.
+ */
+type AskUserQuestionIntent = {
+  /** A plan submitted for review: `detail` is the plan markdown `ask()` requires, and the decision approves or declines it. */
+  kind: &#x27;plan-review&#x27;
+  /**
+   * The option label that approves the plan; every other option declines it.
+   * Named rather than positional so no UI infers the verdict from option order.
+   * An `approve` naming no option of its own question is rejected at `ask()`.
+   */
+  approve: string
+  /** Logged tool invocation whose arguments contain the reviewed plan. */
+  callId?: ToolCallId
+} | {
+  /** A blocking permission decision with fixed actions and no free-text answer. */
+  kind: &#x27;approval&#x27;
+  /** Option label granting the scope described by the caller. */
+  approve: string
+  /** Option label refusing the requested access. */
+  reject: string
+  /** Optional persistent grant offered only when the caller supports it. */
+  always?: string
+  /** Metadata for human recognition; the caller admits icon sources, which the UI may load as URLs. Never an authorization identity. */
+  subject?: { name: string; icon?: string }
+  /** Localized question and limited-grant label; fixed cards own reject/always wording. Option labels remain answer values. */
+  display?: {
+    question: { en: string; [locale: string]: string }
+    detail?: { en: string; [locale: string]: string }
+    approve?: { en: string; [locale: string]: string }
+  }
+}</code></pre>
+<h2 id="问题条目">问题条目</h2>
+<p><code>AskUserQuestionItem</code> 是请求中的一个问题。调用方提供稳定的 <code>id</code>，它会随答案原样返回，使批量问题仍可路由。可选的 <code>detail</code> 携带辅助文本；提供方会将其随问题渲染，但不会放入可选选项标签。</p>
+<pre><code>/** One question in a user-questions request. */
+interface AskUserQuestionItem {
+  /** Stable caller-provided question id, echoed in the answer. */
+  id: string
+  /** The question to display. */
+  question: string
+  /** Optional supporting detail rendered with the question but kept out of option labels. */
+  detail?: string
+  /** Optional short heading/group label. */
+  header?: string
+  /** Optional choices the UI can render as a menu. */
+  options?: AskUserQuestionOption[]
+  /** Whether more than one option may be selected. Defaults to single-select. */
+  multiSelect?: boolean
+  /** Optional presentation intent for capable UIs; absent asks for the generic option list. */
+  intent?: AskUserQuestionIntent
+}</code></pre>
+<h2 id="提问请求">提问请求</h2>
+<p><code>AskUserQuestionRequest</code> 是跨包请求。<code>questions</code> 是数组，这样 UI 可以在一个流程中呈现相关提示，同时保持每个回答有稳定的 id。如提供 <code>agent</code>，它必须与存活调用方是同一实例；只有当当前注册表将该实例识别为运行时根时，交互 seam 才会接纳该 agent。</p>
+<pre><code>/** Request for a human answer. */
+interface AskUserQuestionRequest extends AskUserQuestionRequestEvent {}</code></pre>
+<h2 id="回答">回答</h2>
+<p>提供方为每个问题 id 返回一个回答项。<code>selected</code> 包含选中的选项标签，<code>custom</code> 在用户输入自由文本时携带「其他」回答。对于单选题，<code>custom</code> 会覆盖选中的选项，且 <code>selected</code> 为空。对于多选题，<code>custom</code> 可以补充 <code>selected</code> 中的标签。UI 也可以使用 <code>selected</code> 为空且不含 <code>custom</code> 的回答项，在其余问题均已完成的批次中保留被跳过的问题。</p>
+<pre><code>/** Answer to one question. */
+interface AskUserQuestionAnswerItem {
+  /** The answered question id. */
+  id: string
+  /** Selected option labels. May accompany custom text for a multi-select question. */
+  selected: string[]
+  /** Optional free-text &quot;Other&quot; answer. */
+  custom?: string
+}</code></pre>
+<pre><code>/** The human&#x27;s answer. */
+interface AskUserQuestionAnswer {
+  /** Structured answers keyed by question id. */
+  answers: AskUserQuestionAnswerItem[]
+}</code></pre>
+<p>计时回答器收到 <code>wait: { callId, timed: true }</code>。调用 id 标识卡片及前台等待。Client 调用 <code>attachWait</code> 接手等待并取得剩余时长；传输层转发原事件，不检查或改写这些字段。不带 <code>timed</code> 的 <code>wait</code> 表示无限期等待的具名卡片请求；没有 <code>wait</code> 则表示不带卡片 key 的阻塞请求。</p>
+<pre><code>/** Client-safe payload declared for the user-question answerer waterfall. */
+interface AskUserQuestionRequestEvent {
+  /** Questions to display. */
+  questions: AskUserQuestionItem[]
+  /** Agent identity projected to the corresponding Client Context in transit. */
+  agent?: Agent
+  /** Cancellation lifetime of the pending request. */
+  signal?: AbortSignal
+  /**
+   * Tool call the Client card is keyed by. Timed answerers attach to the
+   * business wait stream before starting their local countdown.
+   */
+  wait?: {
+    /** Tool call the Client card is keyed by. */
+    callId: ToolCallId
+    /** True for a foreground wait that requires a Client claim; absent for indefinite waits. */
+    timed?: boolean
+  }
+}</code></pre>
+<h2 id="计时问题与迟到回复">计时问题与迟到回复</h2>
+<p>计时问题在有界的前台窗口内等待，然后让 agent 继续独立工作。用户在窗口内回答，工具返回整批答案；否则 <code>TimedUserQuestionResult</code> 为 <code>{ pending: true, callId }</code>。pending 表示问题仍可回答，不是空答案、拒绝、确认或授权。</p>
+<pre><code>/** Timed ask result returned when the foreground answer window closes. */
+type TimedUserQuestionResult = AskUserQuestionAnswer | { pending: true; callId: ToolCallId }</code></pre>
+<p>Client 接手通过业务 Remote stream 表达，不等同于 Gateway 投递。<code>TimedQuestionWait</code> 保存原 Host deadline，仅在没有接手记录时运行计时器。<code>attachWait</code> stream 发出当前剩余时长，Client 用本地时钟倒计时。聚焦、编辑和「慢慢回答」状态仍归本地所有。stream 取消释放相应接手记录；最后一个接手方离开后，Host 恢复原 deadline。无人接手时超时中止前台 waterfall 专属的 signal 并返回 pending，不取消 Turn。Gateway 与 <code>api-remotes</code> 不包含问答专属计时策略。</p>
+<p><code>userQuestions</code> Session 投影把现有事件折叠成可回答的问题集合与已结算的集合；不记录任何等待状态、聚焦状态或 deadline。每个 <code>request/header</code> 都记录了模型看到的确切工具 schema。只有请求头声明了带 <code>timeout</code> 参数的 timed <code>ask_user_question</code> schema，投影才跟踪原生调用；阻塞式 legacy 工具从不声明它。原生 <code>tool/call</code> 打开一个问题。<code>tool/result</code> 只在两种情况下把它标为 <code>continued</code>：带 pending 载荷，或是 Session resume 修复补写的 <code>TOOL_OUTCOME_UNKNOWN</code> 合成结果；回答批次把它连同该批次移入 <code>settled</code>，其他结果或失败都丢弃它。<code>run_code</code> 的 PTC 子调用若在 <code>tool/ptc-dispatch</code> 结果中返回 pending，也会进入投影，尽管请求头只列出 <code>run_code</code>。迟到回复在消息获准成为 <code>user/message</code> 时，才把已继续的问题连同消息中的回答批次移入 <code>settled</code>：计时调用自己的结果记录的是超时，transcript 行无处可读用户最终的选择。排队的回复可在准入前取消，此时问题仍可回答。回复正文不含可读批次时，该调用以零答案结算；回复指向的调用已不在可回答集合中时不改变任何内容。</p>
+<pre><code>/** `open` while the tool call may still return the answer; `continued` once the answer can only arrive as a new turn. */
+type UserQuestionState = &#x27;open&#x27; | &#x27;continued&#x27;</code></pre>
+<pre><code>/** One unanswered timed `ask_user_question` call reconstructed from the Session log. */
+interface PendingUserQuestion {
+  readonly callId: ToolCallId
+  readonly questions: readonly AskUserQuestionItem[]
+  readonly state: UserQuestionState
+}</code></pre>
+<pre><code>/**
+ * One timed `ask_user_question` call and the answers it settled with: the
+ * batch its own result carried when the user answered inside the window,
+ * otherwise the batch its late reply carried, because that call&#x27;s own result
+ * recorded the timeout. A transcript row reads what the user finally answered
+ * from here, and only a call listed here was a timed one.
+ */
+interface SettledUserQuestion {
+  /** The settled call. */
+  readonly callId: ToolCallId
+  /** The recorded batch, one entry per question; empty when the late reply carried none. */
+  readonly answers: readonly AskUserQuestionAnswerItem[]
+}</code></pre>
+<pre><code>/**
+ * Both halves of one Session&#x27;s timed `ask_user_question` state, as every
+ * Client reads them. A call made while the blocking legacy tool was in
+ * effect appears in neither half.
+ */
+interface UserQuestionProjectionView {
+  /** Calls that can still take an answer, in ask order. */
+  readonly active: readonly PendingUserQuestion[]
+  /** Calls an answer settled, in settlement order. */
+  readonly settled: readonly SettledUserQuestion[]
+}</code></pre>
+<p>开放中的问题只能通过 waterfall 回答。问题变为 <code>continued</code> 后，<code>answer</code> Remote 方法向所属 agent 排入一条用户消息，并在其空闲时唤醒它。消息的 source 为 <code>user-question-reply</code>，outcome 为 <code>answered</code>，正文是 <code>answer_to_pending_question</code> 载荷。开放或未知调用返回 <code>false</code>；回复仍在排队时的第二次提交以 <code>REPLY_QUEUED</code> 拒绝，Host 重启后也一样；遗漏或重复问题的回答批次以 <code>BAD_ANSWER</code> 拒绝。</p>
+<p>收起 Client 面板不会发送内容。前台超时只结束工具等待。已继续的问题没有期限；在回复进入会话前，问题仍可回答。</p>
+<p>Host 重启后，Session 重开时 Remote 层会恢复根 agent。之后的迟到回复会作为新一轮进入。</p>
+<h2 id="错误">错误</h2>
+<p><code>UserQuestionError</code> 继承 <code>HarnessError</code>，因此 <code>ctx.tools.execute()</code> 会保留 <code>{ name, code }</code>，用于面向模型的工具失败，如 <code>EMPTY_QUESTIONS</code>、<code>BAD_INTENT</code>、<code>NO_PROVIDER</code>、<code>ASK_ABORTED</code> 或 UI 侧取消。不是 <code>HarnessError</code> 的应答方失败会变为 <code>PROVIDER_ERROR</code>，保留原 message，原错误作为 <code>cause</code>；其他 <code>HarnessError</code> 保留自身的 <code>name</code> 与 <code>code</code>。</p>
+<pre><code>/** Stable error taxonomy for user-questions failures. */
+class UserQuestionError extends HarnessError {
+  constructor(message: string, code: string, options?: ErrorOptions) {
+    super(message, code, options)
+    this.name = &#x27;UserQuestionError&#x27;
+  }
+}</code></pre>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxuserquestions--userquestionservice" class="anch"></a></p>
+<h3 id="ctx.userQuestions-—-UserQuestionService"><span id="ctxuserquestions--userquestionservice" class="anch"></span><code>ctx.userQuestions</code> — <code>UserQuestionService</code></h3>
+<p><code>ctx.userQuestions</code>: validation plus the scoped answerer waterfall.</p>
+<pre><code>/**
+ * Answer a continued question. The reply is steered into the agent as a
+ * user message whose source names the call; that message is also the
+ * record that closes the question in the projection.
+ *
+ * The only call this method can answer is one the projection lists as
+ * `continued` on this Session, and it steers a user message into the running
+ * turn, so it speaks for the person the Session runs for. A LiveShare reader
+ * reaches it through the Session read role, which is safe only while an
+ * approval question cannot become `continued`: the projection tracks only
+ * calls made under the timed `ask_user_question` schema, and a call becomes
+ * `continued` only by returning the pending result a timed wait produces (or,
+ * for PTC, a pending dispatch) or by resume repair recording
+ * `TOOL_OUTCOME_UNKNOWN` for a call the process never finished. Plan review
+ * (`plan-review`) and the CUA approvals (`approval`) reach `ctx.userQuestions.ask`
+ * without a `wait` and without a `timeout`, so their result is a settled
+ * answer, an abort, or a failure, never a pending result, and they stay out
+ * of the projection. A future approval surface must keep asking without
+ * `wait`/`timeout`, or it must gain its own owner-only gate; giving it a timed
+ * form makes an approval answerable by a share viewer.
+ * @param agent - Live root agent for the owning Session.
+ * @param callId - Continued question identity.
+ * @param answer - Complete structured answer batch, one item per question of the call.
+ * @returns Whether the question is still continued (`false` when this Session
+ *   lists no such continued call, or its composition carries no Session
+ *   projections); an accepted reply stays queued until the agent admits its
+ *   user message.
+ * @throws {UserQuestionError} `BAD_ANSWER` when the batch does not name each
+ *   question of the call exactly once, or `REPLY_QUEUED` when a reply is
+ *   already waiting for admission.
+ */
+@Remote answer(agent: Agent, callId: ToolCallId, answer: AskUserQuestionAnswer): boolean
+
+/**
+ * Let one answer UI hold a live timed wait. Closing the stream releases its claim.
+ * @param agent - Live root agent owning the question.
+ * @param callId - Foreground tool call to attach to.
+ * @param signal - Remote stream cancellation, including Client disconnect.
+ * @returns One Host-computed remaining duration, or no frames once the wait ended.
+ */
+@Remote({ mode: &#x27;stream&#x27; }) async *attachWait(agent: Agent, callId: ToolCallId, signal: AbortSignal): AsyncIterable&lt;{ remainingMs: number }&gt;
+
+/**
+ * Foreground wait whose first settlement the Client decides: the Client
+ * rejects with `ASK_TIMED_OUT` when its countdown ends, and this method maps
+ * that code to the pending result.
+ * @param request - Questions, live owner agent, and abort signal.
+ * @param callId - Tool call identity the Client card is keyed by.
+ * @param timeoutMs - Positive foreground wait in milliseconds.
+ * @returns The answer when it arrives inside the window, otherwise a pending
+ *   result, also when no connected Client claimed the request by the deadline.
+ * @throws {UserQuestionError} `BAD_TIMEOUT` for a non-integer, non-positive,
+ *   or oversized wait.
+ */
+async askTimed( request: AskUserQuestionRequest &amp; { agent: Agent }, callId: ToolCallId, timeoutMs: number, ): Promise&lt;TimedUserQuestionResult&gt;
+
+/**
+ * Ask the scoped answerer waterfall and wait for the user&#x27;s answer.
+ *
+ * When a caller supplies an agent, human interaction is valid only for the
+ * exact live instance of an ordinary Session. Explicit subagent origin
+ * rejects delegated callers; historical ordinary forks may retain parent
+ * metadata and still ask normally.
+ *
+ * @param request Questions, owner agent, and abort signal.
+ * @returns The answer chosen or typed by the human.
+ * @throws {UserQuestionError} code `ASK_ABORTED` when the supplied signal
+ *   is already or becomes aborted, `CALLER_NOT_LIVE` when a supplied agent
+ *   is not the registry&#x27;s exact live instance, `DELEGATED_CALLER` when
+ *   that live agent has subagent origin, or `PROVIDER_ERROR`, keeping the
+ *   original message, when an answerer fails with a value that is not a
+ *   `HarnessError`; a coded `HarnessError` from an answerer keeps its `name`
+ *   and `code`.
+ */
+async ask(request: AskUserQuestionRequest): Promise&lt;AskUserQuestionAnswer&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">ToolCallId</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
+<p><a id="user-questions-events" class="anch"></a></p>
+<h3 id="user-questions/-events"><span id="user-questions-events" class="anch"></span><code>user-questions/*</code> events</h3>
+<p><a id="user-questionsrequest--waterfall" class="anch"></a></p>
+<h4 id="user-questions/request-—-waterfall"><code>user-questions/request</code> — waterfall</h4>
+<p>Ask composed answerers for structured user input. Return an answer to claim the request or call <code>next()</code> to delegate. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only that agent.</p>
+<pre><code>/**
+ * Ask composed answerers for structured user input. Return an answer to
+ * claim the request or call `next()` to delegate. Scope-filtered dispatch
+ * (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent.
+ * @param request - pending user-question request.
+ * @mode waterfall
+ */
+&#x27;user-questions/request&#x27;( this: Scoped&lt;Agent&gt;, request: AskUserQuestionRequestEvent, next: () =&gt; Promise&lt;AskUserQuestionAnswer&gt;, ): Promise&lt;AskUserQuestionAnswer&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/types.ts"><code>packages/interaction/user-questions/src/types.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/user-questions">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

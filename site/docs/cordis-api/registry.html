@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>注册表 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t3" href="#ctx.injectdeps,-callback">ctx.inject(deps, callback)</a><a class="t3" href="#ctx.pluginplugin,-...args">ctx.plugin(plugin, ...args)</a><a class="t2" href="#Plugin">Plugin</a><a class="t2" href="#Inject">Inject</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 注册表</div>
+    <h1>注册表</h1>
+    <div class="meta">分组：Cordis API · 本地副本：.ua/docs-local/cordis-api/registry.md</div>
+    <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-cordis-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
+<p>     更新时先运行 <code>pnpm run gen-cordis-catalog</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/cordis-api/registry.md</code> 重新记录配对。 --&gt;</p>
+<h1 id="注册表">注册表</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/registry.md">English</a> | 中文</p>
+<p>插件加载与依赖注入。</p>
+<h3 id="ctx.injectdeps,-callback">ctx.inject(deps, callback)</h3>
+<pre><code>/**
+ * Run a callback once the requested services are available.
+ *
+ * Shorthand for `ctx.plugin({ inject, apply: callback })`: the callback
+ * is unloaded and re-run whenever a required service changes.
+ *
+ * @param deps — required services, as an array or a name → config map.
+ * @param callback — plugin body called with `(ctx, config)`.
+ * @returns the fiber; awaiting it settles once loading finished.
+ */
+inject(deps: Inject, callback: Plugin.Function&lt;void&gt;): Fiber &amp; PromiseLike&lt;Fiber&gt;</code></pre>
+<p>请求的服务可用后，运行回调。</p>
+<p>这是 <code>ctx.plugin({ inject, apply: callback })</code> 的简写形式：每当某个必需服务发生变化时，系统都会卸载并重新运行该回调。</p>
+<ul>
+<li><code>deps</code>：必需服务，形式可以是数组，也可以是从名称到配置的映射。</li>
+<li><code>callback</code>：以 <code>(ctx, config)</code> 调用的插件主体。</li>
+</ul>
+<p><strong>返回</strong> fiber；对其执行 await 会在加载完成后结束等待。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/registry.ts#L176">源码</a></p>
+<h3 id="ctx.pluginplugin,-...args">ctx.plugin(plugin, ...args)</h3>
+<pre><code>/**
+ * Load a plugin in the current context.
+ *
+ * @param plugin — a function, class, or `{ apply }` object plugin.
+ * @param args — the plugin config, validated against its `Config` schema.
+ * @returns the fiber; awaiting it settles once loading finished
+ * (rejecting on config or startup errors).
+ */
+plugin&lt;P extends Plugin&gt;(plugin: P, ...args: Spread&lt;GetPluginConfig&lt;P&gt;&gt;): Fiber &amp; PromiseLike&lt;Fiber&gt;</code></pre>
+<p>在当前上下文中加载插件。</p>
+<ul>
+<li><code>plugin</code>：函数、类或 <code>{ apply }</code> 对象形式的插件。</li>
+<li><code>args</code>：插件配置，会根据其 <code>Config</code> schema 进行校验。</li>
+</ul>
+<p><strong>返回</strong> fiber；对其执行 await 会在加载完成后结束等待（如果发生配置错误或启动错误，则会被拒绝）。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/registry.ts#L185">源码</a></p>
+<h2 id="Plugin">Plugin</h2>
+<p>支持的插件入口点形式。</p>
+<pre><code>/** Supported plugin entrypoint shapes. */
+type Plugin&lt;T = any&gt; =
+  | Plugin.Function&lt;T&gt;
+  | Plugin.Constructor&lt;T&gt;
+  | Plugin.Object&lt;T&gt;
+
+/** Types associated with plugin entrypoints and runtime records. */
+namespace Plugin {
+  /** Shared metadata understood by the plugin registry and related tooling. */
+  export interface Base&lt;T = any&gt; {
+    /** Display name used for fiber diagnostics and logger names. */
+    name?: string
+    /** Standard-schema validator applied to config before the plugin starts. */
+    Config?: StandardSchemaV1&lt;any, T&gt;
+    /** Services the plugin requires; it only loads while all are available. */
+    inject?: Inject
+    /** Service name(s) the plugin provides (read by `Service` and by loaders). */
+    provide?: string | string[]
+    /** Service names whose intercept config the plugin declares it consumes. */
+    intercept?: Dict&lt;boolean&gt;
+  }
+
+  export interface Transform&lt;S, T&gt; {
+    /** Marks the transform object as a schema/config transform. */
+    schema?: true
+    /** Convert user-facing config to runtime config. */
+    Config: (config: S) =&gt; T
+  }
+
+  /** Function plugin called with `(ctx, config)`. */
+  export interface Function&lt;T = any&gt; extends Base&lt;T&gt; {
+    (ctx: Context, config: T): any
+  }
+
+  /** Class plugin constructed with `(ctx, config)`. */
+  export interface Constructor&lt;T = any&gt; extends Base&lt;T&gt; {
+    new (ctx: Context, config: T): any
+  }
+
+  /** Object plugin with an `apply(ctx, config)` method. */
+  export interface Object&lt;T = any&gt; extends Base&lt;T&gt; {
+    apply(ctx: Context, config: T): any
+  }
+
+  /** Mutable registry record shared by all fibers of one plugin callback. */
+  export interface Runtime {
+    /** Display name copied from the first registered plugin shape. */
+    name?: string
+    /** Every live fiber of this plugin (one per `ctx.plugin()` call). */
+    fibers: DisposableList&lt;Fiber&gt;
+    /** The executable entrypoint all fibers share (registry identity key). */
+    callback: globalThis.Function
+    /** Standard-schema validator applied to each fiber&#x27;s config. */
+    Config?: StandardSchemaV1
+  }
+}</code></pre>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/registry.ts#L92">源码</a></p>
+<h2 id="Inject">Inject</h2>
+<p>插件和 <code>@Inject</code> 装饰器接受的服务依赖声明。</p>
+<p>数组形式请求不带拦截配置的服务。对象形式将每个服务名称映射到插件上下文中可选的拦截配置。</p>
+<pre><code>/**
+ * Service dependency declaration accepted by plugins and the `@Inject`
+ * decorator.
+ *
+ * Array form requests services without intercept config. Object form maps each
+ * service name to optional intercept config for the plugin context.
+ */
+type Inject&lt;M = Dict&gt; = (keyof M)[] | { [K in keyof M]?: M[K] }
+
+/** Utilities for normalizing plugin dependency declarations. */
+namespace Inject {
+  /**
+   * Convert array/object/class-inherited inject metadata into a plain map.
+   *
+   * @param inject — the declaration to normalize; `null`/`undefined` add nothing.
+   * @param result — the map to fill (service name → intercept config or `null`).
+   * @returns `result`.
+   */
+  export function resolve(inject: Inject | null | undefined, result: Dict = Object.create(null))
+}</code></pre>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/registry.ts#L19">源码</a></p></div>
+    <div class="back"><a href="/?focus=reference/cordis-api/registry">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

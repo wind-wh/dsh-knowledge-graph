@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>进程沙箱 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#模式与强制执行">模式与强制执行</a><a class="t2" href="#逐调用策略">逐调用策略</a><a class="t2" href="#包装后的-argv-与分类方言">包装后的 argv 与分类方言</a><a class="t2" href="#提供方与-fail-closed-错误">提供方与 fail-closed 错误</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.sandbox-—-SandboxProvider-abstract-seam">ctx.sandbox — SandboxProvider (abstract seam)</a><a class="t3" href="#ctx.sandboxPolicy-—-SandboxPolicyService">ctx.sandboxPolicy — SandboxPolicyService</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 进程沙箱</div>
+    <h1>进程沙箱</h1>
+    <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/sandbox.md</div>
+    <div class="body"><h1 id="进程沙箱">进程沙箱</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox">dsh-sandbox</a> 的进程沙箱 seam 将与配套子进程提供方共享执行环境的子进程 argv 包装在文件效果策略中，而不将消费方耦合到特定平台运行器。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local">dsh-sandbox-local</a> 提供 Linux bwrap/Landlock、macOS Seatbelt 与 Windows ACL 受限令牌后端；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox">dsh-bash-sandbox</a> 和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/pwsh-sandbox">dsh-pwsh-sandbox</a> 是其消费方。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/sandbox-ssh/README.zh.md">dsh-sandbox-ssh</a> 通过与 SSH 文件系统及子进程提供方配套的远端后端执行同一策略。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
+<h2 id="模式与强制执行">模式与强制执行</h2>
+<p><code>SandboxMode</code> 仅管控文件系统效果。<code>read-only</code> 要求后端拒绝写入——POSIX runner 还会授予其 shell 所需的 <code>/dev/null</code> 接收器，而 Windows ACL runner 不授予任何显式可写根目录，并因环境 ACL 缺口报告部分强制执行；<code>workspace-write</code> 允许在工作区根目录、受支持的额外目录及后端承诺的临时区域下写入；<code>danger-full-access</code> 绕过隔离。Windows 子进程忽略额外目录授权；Harness 文件工具独立执行这些授权。网络与进程可见性不在此处的定义范围内。</p>
+<pre><code>/**
+ * File-effect policy for confined processes. `read-only` permits only required
+ * sinks such as `/dev/null`; `workspace-write` also permits the workspace,
+ * explicit extra roots where supported, and backend-defined temp areas; `danger-full-access` bypasses confinement. Network
+ * and process visibility are outside this vocabulary.
+ */
+type SandboxMode = &#x27;read-only&#x27; | &#x27;workspace-write&#x27; | &#x27;danger-full-access&#x27;</code></pre>
+<p>只有前两种模式可以发送给提供方。<code>danger-full-access</code> 的消费方直接 spawn 原始 argv，不调用 <code>ctx.sandbox</code>。</p>
+<pre><code>/** A confining (non-`danger-full-access`) mode — the modes a {@link SandboxPolicy} can carry. */
+type ConfinedSandboxMode = Exclude&lt;SandboxMode, &#x27;danger-full-access&#x27;&gt;</code></pre>
+<p>强制执行完整性是后端报告的事实。<code>full</code> 表示后端管控了该模式承诺的所有文件效果；<code>partial</code> 表示活跃后端或较旧的内核 ABI 仅管控其中一个子集，因此要求绝对保证的消费方必须拒绝或向上暴露这一区别。当前的部分强制执行情形包括较旧的 Landlock ABI，以及 Windows ACL runner 的硬链接、读取不受限与 AppContainer ACL 边界。</p>
+<pre><code>/**
+ * Enforcement completeness for this host. `partial` means an active backend or
+ * older kernel ABI cannot govern every promised file effect; callers requiring
+ * an absolute boundary must not treat it as `full`.
+ */
+type SandboxEnforcement = &#x27;full&#x27; | &#x27;partial&#x27;</code></pre>
+<h2 id="逐调用策略">逐调用策略</h2>
+<p>完整执行策略会按每次能力调用解析并携带。它包括 <code>danger-full-access</code>，因此消费方可以只解析一次策略，再决定是否绕过约束。普通工具调用从调用会话的不可变 cwd 派生 <code>workspaceRoot</code>；部署配置提供无 agent 调用的回退值和共享的额外写入授权。存活 Session 的注册为后续解析添加 effect 生命周期内的目录授权。解析器保留执行环境中的绝对路径写法。执行限制的提供方在文件实际存在的位置规范化根目录，因此包含 <code>symlink/..</code> 的 cwd 会标识配套子进程提供方实际运行的目录。</p>
+<pre><code>/**
+ * The complete file-effect policy resolved for one capability call. The root
+ * is carried even under modes that do not consume it so callers can resolve
+ * policy once before choosing the enforcement path.
+ */
+interface SandboxExecutionPolicy {
+  /** The file-effect mode this execution runs under. */
+  mode: SandboxMode
+  /** Absolute root directory `workspace-write` may write under. */
+  workspaceRoot: string
+  /**
+   * Extra physical absolute directories `workspace-write` may also write under.
+   * Absence means none. The enforcing host rejects missing, non-directory, and
+   * symlinked entries on each call. Remote paths are checked on the remote host.
+   * Windows process confinement ignores these; harness filesystem operations honor them.
+   * These grant nothing under `read-only` or `danger-full-access`.
+   */
+  additionalWritableRoots?: readonly string[]
+  /**
+   * Opaque identity of the calling session (the branded `dsh-session`
+   * SessionId). Backends key per-session state off it (e.g. windows-acl gives
+   * each live session/workspace pair a random private temp directory and SID,
+   * while the workspace SID and standing grant remain per-workspace); absent
+   * for agentless calls, which fall back to per-call backend state.
+   */
+  sessionId?: SessionId
+}</code></pre>
+<p><code>ctx.sandboxPolicy.resolve()</code> 接收活跃会话；对于已批准的重试，还接收显式模式。该服务拥有优先级与 root 回退规则，使 bash 和 fs 不必重复实现。</p>
+<pre><code>/** Inputs that select the sandbox policy for one capability call. */
+interface SandboxPolicyRequest {
+  /** Calling session; its immutable cwd becomes the workspace boundary. */
+  session?: Session
+  /** Explicit approved mode override, which outranks session policy. */
+  mode?: SandboxMode
+}</code></pre>
+<p>只有受约束的执行会到达 <code>ctx.sandbox</code>；传给提供方的策略在保留同一 root 的同时收窄模式。这使并发会话、消费方与一次性提权重试可以向同一提供方请求不同边界，而无需改变提供方状态。</p>
+<pre><code>/**
+ * What one confined execution is allowed to touch — carried PER CALL, not
+ * fixed on the provider: two consumers may confine under different policies
+ * at the same instant (bash under `read-only` while a confined child agent
+ * needs its state directory writable), and an approved escalated retry is a
+ * new call with a wider policy. Defaulting/resolution is an explicit step at
+ * the consumer boundary; the provider treats the policy as fully specified.
+ */
+interface SandboxPolicy extends SandboxExecutionPolicy {
+  /** The file-effect mode this execution runs under. */
+  mode: ConfinedSandboxMode
+}</code></pre>
+<p><a id="wrapped-argv-and-classification-dialects" class="anch"></a></p>
+<h2 id="包装后的-argv-与分类方言"><span id="wrapped-argv-and-classification-dialects" class="anch"></span>包装后的 argv 与分类方言</h2>
+<p><code>RunnerFailureRule</code> 汇集用于判定 runner 在执行命令前失败的证据。消费方要求进程以非零状态退出，并同时满足可选的允许退出码门控，以及余下某一 stderr 行中不区分大小写的致命签名。系统会先按不区分大小写的整行精确匹配移除信息性排除项，因此无害的 runner 通知本身不能证明失败。匹配到的行仍可用作错误详情；分类过程不会重写 stderr。</p>
+<pre><code>/**
+ * Evidence that identifies a sandbox runner failing before it executes the
+ * wrapped command. A consumer first applies {@link allowedExitCodes} when
+ * present, removes {@link informationalLines} by case-insensitive exact line
+ * equality, then matches {@link fatalSignatures} case-insensitively within
+ * each remaining stderr line. Exit status alone never proves runner failure.
+ */
+interface RunnerFailureRule {
+  /** Nonzero process exit codes on which this rule may match; omitted permits any nonzero exit. */
+  allowedExitCodes?: readonly number[]
+  /** Non-empty substrings identifying a fatal runner diagnostic on one stderr line. */
+  fatalSignatures: readonly string[]
+  /** Benign stderr lines excluded by exact full-line equality before fatal matching. */
+  informationalLines?: readonly string[]
+}</code></pre>
+<p><code>ConfinedArgv</code> 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实和两种正交的 stderr 分类器。<code>denialSignatures</code> 用于识别沙箱正常工作时受限命令被阻止的情况。<code>runnerFailureRules</code> 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。</p>
+<pre><code>/**
+ * A {@link SandboxProvider.confine} result: the argv to spawn in place of
+ * the caller&#x27;s own, plus the enforcement completeness the selected backend
+ * achieves for it.
+ */
+interface ConfinedArgv {
+  /** The wrapped argv (runner, profile, separator, then the caller&#x27;s argv). */
+  argv: string[]
+  /** How completely the selected backend enforces the policy&#x27;s file effects. */
+  enforcement: SandboxEnforcement
+  /**
+   * The selected backend&#x27;s denial DIALECT: the case-insensitive stderr
+   * substrings a file effect denied by THIS backend produces (EROFS text
+   * under bwrap&#x27;s read-only binds, EACCES under Landlock, EPERM under
+   * Seatbelt). A consumer that infers denials from a failed run&#x27;s stderr
+   * matches against exactly these rather than a cross-backend union — the
+   * union claims denials a given backend never produces.
+   */
+  denialSignatures: readonly string[]
+  /**
+   * Structured runner-failure evidence rules. Consumers require a matching
+   * fatal stderr line (after informational exclusions) and any rule-specific
+   * exit-code gate before checking denial signatures: runner failure means the
+   * command never ran, while denial means confinement worked and blocked it.
+   */
+  runnerFailureRules: readonly RunnerFailureRule[]
+}</code></pre>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>拥有运维配置，并将其 runner 方言映射到这些规则。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox/README.zh.md">沙箱化 bash 消费方</a>拥有 spawn 与结果归因。</p>
+<h2 id="提供方与-fail-closed-错误">提供方与 fail-closed 错误</h2>
+<p><code>await ctx.sandbox.confine(argv, policy, signal)</code> 在执行环境中解析策略路径并返回 <code>ConfinedArgv</code>，没有可用后端时以 <code>SandboxUnavailableError</code>（错误码 <code>SANDBOX_UNAVAILABLE</code>）拒绝，提供方无法为该模式准备主机状态时以 <code>SandboxPreparationError</code>（<code>SANDBOX_PREPARATION_FAILED</code>、<code>SANDBOX_INVALID_TEMP_ROOT</code>）拒绝。可选信号可在启动前取消解析。消费方也可以在 spawn 或观察所返回的 argv 时对失败进行分类；该归因属于消费方约定。对于受限策略，静默的无隔离透传永远不合法。</p>
+<p>提供方选择、探测、缓存和后端特定的强制执行报告归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>所有。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsandbox--sandboxprovider-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.sandbox-—-SandboxProvider-abstract-seam"><span id="ctxsandbox--sandboxprovider-abstract-seam" class="anch"></span><code>ctx.sandbox</code> — <code>SandboxProvider</code> (abstract seam)</h3>
+<p>Abstract process-sandbox service. confine must return enforcing argv or fail closed at wrap or runner-execution time; silent unconfined passthrough is forbidden. Functional probes arbitrate multi-runner chains and may be skipped for a sole candidate, whose own refusal remains the fail-closed end.</p>
+<pre><code>/**
+ * Wrap `argv` so it executes confined under `policy` on this host; the
+ * caller spawns the returned argv in place of its own.
+ * @param argv - the exact argv the caller is about to spawn (program plus
+ *   arguments), NOT a shell string — a shell-shaped consumer passes
+ *   `[&#x27;bash&#x27;, &#x27;-c&#x27;, command]`.
+ * @param policy - the file-effect policy this execution runs under,
+ *   carried per call (see {@link SandboxPolicy}).
+ * @param signal - cancellation while the provider resolves the policy and runner.
+ * @returns the argv to spawn instead, plus the enforcement completeness
+ *   the selected backend achieves for it.
+ */
+abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise&lt;ConfinedArgv&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
+<p><a id="ctxsandboxpolicy--sandboxpolicyservice" class="anch"></a></p>
+<h3 id="ctx.sandboxPolicy-—-SandboxPolicyService"><span id="ctxsandboxpolicy--sandboxpolicyservice" class="anch"></span><code>ctx.sandboxPolicy</code> — <code>SandboxPolicyService</code></h3>
+<p>The sandbox-policy service (<code>ctx.sandboxPolicy</code>). Owns the deployment default mode, fallback workspace root, session-scoped directory grants, and request-time policy section. Tool layers call resolve for each execution so a session's mode log and immutable cwd travel together to every enforcing capability.</p>
+<pre><code>/**
+ * Resolve the complete policy for one capability call. An approved explicit
+ * mode outranks the session&#x27;s last `sandbox/mode` event, which outranks the
+ * deployment default. A session&#x27;s working directory is its workspace-write
+ * boundary, so a Host move of the Session moves the boundary; the configured
+ * root is the fallback for agentless calls and, without the working-directory
+ * service, sessions without a header directory. Configured extra roots and
+ * this Session&#x27;s active registrations are snapshotted together; existing
+ * operations and processes keep their policy.
+ * @param request - optional session and approved mode override.
+ * @returns the fully resolved per-call mode and absolute workspace root.
+ * @throws `SandboxInvalidRootError` (`SANDBOX_INVALID_ROOT`) when the session&#x27;s directory is
+ *   relative or contains a NUL byte.
+ */
+resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
+
+/**
+ * Permit writes under one directory in this Session&#x27;s future workspace-write
+ * operations. The calling context owns the effect; disposal removes only this
+ * registration. Other grants to the directory remain effective. Existing
+ * operations and persistent processes retain their resolved permissions.
+ * Grants are runtime-only and must be registered again after resume or fork.
+ * On Windows, only harness file tools honor extra grants; process permissions stay unchanged.
+ * @param session - exact live Session receiving the grant; other Sessions and agentless calls are unaffected.
+ * @param directory - absolute execution-world path; execution rejects missing, non-directory, or symlinked paths.
+ * @returns the exact Cordis effect disposer for this registration.
+ * @throws when the directory is relative or contains a NUL byte.
+ */
+registerWritableRoot(session: Session, directory: string): () =&gt; void
+
+/**
+ * Read the session override without applying the deployment default.
+ * @param session - session whose log supplies the override.
+ * @returns the last logged mode, or `undefined` without one.
+ */
+overrideOf(session: Session): SandboxMode | undefined</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/src/index.ts"><code>packages/sandbox/sandbox-policy/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/sandbox">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

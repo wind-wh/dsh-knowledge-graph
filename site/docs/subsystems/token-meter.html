@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Token 计量 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#TokenMeasurement">TokenMeasurement</a><a class="t2" href="#TokenSurfaceNode">TokenSurfaceNode</a><a class="t2" href="#ContextPressureProjection">ContextPressureProjection</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.tokenMeter-—-TokenMeter">ctx.tokenMeter — TokenMeter</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Token 计量</div>
+    <h1>Token 计量</h1>
+    <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/token-meter.md</div>
+    <div class="body"><h1 id="Token-计量">Token 计量</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/token-meter.md">English</a> | 中文</p>
+<p><code>@deepseek-ai/dsh-token-meter</code> 公开一个独立的回放快照，用于表示请求压力与按位置计算的表层定价。<code>logRevision</code> 表示生成该计量中每个字段时所消费的持久事件数量。</p>
+<p>来源：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/types.ts"><code>packages/llm/token-meter/src/types.ts</code></a></p>
+<h2 id="TokenMeasurement"><code>TokenMeasurement</code></h2>
+<pre><code>/** Detached immutable request-pressure and surface snapshot at one consumed log revision. */
+interface TokenMeasurement {
+  /** Number of durable events consumed; equal to the next unread event seq. */
+  readonly logRevision: SessionLogOffset
+  /** Provider or heuristic anchor used for this measurement. */
+  readonly baseline: TokenMeasurementBaseline
+  /** Signed repricing of current surface content relative to the baseline anchor. */
+  readonly surfaceDeltaTokens: number
+  /** Non-negative current request-and-response pressure. */
+  readonly totalTokens: number
+  /** Total route-priced request tokens across the current surface; equals the sum of the node prices. */
+  readonly surfaceTokens: number
+  /** Current surface nodes in positional head-to-tail order. */
+  readonly nodes: readonly TokenSurfaceNode[]
+}</code></pre>
+<p>每次计量都会通过 <code>ctx.llm</code> 把生效信封的路由 provider/model 解析为该路由声明的请求图片定价，因此图片出现处按请求实际发送的视觉 token 加模型可见文本计价；未声明定价的路由与组合保持固定启发式规则。<code>baseline.kind === 'usage'</code> 表示最近一次成功的提供方调用具有相同的规范请求 envelope，且该调用的总量不低于其完整路由定价锚点。<code>estimated</code> 表示不存在可复用的保守 usage 锚点，因此服务自行对完整信封和表层定价。后续成功请求会替换早先的锚点；有符号的 <code>surfaceDeltaTokens</code> 会保留相对于匹配锚点的增长与缩减，且两侧按同一路由重新定价。<code>totalTokens</code> 仍表示请求与响应压力，<code>surfaceTokens</code> 则是表层的路由定价总量，等于所有节点价格之和。</p>
+<h2 id="TokenSurfaceNode"><code>TokenSurfaceNode</code></h2>
+<pre><code>/** One token-priced node in the current ordered session surface. */
+interface TokenSurfaceNode {
+  /** Durable sequence number of the surface event. */
+  readonly seq: SessionSeq
+  /**
+   * Request-pressure tokens for the exact message projected by this node under
+   * the measured route: image occurrences carry the route&#x27;s declared visual
+   * price when the routed adapter declares one, and the fixed heuristic
+   * otherwise. Trigger, retention, and range selection all read this price.
+   */
+  readonly tokens: number
+  /**
+   * Fixed-heuristic tokens for the same message, independent of any route.
+   * The shadow-price protocol prices replacements with this value so the O(1)
+   * projection fold stays in agreement with its own appends.
+   */
+  readonly heuristicTokens: number
+}</code></pre>
+<p>表层顺序具有权威性；替换节点的持久 seq 可能高于位置排在其后的节点。该快照不可变，不会随底层回放折叠推进而增长。</p>
+<h2 id="ContextPressureProjection"><code>ContextPressureProjection</code></h2>
+<p><code>ctx.tokenMeter.contextPressure(session)</code> 同步读取最新记录的 <code>pressureTokens</code> 和 <code>contextWindow</code>；客户端投影还根据表层变化派生 <code>projectedTokens</code>。这些显示值不为新请求计价；请求计价使用 <code>measure()</code>。</p>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/projection.ts"><code>packages/llm/token-meter/src/projection.ts</code></a></p>
+<pre><code>/**
+ * Approximate context occupancy for a status display.
+ *
+ * The fields, when present, are deliberately NOT one atomic request
+ * observation: each is a last-wins record of a different moment. Switching
+ * models can therefore pair a fresh capacity with the previous route&#x27;s
+ * pressure until the next request reports usage. This is an intentional trade
+ * — the value is a user-facing reference, not a billing or gating input. See
+ * the token-meter README for the full rationale.
+ */
+interface ContextPressureProjection {
+  /**
+   * Provider-reported prompt size of the most recent request: uncached input
+   * plus cache reads and writes. Response output is excluded, so this does not
+   * grow as the current turn streams. Absent until a provider reports usage.
+   */
+  pressureTokens?: number
+  /**
+   * What the NEXT request&#x27;s prompt would cost: {@link pressureTokens} plus the
+   * heuristic repricing of everything the surface gained or lost since that
+   * sample. Only the delta is estimated, so the figure stays anchored to the
+   * provider while still reacting the moment a compaction shadows a span —
+   * which `pressureTokens` alone cannot do, since compaction reports no usage
+   * of its own. Absent until a provider reports usage.
+   */
+  projectedTokens?: number
+  /** Newest recorded route capacity; absent when no adapter advertised one. */
+  contextWindow?: number
+}</code></pre>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxtokenmeter--tokenmeter" class="anch"></a></p>
+<h3 id="ctx.tokenMeter-—-TokenMeter"><span id="ctxtokenmeter--tokenmeter" class="anch"></span><code>ctx.tokenMeter</code> — <code>TokenMeter</code></h3>
+<p>Replay owner for one service-wide estimator and isolated per-session folds.</p>
+<pre><code>/**
+ * Read the latest logged provider prompt size and route capacity.
+ * @param session - Session whose committed usage and request capacity are read.
+ * @returns context pressure; fields remain absent until their source events are recorded.
+ */
+contextPressure(session: Session): Pick&lt;ContextPressureProjection, &#x27;pressureTokens&#x27; | &#x27;contextWindow&#x27;&gt;
+
+/**
+ * Measure current request pressure and surface through the durable tail.
+ *
+ * The effective envelope&#x27;s routed provider/model selects the request-image
+ * pricing every node is priced under: a route whose adapter declares image
+ * pricing charges each retained image its visual tokens plus its
+ * model-visible text, while other routes keep the fixed heuristic. Provider
+ * usage is reused only when the latest successful call&#x27;s canonical request
+ * envelope matches `requestHeader` and its total is no lower than that
+ * call&#x27;s full route-priced anchor; otherwise the complete envelope and
+ * surface are repriced. The anchor includes all surface nodes immediately
+ * before the assistant message, including inputs admitted after step/start.
+ *
+ * `requestHeader` replaces the latest logged envelope for pressure and node
+ * pricing; the node set always describes the current session surface. Every
+ * call clones those positional nodes, so measurement is O(surface).
+ *
+ * @param session - session to replay through its current durable tail.
+ * @param requestHeader - optional effective request envelope replacing the latest logged header.
+ * @returns a detached deeply immutable pressure and surface measurement.
+ */
+measure(session: Session, requestHeader?: EpochHeader): TokenMeasurement
+
+/**
+ * Heuristically price one model-visible message (instance face of the pure
+ * `estimateMessage` export from `estimate.ts`).
+ * @param message - message to price without mutation.
+ * @returns content and role-framing tokens under the fixed service heuristic.
+ */
+estimateMessage(message: Message): number</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">EpochHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">Message</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/index.ts"><code>packages/llm/token-meter/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/token-meter">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

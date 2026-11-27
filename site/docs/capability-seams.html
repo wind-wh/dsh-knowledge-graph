@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>能力 Seams 与核心服务 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><span class="none">无章节</span></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 能力 Seams 与核心服务</div>
+    <h1>能力 Seams 与核心服务</h1>
+    <div class="meta">分组：概念 · 本地副本：.ua/docs-local/capability-seams.md</div>
+    <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-doc-graphs.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
+<p>     更新时先运行 <code>pnpm run gen-doc-graphs</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/capability-seams.md</code> 重新记录配对。 --&gt;</p>
+<h1 id="能力-Seams-与核心服务">能力 Seams 与核心服务</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/capability-seams.md">English</a> | 中文</p>
+<p>服务可以是核心主干服务、可替换的能力 seam、组合包／组合点或独立服务。下图展示了拥有服务声明的包、已知实现包，以及直接消费该服务的包。</p>
+<pre><code>flowchart LR
+  pkg_client_remote_connection[&quot;client-remote-connection&quot;]
+  svc_remoteConnection[&quot;ctx.remoteConnection&lt;br/&gt;Remote browser login&quot;]
+  pkg_action_cards[&quot;action-cards&quot;]
+  svc_actionCards[&quot;ctx.actionCards&lt;br/&gt;Optional action cards&quot;]
+  pkg_creation_recommendations[&quot;creation-recommendations&quot;]
+  pkg_client_ui_action_cards[&quot;client-ui-action-cards&quot;]
+  pkg_plugin_recommendations[&quot;plugin-recommendations&quot;]
+  svc_pluginRecommendations[&quot;ctx.pluginRecommendations&lt;br/&gt;Explicit-need plugin recommendations&quot;]
+  pkg_client_ui_plugin_recommendations[&quot;client-ui-plugin-recommendations&quot;]
+  pkg_deepseek_chat_import[&quot;deepseek-chat-import&quot;]
+  svc_deepseekChatImport[&quot;ctx.deepseekChatImport&lt;br/&gt;DeepSeek chat export import&quot;]
+  pkg_headless[&quot;headless&quot;]
+  svc_headlessStartup[&quot;ctx.headlessStartup&lt;br/&gt;Headless invocation options&quot;]
+  pkg_experimental_client_ui_cot_translation[&quot;experimental-client-ui-cot-translation&quot;]
+  svc_cotTranslation[&quot;ctx.cotTranslation&lt;br/&gt;Reasoning translation Remote&quot;]
+  pkg_experimental_translator[&quot;experimental-translator&quot;]
+  svc_translator[&quot;ctx.translator&lt;br/&gt;Anonymous text translation&quot;]
+  pkg_hmr[&quot;hmr&quot;]
+  svc_hmr[&quot;ctx.hmr&lt;br/&gt;Serialized module and configuration reloads&quot;]
+  pkg_app_boot[&quot;app-boot&quot;]
+  pkg_client_ui_plugin_manager[&quot;client-ui-plugin-manager&quot;]
+  svc_pluginRegistryProbe[&quot;ctx.pluginRegistryProbe&lt;br/&gt;Host registry response comparison&quot;]
+  pkg_plugin_manager[&quot;plugin-manager&quot;]
+  svc_pluginManager[&quot;ctx.pluginManager&lt;br/&gt;Current-profile plugin and bundle management&quot;]
+  pkg_client_ui_connector_account[&quot;client-ui-connector-account&quot;]
+  svc_connectorAccounts[&quot;ctx.connectorAccounts&lt;br/&gt;Connector accounts on the Plugins page&quot;]
+  pkg_cli_account[&quot;cli-account&quot;]
+  svc_cliAccounts[&quot;ctx.cliAccounts&lt;br/&gt;Vendor CLIs and accounts of CLI app plugins&quot;]
+  pkg_plugin_market[&quot;plugin-market&quot;]
+  svc_pluginMarket[&quot;ctx.pluginMarket&lt;br/&gt;Plugin market index reader&quot;]
+  pkg_client_ui_plugin_market[&quot;client-ui-plugin-market&quot;]
+  svc_profileContext[&quot;ctx.profileContext&lt;br/&gt;Launcher-owned profile data&quot;]
+  pkg_client_connection[&quot;client-connection&quot;]
+  svc_connection[&quot;ctx.connection&lt;br/&gt;Authenticated browser transport&quot;]
+  pkg_api_gateway[&quot;api-gateway&quot;]
+  pkg_host_frontend_static[&quot;host-frontend-static&quot;]
+  svc_connection_authentication[&quot;ctx.connection.authentication&lt;br/&gt;Connection authentication provider registry&quot;]
+  pkg_host_authentication_token[&quot;host-authentication-token&quot;]
+  pkg_host_authentication_desktop[&quot;host-authentication-desktop&quot;]
+  pkg_experimental_forge[&quot;experimental-forge&quot;]
+  svc_forge[&quot;ctx.forge&lt;br/&gt;Code host change requests&quot;]
+  pkg_experimental_forge_github[&quot;experimental-forge-github&quot;]
+  pkg_forge_gitlab[&quot;forge-gitlab&quot;]
+  pkg_experimental_forge_session[&quot;experimental-forge-session&quot;]
+  pkg_experimental_client_ui_forge[&quot;experimental-client-ui-forge&quot;]
+  svc_forgeSession[&quot;ctx.forgeSession&lt;br/&gt;Session change request bindings&quot;]
+  svc_forgePanel[&quot;ctx.forgePanel&lt;br/&gt;Forge panel Remote&quot;]
+  pkg_experimental_worktree[&quot;experimental-worktree&quot;]
+  svc_worktrees[&quot;ctx.worktrees&lt;br/&gt;Git worktree creation&quot;]
+  pkg_experimental_tool_worktree[&quot;experimental-tool-worktree&quot;]
+  pkg_working_directory[&quot;working-directory&quot;]
+  svc_workingDirectory[&quot;ctx.workingDirectory&lt;br/&gt;Session working directory&quot;]
+  pkg_tool_fs[&quot;tool-fs&quot;]
+  pkg_tool_bash[&quot;tool-bash&quot;]
+  pkg_tool_pwsh[&quot;tool-pwsh&quot;]
+  pkg_subagent[&quot;subagent&quot;]
+  pkg_sdk_jsonrpc_server[&quot;sdk-jsonrpc-server&quot;]
+  pkg_sandbox_policy[&quot;sandbox-policy&quot;]
+  pkg_api_workspace_files[&quot;api-workspace-files&quot;]
+  pkg_api_terminal_controller[&quot;api-terminal-controller&quot;]
+  pkg_workspace_changes[&quot;workspace-changes&quot;]
+  pkg_file_reference_local[&quot;file-reference-local&quot;]
+  pkg_tool_skill[&quot;tool-skill&quot;]
+  pkg_agent_instructions[&quot;agent-instructions&quot;]
+  pkg_tool_lsp[&quot;tool-lsp&quot;]
+  pkg_mcp_resources[&quot;mcp-resources&quot;]
+  svc_mcpResources[&quot;ctx.mcpResources&lt;br/&gt;Scoped MCP resource access&quot;]
+  pkg_mcp_client[&quot;mcp-client&quot;]
+  pkg_browser_use[&quot;browser-use&quot;]
+  svc_browserUse[&quot;ctx.browserUse&lt;br/&gt;Browser-use provider registration&quot;]
+  pkg_experimental_browser_use_playwright_mcp[&quot;experimental-browser-use-playwright-mcp&quot;]
+  pkg_experimental_browser_use_chrome_devtools_mcp[&quot;experimental-browser-use-chrome-devtools-mcp&quot;]
+  pkg_experimental_browser_use_stagehand_native[&quot;experimental-browser-use-stagehand-native&quot;]
+  pkg_computer_use[&quot;computer-use&quot;]
+  svc_computerUse[&quot;ctx.computerUse&lt;br/&gt;Computer-use provider registration&quot;]
+  pkg_experimental_computer_use_cua_driver_mcp[&quot;experimental-computer-use-cua-driver-mcp&quot;]
+  pkg_experimental_computer_use_cua_driver_native[&quot;experimental-computer-use-cua-driver-native&quot;]
+  pkg_cua[&quot;cua&quot;]
+  svc_cuaAccess[&quot;ctx.cuaAccess&lt;br/&gt;Computer Use permission controls&quot;]
+  svc_cuaPrograms[&quot;ctx.cuaPrograms&lt;br/&gt;Computer Use program environments&quot;]
+  pkg_cua_mcp[&quot;cua-mcp&quot;]
+  pkg_office_kit[&quot;office-kit&quot;]
+  svc_officeKit[&quot;ctx.officeKit&lt;br/&gt;Office rendering, conversion, and recalculation&quot;]
+  pkg_client_ui_sidebar_documentpreview[&quot;client-ui-sidebar-documentpreview&quot;]
+  pkg_tool_office[&quot;tool-office&quot;]
+  pkg_attachment[&quot;attachment&quot;]
+  svc_attachments[&quot;ctx.attachments&lt;br/&gt;Durable binary attachment storage&quot;]
+  pkg_attachment_local[&quot;attachment-local&quot;]
+  pkg_api_session_controller[&quot;api-session-controller&quot;]
+  pkg_llm_pi_ai[&quot;llm-pi-ai&quot;]
+  pkg_llm_deepseek[&quot;llm-deepseek&quot;]
+  pkg_client_file_upload[&quot;client-file-upload&quot;]
+  svc_fileUploads[&quot;ctx.fileUploads&lt;br/&gt;Agent-scoped staged file uploads&quot;]
+  pkg_llm[&quot;llm&quot;]
+  svc_llm[&quot;ctx.llm&lt;br/&gt;LLM adapter registry&quot;]
+  pkg_llm_replay[&quot;llm-replay&quot;]
+  pkg_agent_loop[&quot;agent-loop&quot;]
+  pkg_compaction_basic[&quot;compaction-basic&quot;]
+  pkg_session_log_deepseek[&quot;session-log-deepseek&quot;]
+  svc_sessionLogDeepSeek[&quot;ctx.sessionLogDeepSeek&lt;br/&gt;Session-log upload policy&quot;]
+  pkg_deepseek_llm_api_extensions[&quot;deepseek-llm-api-extensions&quot;]
+  svc_deepseekLlmApiExtensions[&quot;ctx.deepseekLlmApiExtensions&lt;br/&gt;Official DeepSeek request extensions&quot;]
+  pkg_plugin_package_inventory_deepseek[&quot;plugin-package-inventory-deepseek&quot;]
+  pkg_token_meter[&quot;token-meter&quot;]
+  svc_tokenMeter[&quot;ctx.tokenMeter&lt;br/&gt;Replay token measurement&quot;]
+  pkg_compaction_tool_result_pruner[&quot;compaction-tool-result-pruner&quot;]
+  svc_toolResultPruner[&quot;ctx.toolResultPruner&lt;br/&gt;Model-free tool-result pruning&quot;]
+  pkg_session[&quot;session&quot;]
+  svc_sessions[&quot;ctx.sessions&lt;br/&gt;In-memory session store&quot;]
+  pkg_agent[&quot;agent&quot;]
+  pkg_session_persistence[&quot;session-persistence&quot;]
+  pkg_session_query[&quot;session-query&quot;]
+  pkg_session_query_sqlite[&quot;session-query-sqlite&quot;]
+  pkg_message_feedback[&quot;message-feedback&quot;]
+  pkg_experimental_api_speech_to_text[&quot;experimental-api-speech-to-text&quot;]
+  svc_speechController[&quot;ctx.speechController&lt;br/&gt;Experimental transcription Remote&quot;]
+  pkg_client_ui_session_status[&quot;client-ui-session-status&quot;]
+  svc_sessionStatus[&quot;ctx.sessionStatus&lt;br/&gt;Host Session reading records&quot;]
+  svc_sessionController[&quot;ctx.sessionController&lt;br/&gt;Host Session Remote controller&quot;]
+  svc_sessionFileReferences[&quot;ctx.sessionFileReferences&lt;br/&gt;Session-addressed file-reference Remote adapter&quot;]
+  svc_sessionSkillCatalog[&quot;ctx.sessionSkillCatalog&lt;br/&gt;Session-addressed skill Remote adapter&quot;]
+  pkg_api_job_controller[&quot;api-job-controller&quot;]
+  svc_jobController[&quot;ctx.jobController&lt;br/&gt;Host job Remote controller&quot;]
+  pkg_api_settings_controller[&quot;api-settings-controller&quot;]
+  svc_credentialsController[&quot;ctx.credentialsController&lt;br/&gt;Host credential-surface Remote controller&quot;]
+  svc_settingsController[&quot;ctx.settingsController&lt;br/&gt;Host settings-surface Remote controller&quot;]
+  svc_workspaceFiles[&quot;ctx.workspaceFiles&lt;br/&gt;Host workspace file Remote service&quot;]
+  svc_workspaceChanges[&quot;ctx.workspaceChanges&lt;br/&gt;Host per-turn changed-file summaries&quot;]
+  svc_terminalController[&quot;ctx.terminalController&lt;br/&gt;Session interactive terminal Remote controller&quot;]
+  pkg_api_workspace_controller[&quot;api-workspace-controller&quot;]
+  svc_workspaceController[&quot;ctx.workspaceController&lt;br/&gt;Host Workspace Remote controller&quot;]
+  svc_directoryPickerController[&quot;ctx.directoryPickerController&lt;br/&gt;Host directory-picking Remote controller&quot;]
+  pkg_typert_registry[&quot;typert-registry&quot;]
+  svc_typert[&quot;ctx.typert&lt;br/&gt;Runtime type registry&quot;]
+  pkg_typert_loader[&quot;typert-loader&quot;]
+  svc_typertGateway[&quot;ctx.typertGateway&lt;br/&gt;Typert Host invocation gateway&quot;]
+  pkg_api_remote_access[&quot;api-remote-access&quot;]
+  svc_remoteAccess[&quot;ctx.remoteAccess&lt;br/&gt;Remote method access control&quot;]
+  svc_sessionPersistence[&quot;ctx.sessionPersistence&lt;br/&gt;Durable session persistence seam&quot;]
+  pkg_session_persistence_jsonl[&quot;session-persistence-jsonl&quot;]
+  pkg_hooks_claude_code[&quot;hooks-claude-code&quot;]
+  pkg_hooks_codex[&quot;hooks-codex&quot;]
+  pkg_config_editor[&quot;config-editor&quot;]
+  svc_configEditor[&quot;ctx.configEditor&lt;br/&gt;Profile configuration edits&quot;]
+  pkg_settings[&quot;settings&quot;]
+  pkg_agent_default_model[&quot;agent-default-model&quot;]
+  svc_settings[&quot;ctx.settings&lt;br/&gt;Plugin configuration forms&quot;]
+  pkg_tool_subagent[&quot;tool-subagent&quot;]
+  svc_subagentModelSelection[&quot;ctx.subagentModelSelection&lt;br/&gt;Subagent model-selection preference&quot;]
+  pkg_credentials[&quot;credentials&quot;]
+  svc_credentials[&quot;ctx.credentials&lt;br/&gt;Credential seam&quot;]
+  pkg_credentials_local[&quot;credentials-local&quot;]
+  pkg_deepseek_auth[&quot;deepseek-auth&quot;]
+  pkg_deepseek_account[&quot;deepseek-account&quot;]
+  svc_deepseekAccount[&quot;ctx.deepseekAccount&lt;br/&gt;DeepSeek account&quot;]
+  pkg_llm_deepseek_account[&quot;llm-deepseek-account&quot;]
+  svc_deepseekAuth[&quot;ctx.deepseekAuth&lt;br/&gt;DeepSeek request authentication&quot;]
+  pkg_llm_deepseek_api_key[&quot;llm-deepseek-api-key&quot;]
+  pkg_web_deepseek_api[&quot;web-deepseek-api&quot;]
+  pkg_web_search_deepseek[&quot;web-search-deepseek&quot;]
+  pkg_authorization[&quot;authorization&quot;]
+  svc_authorization[&quot;ctx.authorization&lt;br/&gt;Authorization flow registry&quot;]
+  pkg_client_product_analytics[&quot;client-product-analytics&quot;]
+  svc_productAnalytics[&quot;ctx.productAnalytics&lt;br/&gt;Desktop interaction collection&quot;]
+  pkg_otel[&quot;otel&quot;]
+  svc_otel[&quot;ctx.otel&lt;br/&gt;Shared OTel reporting channels&quot;]
+  pkg_host_product_telemetry_otel[&quot;host-product-telemetry-otel&quot;]
+  pkg_session_telemetry_otel[&quot;session-telemetry-otel&quot;]
+  svc_productTelemetry[&quot;ctx.productTelemetry&lt;br/&gt;Product usage event sender&quot;]
+  pkg_session_telemetry[&quot;session-telemetry&quot;]
+  svc_sessionTelemetry[&quot;ctx.sessionTelemetry&lt;br/&gt;Session telemetry seam&quot;]
+  pkg_storage[&quot;storage&quot;]
+  svc_storage[&quot;ctx.storage&lt;br/&gt;Non-session storage hub&quot;]
+  pkg_storage_json[&quot;storage-json&quot;]
+  pkg_storage_sqlite[&quot;storage-sqlite&quot;]
+  pkg_storage_domain[&quot;storage-domain&quot;]
+  svc_storageDomain[&quot;ctx.storageDomain&lt;br/&gt;Domain data facility&quot;]
+  pkg_workspace[&quot;workspace&quot;]
+  svc_messageFeedback[&quot;ctx.messageFeedback&lt;br/&gt;Lifecycle-bound message feedback&quot;]
+  pkg_command_feedback[&quot;command-feedback&quot;]
+  svc_sessionFeedback[&quot;ctx.sessionFeedback&lt;br/&gt;Session-level feedback recorder&quot;]
+  svc_workspaceRegistry[&quot;ctx.workspaceRegistry&lt;br/&gt;Workspace entity registry&quot;]
+  svc_sessionQuery[&quot;ctx.sessionQuery&lt;br/&gt;Session reads, traces, filters, and search&quot;]
+  pkg_session_reference[&quot;session-reference&quot;]
+  pkg_tool_session_query[&quot;tool-session-query&quot;]
+  pkg_file_reference[&quot;file-reference&quot;]
+  svc_fileReferences[&quot;ctx.fileReferences&lt;br/&gt;File reference discovery&quot;]
+  svc_sessionReferenceResolver[&quot;ctx.sessionReferenceResolver&lt;br/&gt;Cross-session snapshot preparation&quot;]
+  pkg_session_title[&quot;session-title&quot;]
+  svc_sessionTitle[&quot;ctx.sessionTitle&lt;br/&gt;Log-backed session titles&quot;]
+  pkg_session_title_first_prompt_llm[&quot;session-title-first-prompt-llm&quot;]
+  pkg_session_title_all_prompts_llm[&quot;session-title-all-prompts-llm&quot;]
+  pkg_system_prompt[&quot;system-prompt&quot;]
+  svc_systemPrompt[&quot;ctx.systemPrompt&lt;br/&gt;System prompt assembly registry&quot;]
+  pkg_tools[&quot;tools&quot;]
+  pkg_tool_terminal[&quot;tool-terminal&quot;]
+  pkg_tool_web[&quot;tool-web&quot;]
+  svc_tools[&quot;ctx.tools&lt;br/&gt;Scoped tool registry and executor selection&quot;]
+  pkg_tool_ask_user[&quot;tool-ask-user&quot;]
+  pkg_tool_cordis[&quot;tool-cordis&quot;]
+  pkg_tool_todo[&quot;tool-todo&quot;]
+  pkg_user_questions[&quot;user-questions&quot;]
+  svc_userQuestions[&quot;ctx.userQuestions&lt;br/&gt;Human question/answer seam&quot;]
+  pkg_plan_mode[&quot;plan-mode&quot;]
+  svc_planMode[&quot;ctx.planMode&lt;br/&gt;Plan collaboration state&quot;]
+  pkg_agent_preset_registry[&quot;agent-preset-registry&quot;]
+  svc_agentPresets[&quot;ctx.agentPresets&lt;br/&gt;Per-session agent composition&quot;]
+  pkg_commands[&quot;commands&quot;]
+  svc_commands[&quot;ctx.commands&lt;br/&gt;Human command registry&quot;]
+  pkg_session_projection[&quot;session-projection&quot;]
+  svc_sessionProjections[&quot;ctx.sessionProjections&lt;br/&gt;Session projection units&quot;]
+  pkg_session_projection_cache[&quot;session-projection-cache&quot;]
+  svc_sessionProjectionCache[&quot;ctx.sessionProjectionCache&lt;br/&gt;Persisted projection cache&quot;]
+  pkg_skill[&quot;skill&quot;]
+  svc_skills[&quot;ctx.skills&lt;br/&gt;Skill provider registry&quot;]
+  pkg_sandbox_windows_acl[&quot;sandbox-windows-acl&quot;]
+  pkg_skill_badge[&quot;skill-badge&quot;]
+  pkg_skill_filesystem[&quot;skill-filesystem&quot;]
+  pkg_skill_office[&quot;skill-office&quot;]
+  pkg_upstream_skills[&quot;upstream-skills&quot;]
+  svc_upstreamSkills[&quot;ctx.upstreamSkills&lt;br/&gt;Upstream skills of CLI app plugins&quot;]
+  svc_agents[&quot;ctx.agents&lt;br/&gt;Agent service&quot;]
+  pkg_acp[&quot;acp&quot;]
+  svc_agentDefaultModel[&quot;ctx.agentDefaultModel&lt;br/&gt;Default Agent model selection&quot;]
+  svc_agentLoop[&quot;ctx.agentLoop&lt;br/&gt;Concrete loop driver&quot;]
+  pkg_base[&quot;base&quot;]
+  pkg_sdk_minimal[&quot;sdk-minimal&quot;]
+  pkg_mcp_manager[&quot;mcp-manager&quot;]
+  svc_mcpManager[&quot;ctx.mcpManager&lt;br/&gt;Settings-driven MCP server fleet&quot;]
+  svc_mcpClientHost[&quot;ctx.mcpClientHost&lt;br/&gt;MCP client host for a server manager&quot;]
+  pkg_mcp_account[&quot;mcp-account&quot;]
+  svc_mcpAccounts[&quot;ctx.mcpAccounts&lt;br/&gt;MCP connector accounts on the Plugins page&quot;]
+  pkg_schedule[&quot;schedule&quot;]
+  svc_schedule[&quot;ctx.schedule&lt;br/&gt;Host scheduled messages&quot;]
+  pkg_goal[&quot;goal&quot;]
+  svc_goals[&quot;ctx.goals&lt;br/&gt;Same-session goal domain&quot;]
+  pkg_ssh[&quot;ssh&quot;]
+  svc_ssh[&quot;ctx.ssh&lt;br/&gt;POSIX SSH connection owner&quot;]
+  pkg_fs_ssh[&quot;fs-ssh&quot;]
+  pkg_subprocess_ssh[&quot;subprocess-ssh&quot;]
+  pkg_sandbox_ssh[&quot;sandbox-ssh&quot;]
+  pkg_subprocess[&quot;subprocess&quot;]
+  svc_subprocess[&quot;ctx.subprocess&lt;br/&gt;Subprocess seam&quot;]
+  pkg_subprocess_local[&quot;subprocess-local&quot;]
+  pkg_bash_local[&quot;bash-local&quot;]
+  pkg_bash_sandbox[&quot;bash-sandbox&quot;]
+  pkg_terminal_bash[&quot;terminal-bash&quot;]
+  pkg_lsp_stdio[&quot;lsp-stdio&quot;]
+  pkg_subagent_acp[&quot;subagent-acp&quot;]
+  pkg_subagent_codex[&quot;subagent-codex&quot;]
+  pkg_subagent_claude_code[&quot;subagent-claude-code&quot;]
+  pkg_shell[&quot;shell&quot;]
+  svc_shell[&quot;ctx.shell&lt;br/&gt;Bash executor seam&quot;]
+  pkg_pwsh_local[&quot;pwsh-local&quot;]
+  pkg_shell_env[&quot;shell-env&quot;]
+  svc_shellEnv[&quot;ctx.shellEnv&lt;br/&gt;Managed bash environment registry&quot;]
+  pkg_terminal[&quot;terminal&quot;]
+  svc_terminals[&quot;ctx.terminals&lt;br/&gt;Persistent PTY session registry&quot;]
+  pkg_terminal_panel[&quot;terminal-panel&quot;]
+  pkg_sandbox[&quot;sandbox&quot;]
+  svc_sandbox[&quot;ctx.sandbox&lt;br/&gt;Process-sandbox seam&quot;]
+  pkg_sandbox_local[&quot;sandbox-local&quot;]
+  svc_sandboxPolicy[&quot;ctx.sandboxPolicy&lt;br/&gt;Sandbox policy home&quot;]
+  pkg_fs_sandbox[&quot;fs-sandbox&quot;]
+  pkg_user_approval[&quot;user-approval&quot;]
+  svc_approval[&quot;ctx.approval&lt;br/&gt;Approval seam&quot;]
+  pkg_permission_presets[&quot;permission-presets&quot;]
+  svc_permissionPresets[&quot;ctx.permissionPresets&lt;br/&gt;Permission presets&quot;]
+  pkg_ptc_runtime[&quot;ptc-runtime&quot;]
+  svc_ptcRuntime[&quot;ctx.ptcRuntime&lt;br/&gt;PTC execution seam&quot;]
+  pkg_ptc_runtime_node[&quot;ptc-runtime-node&quot;]
+  pkg_tool_executor_ptc[&quot;tool-executor-ptc&quot;]
+  pkg_workflow_ptc[&quot;workflow-ptc&quot;]
+  pkg_fs[&quot;fs&quot;]
+  svc_fs[&quot;ctx.fs&lt;br/&gt;Filesystem provider seam&quot;]
+  pkg_fs_local[&quot;fs-local&quot;]
+  pkg_fs_observation_policy[&quot;fs-observation-policy&quot;]
+  pkg_compaction[&quot;compaction&quot;]
+  svc_compaction[&quot;ctx.compaction&lt;br/&gt;Compaction seam&quot;]
+  svc_subagents[&quot;ctx.subagents&lt;br/&gt;Subagent provider and continuation service&quot;]
+  pkg_subagent_spawn_in_process[&quot;subagent-spawn-in-process&quot;]
+  pkg_subagent_fork_in_process[&quot;subagent-fork-in-process&quot;]
+  pkg_subagent_dsh_sdk[&quot;subagent-dsh-sdk&quot;]
+  pkg_tool_subagent_control[&quot;tool-subagent-control&quot;]
+  pkg_tool_ralph[&quot;tool-ralph&quot;]
+  pkg_experimental_speech_to_text[&quot;experimental-speech-to-text&quot;]
+  svc_speechToText[&quot;ctx.speechToText&lt;br/&gt;Experimental speech recognition providers&quot;]
+  pkg_experimental_speech_to_text_sensevoice[&quot;experimental-speech-to-text-sensevoice&quot;]
+  pkg_agent_team[&quot;agent-team&quot;]
+  svc_agentTeams[&quot;ctx.agentTeams&lt;br/&gt;Agent Teams coordination domain&quot;]
+  pkg_tool_agent_team[&quot;tool-agent-team&quot;]
+  pkg_experimental_claude_code_mods[&quot;experimental-claude-code-mods&quot;]
+  svc_claudeCodeMods[&quot;ctx.claudeCodeMods&lt;br/&gt;Claude Code mods bridge&quot;]
+  pkg_inspector[&quot;inspector&quot;]
+  svc_inspector[&quot;ctx.inspector&lt;br/&gt;Cross-realm runtime inspection&quot;]
+  pkg_jobs[&quot;jobs&quot;]
+  svc_jobs[&quot;ctx.jobs&lt;br/&gt;Background job registry&quot;]
+  pkg_jobs_local[&quot;jobs-local&quot;]
+  pkg_tool_jobs[&quot;tool-jobs&quot;]
+  pkg_web[&quot;web&quot;]
+  svc_web[&quot;ctx.web&lt;br/&gt;Web access provider registry&quot;]
+  pkg_web_fetch_http[&quot;web-fetch-http&quot;]
+  pkg_spill[&quot;spill&quot;]
+  svc_spillStore[&quot;ctx.spillStore&lt;br/&gt;Spill storage seam&quot;]
+  pkg_spill_local[&quot;spill-local&quot;]
+  pkg_spill_policy[&quot;spill-policy&quot;]
+  pkg_host_directory_picker[&quot;host-directory-picker&quot;]
+  svc_directoryPicker[&quot;ctx.directoryPicker&lt;br/&gt;Workspace-directory picking seam&quot;]
+  pkg_host_directory_picker_native[&quot;host-directory-picker-native&quot;]
+  pkg_host_directory_picker_browse[&quot;host-directory-picker-browse&quot;]
+  pkg_host_webserver[&quot;host-webserver&quot;]
+  svc_webServer[&quot;ctx.webServer&lt;br/&gt;HTTP route registration&quot;]
+  pkg_client_modules[&quot;client-modules&quot;]
+  pkg_client_hmr[&quot;client-hmr&quot;]
+  pkg_web_app[&quot;web-app&quot;]
+  svc_webApp[&quot;ctx.webApp&lt;br/&gt;Served Web GUI&quot;]
+  pkg_harness_dev_context[&quot;harness-dev-context&quot;]
+  pkg_client_config[&quot;client-config&quot;]
+  svc_config[&quot;ctx.config&lt;br/&gt;Browser synced configuration lookup&quot;]
+  svc_clientModules[&quot;ctx.clientModules&lt;br/&gt;Client plugin graph host&quot;]
+  pkg_workflow[&quot;workflow&quot;]
+  svc_workflowEngine[&quot;ctx.workflowEngine&lt;br/&gt;Workflow script engine&quot;]
+  pkg_tool_workflow[&quot;tool-workflow&quot;]
+  pkg_webhook[&quot;webhook&quot;]
+  svc_webhookRuntime[&quot;ctx.webhookRuntime&lt;br/&gt;Webhook rule runtime&quot;]
+  pkg_webhook_github[&quot;webhook-github&quot;]
+  pkg_lsp[&quot;lsp&quot;]
+  svc_lsp[&quot;ctx.lsp&lt;br/&gt;Language-server navigation seam&quot;]
+  pkg_cordis_host_runner[&quot;cordis-host-runner&quot;]
+  svc_dynamicCordisRunner[&quot;ctx.dynamicCordisRunner&lt;br/&gt;Dynamic Cordis package host runner&quot;]
+  svc_cordisInspect[&quot;ctx.cordisInspect&lt;br/&gt;Dynamic Cordis inspect registry&quot;]
+  pkg_experimental_liveshare[&quot;experimental-liveshare&quot;]
+  svc_liveshareShares[&quot;ctx.liveshareShares&lt;br/&gt;Owner share management Remote&quot;]
+  pkg_action_cards --&gt; svc_actionCards
+  pkg_agent --&gt; svc_agents
+  pkg_agent_default_model --&gt; svc_agentDefaultModel
+  pkg_agent_loop --&gt; svc_agentLoop
+  pkg_agent_preset_registry --&gt; svc_agentPresets
+  pkg_agent_team --&gt; svc_agentTeams
+  pkg_api_gateway --&gt; svc_typertGateway
+  pkg_api_job_controller --&gt; svc_jobController
+  pkg_api_remote_access --&gt; svc_remoteAccess
+  pkg_api_session_controller --&gt; svc_sessionController
+  pkg_api_session_controller --&gt; svc_sessionFileReferences
+  pkg_api_session_controller --&gt; svc_sessionSkillCatalog
+  pkg_api_settings_controller --&gt; svc_credentialsController
+  pkg_api_settings_controller --&gt; svc_settingsController
+  pkg_api_terminal_controller --&gt; svc_terminalController
+  pkg_api_workspace_controller --&gt; svc_directoryPickerController
+  pkg_api_workspace_controller --&gt; svc_workspaceController
+  pkg_api_workspace_files --&gt; svc_workspaceFiles
+  pkg_app_boot --&gt; svc_profileContext
+  pkg_attachment --&gt; svc_attachments
+  pkg_attachment_local --&gt; svc_attachments
+  pkg_authorization --&gt; svc_authorization
+  pkg_bash_local --&gt; svc_shell
+  pkg_bash_sandbox --&gt; svc_shell
+  pkg_browser_use --&gt; svc_browserUse
+  pkg_cli_account --&gt; svc_cliAccounts
+  pkg_client_config --&gt; svc_config
+  pkg_client_connection --&gt; svc_connection
+  pkg_client_connection --&gt; svc_connection_authentication
+  pkg_client_file_upload --&gt; svc_fileUploads
+  pkg_client_modules --&gt; svc_clientModules
+  pkg_client_modules --&gt; svc_config
+  pkg_client_product_analytics --&gt; svc_productAnalytics
+  pkg_client_remote_connection --&gt; svc_remoteConnection
+  pkg_client_ui_connector_account --&gt; svc_connectorAccounts
+  pkg_client_ui_plugin_manager --&gt; svc_pluginRegistryProbe
+  pkg_client_ui_session_status --&gt; svc_sessionStatus
+  pkg_command_feedback --&gt; svc_sessionFeedback
+  pkg_commands --&gt; svc_commands
+  pkg_compaction --&gt; svc_compaction
+  pkg_compaction_basic --&gt; svc_compaction
+  pkg_compaction_tool_result_pruner --&gt; svc_toolResultPruner
+  pkg_computer_use --&gt; svc_computerUse
+  pkg_config_editor --&gt; svc_configEditor
+  pkg_cordis_host_runner --&gt; svc_cordisInspect
+  pkg_cordis_host_runner --&gt; svc_dynamicCordisRunner
+  pkg_credentials --&gt; svc_credentials
+  pkg_credentials_local --&gt; svc_credentials
+  pkg_cua --&gt; svc_cuaAccess
+  pkg_cua --&gt; svc_cuaPrograms
+  pkg_deepseek_account --&gt; svc_deepseekAccount
+  pkg_deepseek_auth --&gt; svc_deepseekAuth
+  pkg_deepseek_chat_import --&gt; svc_deepseekChatImport
+  pkg_deepseek_llm_api_extensions --&gt; svc_deepseekLlmApiExtensions
+  pkg_experimental_api_speech_to_text --&gt; svc_speechController
+  pkg_experimental_browser_use_chrome_devtools_mcp --&gt; svc_browserUse
+  pkg_experimental_browser_use_playwright_mcp --&gt; svc_browserUse
+  pkg_experimental_browser_use_stagehand_native --&gt; svc_browserUse
+  pkg_experimental_claude_code_mods --&gt; svc_claudeCodeMods
+  pkg_experimental_client_ui_cot_translation --&gt; svc_cotTranslation
+  pkg_experimental_client_ui_forge --&gt; svc_forgePanel
+  pkg_experimental_computer_use_cua_driver_mcp --&gt; svc_computerUse
+  pkg_experimental_computer_use_cua_driver_native --&gt; svc_computerUse
+  pkg_experimental_forge --&gt; svc_forge
+  pkg_experimental_forge_github --&gt; svc_forge
+  pkg_experimental_forge_session --&gt; svc_forgeSession
+  pkg_experimental_liveshare --&gt; svc_liveshareShares
+  pkg_experimental_speech_to_text --&gt; svc_speechToText
+  pkg_experimental_speech_to_text_sensevoice --&gt; svc_speechToText
+  pkg_experimental_translator --&gt; svc_translator
+  pkg_experimental_worktree --&gt; svc_worktrees
+  pkg_file_reference --&gt; svc_fileReferences
+  pkg_file_reference_local --&gt; svc_fileReferences
+  pkg_forge_gitlab --&gt; svc_forge
+  pkg_fs --&gt; svc_fs
+  pkg_fs_local --&gt; svc_fs
+  pkg_fs_sandbox --&gt; svc_fs
+  pkg_fs_ssh --&gt; svc_fs
+  pkg_goal --&gt; svc_goals
+  pkg_headless --&gt; svc_headlessStartup
+  pkg_hmr --&gt; svc_hmr
+  pkg_host_authentication_desktop --&gt; svc_connection_authentication
+  pkg_host_authentication_token --&gt; svc_connection_authentication
+  pkg_host_directory_picker --&gt; svc_directoryPicker
+  pkg_host_directory_picker_browse --&gt; svc_directoryPicker
+  pkg_host_directory_picker_native --&gt; svc_directoryPicker
+  pkg_host_product_telemetry_otel --&gt; svc_productTelemetry
+  pkg_host_webserver --&gt; svc_webServer
+  pkg_inspector --&gt; svc_inspector
+  pkg_jobs --&gt; svc_jobs
+  pkg_jobs_local --&gt; svc_jobs
+  pkg_llm --&gt; svc_llm
+  pkg_llm_deepseek --&gt; svc_llm
+  pkg_llm_pi_ai --&gt; svc_llm
+  pkg_llm_replay --&gt; svc_llm
+  pkg_lsp --&gt; svc_lsp
+  pkg_lsp_stdio --&gt; svc_lsp
+  pkg_mcp_account --&gt; svc_mcpAccounts
+  pkg_mcp_client --&gt; svc_mcpClientHost
+  pkg_mcp_client --&gt; svc_mcpResources
+  pkg_mcp_manager --&gt; svc_mcpManager
+  pkg_mcp_resources --&gt; svc_mcpResources
+  pkg_message_feedback --&gt; svc_messageFeedback
+  pkg_office_kit --&gt; svc_officeKit
+  pkg_otel --&gt; svc_otel
+  pkg_permission_presets --&gt; svc_permissionPresets
+  pkg_plan_mode --&gt; svc_planMode
+  pkg_plugin_manager --&gt; svc_pluginManager
+  pkg_plugin_market --&gt; svc_pluginMarket
+  pkg_plugin_package_inventory_deepseek --&gt; svc_deepseekLlmApiExtensions
+  pkg_plugin_recommendations --&gt; svc_pluginRecommendations
+  pkg_ptc_runtime --&gt; svc_ptcRuntime
+  pkg_ptc_runtime_node --&gt; svc_ptcRuntime
+  pkg_pwsh_local --&gt; svc_shell
+  pkg_sandbox --&gt; svc_sandbox
+  pkg_sandbox_local --&gt; svc_sandbox
+  pkg_sandbox_policy --&gt; svc_sandboxPolicy
+  pkg_sandbox_ssh --&gt; svc_sandbox
+  pkg_sandbox_windows_acl --&gt; svc_skills
+  pkg_schedule --&gt; svc_schedule
+  pkg_session --&gt; svc_sessions
+  pkg_session_log_deepseek --&gt; svc_deepseekLlmApiExtensions
+  pkg_session_log_deepseek --&gt; svc_sessionLogDeepSeek
+  pkg_session_persistence --&gt; svc_sessionPersistence
+  pkg_session_persistence_jsonl --&gt; svc_sessionPersistence
+  pkg_session_projection --&gt; svc_sessionProjections
+  pkg_session_projection_cache --&gt; svc_sessionProjectionCache
+  pkg_session_query --&gt; svc_sessionQuery
+  pkg_session_query_sqlite --&gt; svc_sessionQuery
+  pkg_session_reference --&gt; svc_sessionReferenceResolver
+  pkg_session_telemetry --&gt; svc_sessionTelemetry
+  pkg_session_telemetry_otel --&gt; svc_sessionTelemetry
+  pkg_session_title --&gt; svc_sessionTitle
+  pkg_session_title_all_prompts_llm --&gt; svc_sessionTitle
+  pkg_session_title_first_prompt_llm --&gt; svc_sessionTitle
+  pkg_settings --&gt; svc_settings
+  pkg_shell --&gt; svc_shell
+  pkg_shell_env --&gt; svc_shellEnv
+  pkg_skill --&gt; svc_skills
+  pkg_skill_badge --&gt; svc_skills
+  pkg_skill_filesystem --&gt; svc_skills
+  pkg_skill_office --&gt; svc_skills
+  pkg_spill --&gt; svc_spillStore
+  pkg_spill_local --&gt; svc_spillStore
+  pkg_ssh --&gt; svc_ssh
+  pkg_storage --&gt; svc_storage
+  pkg_storage_domain --&gt; svc_storageDomain
+  pkg_storage_json --&gt; svc_storage
+  pkg_storage_sqlite --&gt; svc_storage
+  pkg_subagent --&gt; svc_subagents
+  pkg_subagent_acp --&gt; svc_subagents
+  pkg_subagent_claude_code --&gt; svc_subagents
+  pkg_subagent_codex --&gt; svc_subagents
+  pkg_subagent_dsh_sdk --&gt; svc_subagents
+  pkg_subagent_fork_in_process --&gt; svc_subagents
+  pkg_subagent_spawn_in_process --&gt; svc_subagents
+  pkg_subprocess --&gt; svc_subprocess
+  pkg_subprocess_local --&gt; svc_subprocess
+  pkg_subprocess_ssh --&gt; svc_subprocess
+  pkg_system_prompt --&gt; svc_systemPrompt
+  pkg_terminal --&gt; svc_terminals
+  pkg_terminal_bash --&gt; svc_terminals
+  pkg_terminal_panel --&gt; svc_terminals
+  pkg_token_meter --&gt; svc_tokenMeter
+  pkg_tool_subagent --&gt; svc_subagentModelSelection
+  pkg_tools --&gt; svc_tools
+  pkg_typert_registry --&gt; svc_typert
+  pkg_upstream_skills --&gt; svc_upstreamSkills
+  pkg_user_approval --&gt; svc_approval
+  pkg_user_questions --&gt; svc_userQuestions
+  pkg_web --&gt; svc_web
+  pkg_web_app --&gt; svc_webApp
+  pkg_web_deepseek_api --&gt; svc_web
+  pkg_web_fetch_http --&gt; svc_web
+  pkg_web_search_deepseek --&gt; svc_web
+  pkg_webhook --&gt; svc_webhookRuntime
+  pkg_workflow --&gt; svc_workflowEngine
+  pkg_workflow_ptc --&gt; svc_workflowEngine
+  pkg_working_directory --&gt; svc_workingDirectory
+  pkg_workspace --&gt; svc_workspaceRegistry
+  pkg_workspace_changes --&gt; svc_workspaceChanges
+  svc_actionCards --&gt; pkg_client_ui_action_cards
+  svc_actionCards --&gt; pkg_creation_recommendations
+  svc_agentDefaultModel --&gt; pkg_api_session_controller
+  svc_agentDefaultModel --&gt; pkg_headless
+  svc_agentLoop --&gt; pkg_base
+  svc_agentLoop --&gt; pkg_sdk_minimal
+  svc_agentTeams --&gt; pkg_tool_agent_team
+  svc_agents --&gt; pkg_acp
+  svc_agents --&gt; pkg_agent_loop
+  svc_agents --&gt; pkg_subagent
+  svc_approval --&gt; pkg_acp
+  svc_approval --&gt; pkg_tool_bash
+  svc_approval --&gt; pkg_tools
+  svc_attachments --&gt; pkg_api_session_controller
+  svc_attachments --&gt; pkg_llm_deepseek
+  svc_attachments --&gt; pkg_llm_pi_ai
+  svc_attachments --&gt; pkg_tool_fs
+  svc_authorization --&gt; pkg_llm_pi_ai
+  svc_browserUse --&gt; pkg_experimental_browser_use_chrome_devtools_mcp
+  svc_browserUse --&gt; pkg_experimental_browser_use_playwright_mcp
+  svc_browserUse --&gt; pkg_experimental_browser_use_stagehand_native
+  svc_clientModules --&gt; pkg_client_hmr
+  svc_compaction --&gt; pkg_compaction_basic
+  svc_computerUse --&gt; pkg_experimental_computer_use_cua_driver_mcp
+  svc_computerUse --&gt; pkg_experimental_computer_use_cua_driver_native
+  svc_configEditor --&gt; pkg_agent_default_model
+  svc_configEditor --&gt; pkg_settings
+  svc_connection --&gt; pkg_api_gateway
+  svc_connection --&gt; pkg_host_frontend_static
+  svc_connection_authentication --&gt; pkg_client_connection
+  svc_cordisInspect --&gt; pkg_tool_cordis
+  svc_credentials --&gt; pkg_api_settings_controller
+  svc_credentials --&gt; pkg_deepseek_auth
+  svc_credentials --&gt; pkg_llm_pi_ai
+  svc_cuaAccess --&gt; pkg_cua
+  svc_cuaPrograms --&gt; pkg_cua_mcp
+  svc_deepseekAccount --&gt; pkg_deepseek_auth
+  svc_deepseekAccount --&gt; pkg_llm_deepseek_account
+  svc_deepseekAuth --&gt; pkg_llm_deepseek_account
+  svc_deepseekAuth --&gt; pkg_llm_deepseek_api_key
+  svc_deepseekAuth --&gt; pkg_web_deepseek_api
+  svc_deepseekAuth --&gt; pkg_web_search_deepseek
+  svc_deepseekLlmApiExtensions --&gt; pkg_llm_deepseek
+  svc_directoryPicker --&gt; pkg_api_workspace_controller
+  svc_dynamicCordisRunner --&gt; pkg_tool_cordis
+  svc_fileReferences --&gt; pkg_api_session_controller
+  svc_fileUploads --&gt; pkg_api_session_controller
+  svc_forge --&gt; pkg_experimental_client_ui_forge
+  svc_forge --&gt; pkg_experimental_forge_session
+  svc_forgeSession --&gt; pkg_experimental_client_ui_forge
+  svc_fs --&gt; pkg_tool_fs
+  svc_headlessStartup --&gt; pkg_headless
+  svc_hmr --&gt; pkg_app_boot
+  svc_jobs --&gt; pkg_api_job_controller
+  svc_jobs --&gt; pkg_tool_bash
+  svc_jobs --&gt; pkg_tool_jobs
+  svc_jobs --&gt; pkg_tool_pwsh
+  svc_jobs --&gt; pkg_tool_terminal
+  svc_llm --&gt; pkg_agent_loop
+  svc_llm --&gt; pkg_compaction_basic
+  svc_lsp --&gt; pkg_tool_lsp
+  svc_mcpClientHost --&gt; pkg_mcp_manager
+  svc_mcpResources --&gt; pkg_mcp_resources
+  svc_officeKit --&gt; pkg_client_ui_sidebar_documentpreview
+  svc_officeKit --&gt; pkg_tool_office
+  svc_otel --&gt; pkg_host_product_telemetry_otel
+  svc_otel --&gt; pkg_session_telemetry_otel
+  svc_pluginManager --&gt; pkg_plugin_manager
+  svc_pluginMarket --&gt; pkg_client_ui_plugin_market
+  svc_pluginMarket --&gt; pkg_plugin_market
+  svc_pluginRecommendations --&gt; pkg_client_ui_plugin_recommendations
+  svc_pluginRegistryProbe --&gt; pkg_client_ui_plugin_manager
+  svc_profileContext --&gt; pkg_plugin_manager
+  svc_ptcRuntime --&gt; pkg_tool_executor_ptc
+  svc_ptcRuntime --&gt; pkg_workflow_ptc
+  svc_remoteAccess --&gt; pkg_api_gateway
+  svc_remoteAccess --&gt; pkg_api_session_controller
+  svc_remoteAccess --&gt; pkg_api_workspace_controller
+  svc_sandbox --&gt; pkg_api_terminal_controller
+  svc_sandbox --&gt; pkg_bash_sandbox
+  svc_sandbox --&gt; pkg_terminal_bash
+  svc_sandboxPolicy --&gt; pkg_bash_sandbox
+  svc_sandboxPolicy --&gt; pkg_fs_sandbox
+  svc_sandboxPolicy --&gt; pkg_terminal_bash
+  svc_sandboxPolicy --&gt; pkg_terminal_panel
+  svc_sessionPersistence --&gt; pkg_agent_loop
+  svc_sessionPersistence --&gt; pkg_hooks_claude_code
+  svc_sessionPersistence --&gt; pkg_hooks_codex
+  svc_sessionPersistence --&gt; pkg_message_feedback
+  svc_sessionPersistence --&gt; pkg_session_query
+  svc_sessionPersistence --&gt; pkg_session_query_sqlite
+  svc_sessionPersistence --&gt; pkg_tool_bash
+  svc_sessionProjectionCache --&gt; pkg_api_session_controller
+  svc_sessionProjectionCache --&gt; pkg_session_query
+  svc_sessionProjectionCache --&gt; pkg_session_reference
+  svc_sessionProjections --&gt; pkg_api_session_controller
+  svc_sessionProjections --&gt; pkg_session_title
+  svc_sessionProjections --&gt; pkg_tool_todo
+  svc_sessionQuery --&gt; pkg_session_reference
+  svc_sessionQuery --&gt; pkg_tool_session_query
+  svc_sessionStatus --&gt; pkg_client_ui_session_status
+  svc_sessions --&gt; pkg_agent
+  svc_sessions --&gt; pkg_agent_loop
+  svc_sessions --&gt; pkg_message_feedback
+  svc_sessions --&gt; pkg_session_persistence
+  svc_sessions --&gt; pkg_session_query
+  svc_sessions --&gt; pkg_session_query_sqlite
+  svc_sessions --&gt; pkg_subagent
+  svc_settings --&gt; pkg_api_settings_controller
+  svc_shell --&gt; pkg_hooks_claude_code
+  svc_shell --&gt; pkg_hooks_codex
+  svc_shell --&gt; pkg_tool_bash
+  svc_shell --&gt; pkg_tool_pwsh
+  svc_shellEnv --&gt; pkg_tool_bash
+  svc_shellEnv --&gt; pkg_tool_pwsh
+  svc_skills --&gt; pkg_tool_skill
+  svc_speechToText --&gt; pkg_experimental_api_speech_to_text
+  svc_spillStore --&gt; pkg_spill_policy
+  svc_ssh --&gt; pkg_fs_ssh
+  svc_ssh --&gt; pkg_sandbox_ssh
+  svc_ssh --&gt; pkg_subprocess_ssh
+  svc_storage --&gt; pkg_storage_domain
+  svc_storageDomain --&gt; pkg_workspace
+  svc_subagentModelSelection --&gt; pkg_tool_subagent
+  svc_subagents --&gt; pkg_tool_ralph
+  svc_subagents --&gt; pkg_tool_subagent
+  svc_subagents --&gt; pkg_tool_subagent_control
+  svc_subprocess --&gt; pkg_bash_local
+  svc_subprocess --&gt; pkg_bash_sandbox
+  svc_subprocess --&gt; pkg_lsp_stdio
+  svc_subprocess --&gt; pkg_subagent_acp
+  svc_subprocess --&gt; pkg_subagent_claude_code
+  svc_subprocess --&gt; pkg_subagent_codex
+  svc_subprocess --&gt; pkg_terminal_bash
+  svc_systemPrompt --&gt; pkg_agent_loop
+  svc_systemPrompt --&gt; pkg_tool_fs
+  svc_systemPrompt --&gt; pkg_tool_terminal
+  svc_systemPrompt --&gt; pkg_tool_web
+  svc_systemPrompt --&gt; pkg_tools
+  svc_terminals --&gt; pkg_tool_terminal
+  svc_tokenMeter --&gt; pkg_compaction_basic
+  svc_toolResultPruner --&gt; pkg_compaction_basic
+  svc_tools --&gt; pkg_agent_loop
+  svc_tools --&gt; pkg_tool_ask_user
+  svc_tools --&gt; pkg_tool_bash
+  svc_tools --&gt; pkg_tool_cordis
+  svc_tools --&gt; pkg_tool_fs
+  svc_tools --&gt; pkg_tool_skill
+  svc_tools --&gt; pkg_tool_subagent
+  svc_tools --&gt; pkg_tool_terminal
+  svc_tools --&gt; pkg_tool_todo
+  svc_tools --&gt; pkg_tool_web
+  svc_translator --&gt; pkg_experimental_client_ui_cot_translation
+  svc_typert --&gt; pkg_api_gateway
+  svc_typert --&gt; pkg_typert_loader
+  svc_userQuestions --&gt; pkg_tool_ask_user
+  svc_web --&gt; pkg_tool_web
+  svc_webApp --&gt; pkg_harness_dev_context
+  svc_webServer --&gt; pkg_client_connection
+  svc_webServer --&gt; pkg_client_hmr
+  svc_webServer --&gt; pkg_client_modules
+  svc_webhookRuntime --&gt; pkg_webhook_github
+  svc_workflowEngine --&gt; pkg_tool_ralph
+  svc_workflowEngine --&gt; pkg_tool_workflow
+  svc_workingDirectory --&gt; pkg_agent_instructions
+  svc_workingDirectory --&gt; pkg_api_terminal_controller
+  svc_workingDirectory --&gt; pkg_api_workspace_files
+  svc_workingDirectory --&gt; pkg_file_reference_local
+  svc_workingDirectory --&gt; pkg_sandbox_policy
+  svc_workingDirectory --&gt; pkg_sdk_jsonrpc_server
+  svc_workingDirectory --&gt; pkg_subagent
+  svc_workingDirectory --&gt; pkg_tool_bash
+  svc_workingDirectory --&gt; pkg_tool_fs
+  svc_workingDirectory --&gt; pkg_tool_lsp
+  svc_workingDirectory --&gt; pkg_tool_pwsh
+  svc_workingDirectory --&gt; pkg_tool_skill
+  svc_workingDirectory --&gt; pkg_workspace_changes
+  svc_workspaceRegistry --&gt; pkg_api_session_controller
+  svc_workspaceRegistry --&gt; pkg_api_workspace_controller
+  svc_worktrees --&gt; pkg_experimental_tool_worktree
+  svc_fs -. event gate .-&gt; pkg_fs_observation_policy</code></pre>
+<table><thead><tr><th>ctx 键</th><th>角色</th><th>所属包</th><th>实现</th><th>直接消费方</th><th>配套插件</th><th>说明</th></tr></thead><tbody><tr><td><code>ctx.remoteConnection</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/remote-connection"><code>client-remote-connection</code></a></td><td>-</td><td>-</td><td>-</td><td>管理二维码邀请、获批的配对申请、Remote 浏览器凭据和匿名登录文档；Client 提供审批控件及独立的 Token 链接入口。</td></tr><tr><td><code>ctx.actionCards</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/action-cards"><code>action-cards</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/creation-recommendations"><code>creation-recommendations</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-action-cards"><code>client-ui-action-cards</code></a></td><td>-</td><td>负责卡片状态、用户操作和状态通知；各卡片种类注册自己的动作和处理器。</td></tr><tr><td><code>ctx.pluginRecommendations</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/plugin-recommendations"><code>plugin-recommendations</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-plugin-recommendations"><code>client-ui-plugin-recommendations</code></a></td><td>-</td><td>读取官方插件卡片的当前目录文本，并在用户点击后通过配置插件管理器启用该插件。</td></tr><tr><td><code>ctx.deepseekChatImport</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/deepseek-chat-import"><code>deepseek-chat-import</code></a></td><td>-</td><td>-</td><td>-</td><td>提供仅 owner 可用的上传路由，把 DeepSeek 会话导出的每个对话导入为一个会话，并提供浏览器先行检查的上传上限。</td></tr><tr><td><code>ctx.headlessStartup</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/headless"><code>headless</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/headless"><code>headless</code></a></td><td>-</td><td>将解析后的任务和运行选项提供给无界面运行器及其 sandbox-policy 配置。</td></tr><tr><td><code>ctx.cotTranslation</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/client-ui-cot-translation"><code>experimental-client-ui-cot-translation</code></a></td><td>-</td><td>-</td><td>-</td><td>为展开的思考内容提供有界的 Session 翻译请求，不改变模型可见历史。</td></tr><tr><td><code>ctx.translator</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/translator"><code>experimental-translator</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/client-ui-cot-translation"><code>experimental-client-ui-cot-translation</code></a></td><td>-</td><td>解析 Google 或 Bing 请求，并可选保留统一的实验性 Session 记录。</td></tr><tr><td><code>ctx.hmr</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/hmr"><code>hmr</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/app-boot"><code>app-boot</code></a></td><td>-</td><td>负责模块和精确配置监听；应用修改共用其队列，自动重载等待应用文件锁。</td></tr><tr><td><code>ctx.pluginRegistryProbe</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-plugin-manager"><code>client-ui-plugin-manager</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-plugin-manager"><code>client-ui-plugin-manager</code></a></td><td>-</td><td>在 Host 上并发比较公共安装源响应；初始安装源推荐由 Client 负责。</td></tr><tr><td><code>ctx.pluginManager</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-manager"><code>plugin-manager</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-manager"><code>plugin-manager</code></a></td><td>-</td><td>与 CLI 共享 profile 包操作，并向 Web 和 Agent 调用方分别报告持久状态与运行状态。</td></tr><tr><td><code>ctx.connectorAccounts</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-connector-account"><code>client-ui-connector-account</code></a></td><td>-</td><td>-</td><td>-</td><td>保存 CLI 应用插件和 MCP 连接器注册的账号，并通过一个 Remote 把 Host 算好的展示内容提供给插件页；授权页和提示只出现在发起操作的浏览器中。</td></tr><tr><td><code>ctx.cliAccounts</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/connector/cli-account"><code>cli-account</code></a></td><td>-</td><td>-</td><td>-</td><td>保存每个 CLI 应用插件注册的内容：把 CLI 的绝对路径加入必需的运行时上下文，通过有时限的命令让插件的账号操作一次只执行一个，并在 <code>ctx.connectorAccounts</code> 这个注册表已加载时把账号注册进去。</td></tr><tr><td><code>ctx.pluginMarket</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-market"><code>plugin-market</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-plugin-market"><code>client-ui-plugin-market</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-market"><code>plugin-market</code></a></td><td>-</td><td>获取并校验用户配置的索引源；安装通过插件管理器完成。</td></tr><tr><td><code>ctx.profileContext</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/app-boot"><code>app-boot</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-manager"><code>plugin-manager</code></a></td><td>-</td><td>dsh launcher 提供纯数据形式的 profile 位置与组合输入；重载调度由 dsh-hmr 负责。</td></tr><tr><td><code>ctx.connection</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection"><code>client-connection</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway"><code>api-gateway</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/frontend-static"><code>host-frontend-static</code></a></td><td>-</td><td>执行来源策略与共享 HTTP 请求分发；凭据验证归 ConnectionAuthentication，API 适配器注册端点和流。</td></tr><tr><td><code>ctx.connection.authentication</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection"><code>client-connection</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/authentication-token"><code>host-authentication-token</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/authentication-desktop"><code>host-authentication-desktop</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection"><code>client-connection</code></a></td><td>-</td><td>按注册顺序尝试作用域拥有的凭据验证器，返回首个存活 Peer；传输来源策略和业务授权仍归各自消费者。</td></tr><tr><td><code>ctx.forge</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/forge"><code>experimental-forge</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/forge-github"><code>experimental-forge-github</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/forge-gitlab"><code>forge-gitlab</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/forge-session"><code>experimental-forge-session</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/client-ui-forge"><code>experimental-client-ui-forge</code></a></td><td>-</td><td>提供方映射远端与变更请求 URL、按 head 分支查找变更请求并批量读取状态；同一变更请求的监听方共享一个轮询循环。</td></tr><tr><td><code>ctx.forgeSession</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/forge-session"><code>experimental-forge-session</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/client-ui-forge"><code>experimental-client-ui-forge</code></a></td><td>-</td><td>Session 投影从 shell 结果与绑定记录派生绑定，并把不含状态的 URL 发布给客户端；推送结果触发按 head 分支的发现，Session 监听方通过 forge 注册表轮询已绑定的变更请求。</td></tr><tr><td><code>ctx.forgePanel</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/client-ui-forge"><code>experimental-client-ui-forge</code></a></td><td>-</td><td>-</td><td>-</td><td>为每个被跟随的 Session 推送一份面板状态：使用 Session 权限进行的 Git 检查、识别出的代码托管平台及其登录状态，以及带轮询状态的已绑定变更请求。</td></tr><tr><td><code>ctx.worktrees</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/worktree"><code>experimental-worktree</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/worktree"><code>experimental-worktree</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-worktree"><code>experimental-tool-worktree</code></a></td><td>-</td><td>显式实验组合从固定的本地提交创建工作树。检出目录与共享 Git 元数据受现有写权限约束；工作目录服务拥有创建后的 Session 目录。</td></tr><tr><td><code>ctx.workingDirectory</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/working-directory"><code>working-directory</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/working-directory"><code>working-directory</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs"><code>tool-fs</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-pwsh"><code>tool-pwsh</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent"><code>subagent</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sdk/server"><code>sdk-jsonrpc-server</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy"><code>sandbox-policy</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-files"><code>api-workspace-files</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/terminal-controller"><code>api-terminal-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/deliverables/workspace-changes"><code>workspace-changes</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/file-reference-local"><code>file-reference-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/tool-skill"><code>tool-skill</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/agent-instructions"><code>agent-instructions</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/tool-lsp"><code>tool-lsp</code></a></td><td>-</td><td>一个 Session 投影维护当前执行目录，只有 Host 操作能移动它。文件系统验证变更，用户上下文报告变更。模型工具基于当前目录解析路径，沙箱边界、文件视图和文件发现也随目录更新。原始元数据保持不变。</td></tr><tr><td><code>ctx.mcpResources</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-resources"><code>mcp-resources</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client"><code>mcp-client</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-resources"><code>mcp-resources</code></a></td><td>-</td><td>连接所有者提供的操作在调用 agent 的作用域内服务于共享资源工具。</td></tr><tr><td><code>ctx.browserUse</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/browser-use/browser-use"><code>browser-use</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-playwright-mcp"><code>experimental-browser-use-playwright-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-chrome-devtools-mcp"><code>experimental-browser-use-chrome-devtools-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-stagehand-native"><code>experimental-browser-use-stagehand-native</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-playwright-mcp"><code>experimental-browser-use-playwright-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-chrome-devtools-mcp"><code>experimental-browser-use-chrome-devtools-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/browser-use-stagehand-native"><code>experimental-browser-use-stagehand-native</code></a></td><td>-</td><td>每个服务实例注册一个提供方拥有的名称。提供方按实时 Session 拥有自己的工具与浏览器资源；共享服务不提供浏览器操作 API。</td></tr><tr><td><code>ctx.computerUse</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/computer-use/computer-use"><code>computer-use</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/computer-use-cua-driver-mcp"><code>experimental-computer-use-cua-driver-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/computer-use-cua-driver-native"><code>experimental-computer-use-cua-driver-native</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/computer-use-cua-driver-mcp"><code>experimental-computer-use-cua-driver-mcp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/computer-use-cua-driver-native"><code>experimental-computer-use-cua-driver-native</code></a></td><td>-</td><td>每个服务实例只注册一个提供方自定的名称。各提供方也拥有自己的模型工具；服务不提供通用操作 API、运行时选择或 Session 流程锁。</td></tr><tr><td><code>ctx.cuaAccess</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/cua"><code>cua</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/cua"><code>cua</code></a></td><td>-</td><td>原生 provider 负责应用授权和取消操作；可选的 Client 权限页面通过 Remote 查询和修改授权。</td></tr><tr><td><code>ctx.cuaPrograms</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/cua"><code>cua</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/cua-mcp"><code>cua-mcp</code></a></td><td>-</td><td>提供方持有保留的 cua_run_code 运行时；没有模型的宿主通过它释放单个 Agent 的环境，并读取已配置的截图请求目标。</td></tr><tr><td><code>ctx.officeKit</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/document/office-kit"><code>office-kit</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-sidebar-documentpreview"><code>client-ui-sidebar-documentpreview</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/document/tool-office"><code>tool-office</code></a></td><td>-</td><td>已授权的 Office 字节在宿主上使用已声明的原生目标引擎渲染为 PDF 或图片、转换或重算；未声明原生目标时使用 Node WASM。</td></tr><tr><td><code>ctx.attachments</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/attachment/attachment"><code>attachment</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/attachment/attachment-local"><code>attachment-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs"><code>tool-fs</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai"><code>llm-pi-ai</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek"><code>llm-deepseek</code></a></td><td>-</td><td>宿主会在会话事件之前提交已接受的图片；提供方适配器将已授权的持久引用解析为提供方原生内容。</td></tr><tr><td><code>ctx.fileUploads</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/file-upload"><code>client-file-upload</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>负责流式接收、持久存储和暂存回执生命周期；Session Controller 将回执绑定到已接受的提交。</td></tr><tr><td><code>ctx.llm</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm"><code>llm</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek"><code>llm-deepseek</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai"><code>llm-pi-ai</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/test-support/llm-replay"><code>llm-replay</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic"><code>compaction-basic</code></a></td><td>-</td><td>适配器注册提供方实现；agent loop（智能体循环）与压缩功能调用提供方无关的流服务。</td></tr><tr><td><code>ctx.sessionLogDeepSeek</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-log-deepseek"><code>session-log-deepseek</code></a></td><td>-</td><td>-</td><td>-</td><td>插件在准备权威 Session 日志请求贡献前注册归调用方所有的排除条件；没有条件匹配的请求应用普通上传资格判断。</td></tr><tr><td><code>ctx.deepseekLlmApiExtensions</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/deepseek-llm-api-extensions"><code>deepseek-llm-api-extensions</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-log-deepseek"><code>session-log-deepseek</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/plugin-package-inventory-deepseek"><code>plugin-package-inventory-deepseek</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek"><code>llm-deepseek</code></a></td><td>-</td><td>插件准备彼此独立的顶层字段；官方适配器会合并这些字段，并在 HTTP 接受后提交其交付状态。</td></tr><tr><td><code>ctx.tokenMeter</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter"><code>token-meter</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic"><code>compaction-basic</code></a></td><td>-</td><td>拥有按会话隔离的回放折叠区；压力消费方共享不可变且带修订版本的测量结果。</td></tr><tr><td><code>ctx.toolResultPruner</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-tool-result-pruner"><code>compaction-tool-result-pruner</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic"><code>compaction-basic</code></a></td><td>-</td><td>在摘要压缩前，通过可回放的单节点表层替换来改写过大的当前工具结果。</td></tr><tr><td><code>ctx.sessions</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session"><code>session</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent"><code>agent</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence"><code>session-persistence</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query"><code>session-query</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query-sqlite"><code>session-query-sqlite</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent"><code>subagent</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/feedback/message-feedback"><code>message-feedback</code></a></td><td>-</td><td>拥有仅追加的 Session 实例，并发出持久的会话事件流。</td></tr><tr><td><code>ctx.speechController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/api-speech-to-text"><code>experimental-api-speech-to-text</code></a></td><td>-</td><td>-</td><td>-</td><td>在 Provider 调用前校验受限的浏览器音频。</td></tr><tr><td><code>ctx.sessionStatus</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-status"><code>client-ui-session-status</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-status"><code>client-ui-session-status</code></a></td><td>-</td><td>在会话历史之外保存使用者的阅读确认和手动未读标记；其前端部分通过 Remote 订阅已保存的更新、确认已加载的完成内容，并提供会话状态表。</td></tr><tr><td><code>ctx.sessionController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>负责 Session 命令、冷读取、持久事件跟随、实时控制状态、模型目录、workspace 打开与 Agent 激活策略。</td></tr><tr><td><code>ctx.sessionFileReferences</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>通过 Session Controller 的既有 Agent lookup 策略委托文件引用发现。</td></tr><tr><td><code>ctx.sessionSkillCatalog</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>在不激活冷 Agent 的前提下列出 Session 组合中允许用户调用的 skill。</td></tr><tr><td><code>ctx.jobController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/job-controller"><code>api-job-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>经生成的 Remote namespace 流式发送一个后台任务的观测 record；名册仍在会话控制流上。</td></tr><tr><td><code>ctx.credentialsController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller"><code>api-settings-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>把凭据引用 seam 投影到生成的 Remote namespace：批量扇出、视图投影与拒绝映射都在这里，而不在 seam Definition 上。</td></tr><tr><td><code>ctx.settingsController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller"><code>api-settings-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>把用户设置 seam 投影到生成的 Remote namespace：读取一律脱敏，所有拒绝在这里分类，而不在 seam Definition 上。</td></tr><tr><td><code>ctx.workspaceFiles</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-files"><code>api-workspace-files</code></a></td><td>-</td><td>-</td><td>-</td><td>为会话工作区根内的文件提供 stat、分页文本、字节窗口、目录列举与变更流，经 lstat、包含关系与 stat 重检限定。</td></tr><tr><td><code>ctx.workspaceChanges</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/deliverables/workspace-changes"><code>workspace-changes</code></a></td><td>-</td><td>-</td><td>-</td><td>Serves the summary each workspace/changes event announced and each listed file's turn-start and turn-end comparison, by Session and event sequence, until that Session is disposed; the log carries only the turn.</td></tr><tr><td><code>ctx.terminalController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/terminal-controller"><code>api-terminal-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>通过子进程提供方与类型化 Remote 传输管理用户终端进程、解析默认 shell，并恢复有界终端屏幕。</td></tr><tr><td><code>ctx.workspaceController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller"><code>api-workspace-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>通过生成的 Remote namespace 负责 Workspace 命令和可在重连后收敛的 Workspace 状态投递。</td></tr><tr><td><code>ctx.directoryPickerController</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller"><code>api-workspace-controller</code></a></td><td>-</td><td>-</td><td>-</td><td>把选目录 seam 送上线：能力门禁、取消传播，以及浏览器目录流程用于分支判断的 seam 错误码。</td></tr><tr><td><code>ctx.typert</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/registry"><code>typert-registry</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/loader"><code>typert-loader</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway"><code>api-gateway</code></a></td><td>-</td><td>插件直接或通过 dsh-typert-loader 注册实时 zod 贡献；API 网关消费调用描述符和提供方，其他运行时消费方则在各自边界查询 schema 与反射元数据。</td></tr><tr><td><code>ctx.typertGateway</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway"><code>api-gateway</code></a></td><td>-</td><td>-</td><td>-</td><td>将生成的 Remote 描述符与实时 Cordis 服务关联，解析已注册的身份，并通过共享的 Connection RPC 载体提供一元调用。</td></tr><tr><td><code>ctx.remoteAccess</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access"><code>api-remote-access</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway"><code>api-gateway</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller"><code>api-workspace-controller</code></a></td><td>-</td><td>通过业务方注册的基于 role 的 policy 判定非 owner Peer 可调用哪些 Remote 方法，过滤列表结果，并为每个 Peer 推送访问快照。</td></tr><tr><td><code>ctx.sessionPersistence</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence"><code>session-persistence</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl"><code>session-persistence-jsonl</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/hooks-claude-code"><code>hooks-claude-code</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/hooks-codex"><code>hooks-codex</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query"><code>session-query</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query-sqlite"><code>session-query-sqlite</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/feedback/message-feedback"><code>message-feedback</code></a></td><td>-</td><td>JSONL backend 把 SessionEvent 词汇持久化为每个 Session 一份产物。</td></tr><tr><td><code>ctx.configEditor</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/config-editor"><code>config-editor</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings"><code>settings</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-default-model"><code>agent-default-model</code></a></td><td>-</td><td>Persists profile config patches under the application file lock and HMR queue, then reconciles Loader entries.</td></tr><tr><td><code>ctx.settings</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings"><code>settings</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller"><code>api-settings-controller</code></a></td><td>-</td><td>Forms project volatile Config fields from active profile entries and delegate validated edits to config-editor. Plugins consume their own Config references.</td></tr><tr><td><code>ctx.subagentModelSelection</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent"><code>tool-subagent</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent"><code>tool-subagent</code></a></td><td>-</td><td>拥有默认关闭的设置命名空间；Agent 作用域的委派工具会在组合新顶层 Session 时读取它。</td></tr><tr><td><code>ctx.credentials</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/credentials/credentials"><code>credentials</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/credentials/credentials-local"><code>credentials-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller"><code>api-settings-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/account/deepseek-auth"><code>deepseek-auth</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai"><code>llm-pi-ai</code></a></td><td>-</td><td>配置携带对机密信息的引用；提供方拥有实际值。消费方按操作解析，因此轮换后的凭据会在紧接着的下一次请求中生效；settings controller 提供不含实际值的视图和只写存储。</td></tr><tr><td><code>ctx.deepseekAccount</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/account/deepseek-account"><code>deepseek-account</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/account/deepseek-auth"><code>deepseek-auth</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek-account"><code>llm-deepseek-account</code></a></td><td>-</td><td>Host 负责浏览器授权和本地凭证，并向 DeepSeek 请求鉴权释放按请求的凭据；账号模型路由注册其运行中任务报告，UI 使用方只接收不含 token 的状态。</td></tr><tr><td><code>ctx.deepseekAuth</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/account/deepseek-auth"><code>deepseek-auth</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek-account"><code>llm-deepseek-account</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek-api-key"><code>llm-deepseek-api-key</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web-deepseek-api"><code>web-deepseek-api</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web-search-deepseek"><code>web-search-deepseek</code></a></td><td>-</td><td>每个 DeepSeek API 消费方给出其 API 接受的凭据种类；服务按计费方式排定 API 密钥与账号登录的顺序，把每一种绑定到其部署，并释放请求头。</td></tr><tr><td><code>ctx.authorization</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/credentials/authorization"><code>authorization</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai"><code>llm-pi-ai</code></a></td><td>-</td><td>flow 由知道如何取得某份凭据的插件注册，并以其写入的记录为键；seam 拥有这段对话与"每个键同时只跑一次尝试"的生命周期，而非协议本身。</td></tr><tr><td><code>ctx.productAnalytics</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/product-analytics"><code>client-product-analytics</code></a></td><td>-</td><td>-</td><td>-</td><td>根据 Host 动态采集策略接收指定桌面事件、补充可用登录身份并监听实时压缩。</td></tr><tr><td><code>ctx.otel</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/telemetry/otel"><code>otel</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/product-telemetry-otel"><code>host-product-telemetry-otel</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry-otel"><code>session-telemetry-otel</code></a></td><td>-</td><td>产品埋点和 Session 反馈适配器通过同一个注入服务创建独立上报通道。</td></tr><tr><td><code>ctx.productTelemetry</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/product-telemetry-otel"><code>host-product-telemetry-otel</code></a></td><td>-</td><td>-</td><td>-</td><td>通过 OTLP/HTTP 发送显式提交的分析事件；仅挂载插件不会采集信息。</td></tr><tr><td><code>ctx.sessionTelemetry</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry"><code>session-telemetry</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry-otel"><code>session-telemetry-otel</code></a></td><td>-</td><td>-</td><td>该 seam 捕获会话记录、进行脱敏并交给一个后端；没有其他组件消费该服务，其输出会离开当前进程。</td></tr><tr><td><code>ctx.storage</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage"><code>storage</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-json"><code>storage-json</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-sqlite"><code>storage-sqlite</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain"><code>storage-domain</code></a></td><td>-</td><td>各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。</td></tr><tr><td><code>ctx.storageDomain</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain"><code>storage-domain</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workspace/workspace"><code>workspace</code></a></td><td>-</td><td>等待所有已配置后端就绪，然后将领域形态发布为一个受生命周期约束的服务，用于类型化持久状态。</td></tr><tr><td><code>ctx.messageFeedback</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/feedback/message-feedback"><code>message-feedback</code></a></td><td>-</td><td>-</td><td>-</td><td>拥有权威 Session 日志中的逐 assistant 消息反馈、目标校验、逐条目 compare-and-set 及 Host 一元 Remote 契约。反馈不进入模型历史；日志导出遵循消费方策略。</td></tr><tr><td><code>ctx.sessionFeedback</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/feedback/command-feedback"><code>command-feedback</code></a></td><td>-</td><td>-</td><td>-</td><td>通过 Host 一元 Remote 契约在 live Session 上把一条带分类的 Session 级评价记录为仅写日志的 feedback/record 事件；/feedback 命令共用同一个生产方。</td></tr><tr><td><code>ctx.workspaceRegistry</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workspace/workspace"><code>workspace</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller"><code>api-workspace-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>通过领域设施拥有带 WorkspaceId 品牌类型的记录；稳定的 sessionIds 账户驱动 Host RPC 与 GUI 投影。</td></tr><tr><td><code>ctx.sessionQuery</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query"><code>session-query</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query-sqlite"><code>session-query-sqlite</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/session-reference"><code>session-reference</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-session-query"><code>tool-session-query</code></a></td><td>-</td><td>该接口提供精确读取、过滤和追踪；具体后端还提供全文协调、排序、摘要片段和游标世代，而模型消费方负责工作区权限与不含游标的渲染。</td></tr><tr><td><code>ctx.fileReferences</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/file-reference"><code>file-reference</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/file-reference-local"><code>file-reference-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a></td><td>-</td><td>该接口返回 Agent cwd 内仅含路径的补全候选；提供方负责命名空间访问与排序，但不读取文件内容。</td></tr><tr><td><code>ctx.sessionReferenceResolver</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/session-reference"><code>session-reference</code></a></td><td>-</td><td>-</td><td>-</td><td>将当前表层中有界的对话快照投影为持久但不可信的消息上下文；Host 适配器负责提及语法。</td></tr><tr><td><code>ctx.sessionTitle</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-title"><code>session-title</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-title-first-prompt-llm"><code>session-title-first-prompt-llm</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/session-title-all-prompts-llm"><code>session-title-all-prompts-llm</code></a></td><td>-</td><td>-</td><td>负责确定性回退、最新标题折叠区，以及唯一的可选异步提供方注册。</td></tr><tr><td><code>ctx.systemPrompt</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt"><code>system-prompt</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools"><code>tools</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs"><code>tool-fs</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-terminal"><code>tool-terminal</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/tool-web"><code>tool-web</code></a></td><td>-</td><td>为每个步骤收集提示词各部分和面向模型的工具 schema。</td></tr><tr><td><code>ctx.tools</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools"><code>tools</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/tool-ask-user"><code>tool-ask-user</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/tool-cordis"><code>tool-cordis</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs"><code>tool-fs</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-terminal"><code>tool-terminal</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/tool-skill"><code>tool-skill</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent"><code>tool-subagent</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/todo/tool-todo"><code>tool-todo</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/tool-web"><code>tool-web</code></a></td><td>-</td><td>注册能力和作用域执行器。原生与 PTC 提供者负责工具描述及完整原始调用批次；它们可选用共享流水线处理工具策略和分发。</td></tr><tr><td><code>ctx.userQuestions</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions"><code>user-questions</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/tool-ask-user"><code>tool-ask-user</code></a></td><td>-</td><td>UI 前端提供当前生效的人工回答提供方；tool-ask-user 在提供方无关的 ask() promise 上暂停工具调用。</td></tr><tr><td><code>ctx.planMode</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/plan/plan-mode"><code>plan-mode</code></a></td><td>-</td><td>-</td><td>-</td><td>折叠已记录的计划／模式状态，在轮次边界刷新用户选择，渲染由部署方拥有的指导信息，注册 /plan，并在状态转换期间保持计划退出 schema 稳定。</td></tr><tr><td><code>ctx.agentPresets</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/preset/agent-preset-registry"><code>agent-preset-registry</code></a></td><td>-</td><td>-</td><td>-</td><td>立即挂载 YAML 声明的 preset 版本，把 Agent 和冷读取绑定到作用域内的贡献，并保留已替换的版本，直到最后一个使用者释放它。</td></tr><tr><td><code>ctx.commands</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/commands"><code>commands</code></a></td><td>-</td><td>-</td><td>-</td><td>插件注册直接面向人的命令，而不会把调用发送给模型。</td></tr><tr><td><code>ctx.sessionProjections</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection"><code>session-projection</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/todo/tool-todo"><code>tool-todo</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-title"><code>session-title</code></a></td><td>-</td><td>各领域注册由状态驱动的折叠单元；主动驱动过程维护每个会话的水位状态，Session controller 提供 baseline 并推送发生变化的值。</td></tr><tr><td><code>ctx.sessionProjectionCache</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection-cache"><code>session-projection-cache</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query"><code>session-query</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/session-reference"><code>session-reference</code></a></td><td>-</td><td>按会话持久保存投影单元状态的检查点（节流检查点，以及轮次／结束／分离时的必选检查点），提供缓存投影视图，并加速 prepared Session 的投影恢复。</td></tr><tr><td><code>ctx.skills</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill"><code>skill</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-windows-acl"><code>sandbox-windows-acl</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/skill-badge"><code>skill-badge</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem"><code>skill-filesystem</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-office"><code>skill-office</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/tool-skill"><code>tool-skill</code></a></td><td>-</td><td>合并提供方的 skill（技能）目录；tool-skill 渲染会话前缀目录，并加载完整的 skill 正文。</td></tr><tr><td><code>ctx.upstreamSkills</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/connector/upstream-skills"><code>upstream-skills</code></a></td><td>-</td><td>-</td><td>-</td><td>保存每个 CLI 应用插件注册的内容：从厂商 GitHub 仓库下载其入口技能索引的固定上游文件，校验并缓存，文件就位后通过 <code>ctx.skills</code> 列出入口技能。</td></tr><tr><td><code>ctx.agents</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent"><code>agent</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/acp"><code>acp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent"><code>subagent</code></a></td><td>-</td><td>拥有实时 Agent 句柄、创建／恢复工厂 seam，以及进程本地的发起方传播。</td></tr><tr><td><code>ctx.agentDefaultModel</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-default-model"><code>agent-default-model</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller"><code>api-session-controller</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/headless"><code>headless</code></a></td><td>-</td><td>Reads the default ModelSelection from volatile Config and saves selections through the profile editor.</td></tr><tr><td><code>ctx.agentLoop</code></td><td><code>bundle</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/base"><code>base</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/sdk-minimal"><code>sdk-minimal</code></a></td><td>-</td><td>唯一的具体循环插件；扩展包依赖 dsh-agent 的事件和服务，而不依赖此包。</td></tr><tr><td><code>ctx.mcpManager</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-manager"><code>mcp-manager</code></a></td><td>-</td><td>-</td><td>-</td><td>依据自身 volatile servers 配置对账 mcp-client 实例，聚合它们的连接状态，并向管理界面提供 restart 与 probe。</td></tr><tr><td><code>ctx.mcpClientHost</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client"><code>mcp-client</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-manager"><code>mcp-manager</code></a></td><td>-</td><td>管理器创建它来校验、挂载、探测和授权服务器，此外不使用 mcp-client 的任何值；其服务器运行在管理器之下。</td></tr><tr><td><code>ctx.mcpAccounts</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-account"><code>mcp-account</code></a></td><td>-</td><td>-</td><td>-</td><td>在插件页通过连接器账号注册表显示每个 MCP 连接器插件注册的 OAuth 服务器账号；页面的操作经由管理器执行。</td></tr><tr><td><code>ctx.schedule</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule"><code>schedule</code></a></td><td>-</td><td>-</td><td>-</td><td>独立于 Session 的加载状态存储任务，并将到期消息排入每个任务的目标 Session。</td></tr><tr><td><code>ctx.goals</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/goal/goal"><code>goal</code></a></td><td>-</td><td>-</td><td>-</td><td>从会话日志折叠带修订版本的目标状态，并将实时延续激活保留在进程本地。</td></tr><tr><td><code>ctx.ssh</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/ssh"><code>ssh</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/fs-ssh"><code>fs-ssh</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/subprocess-ssh"><code>subprocess-ssh</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/sandbox-ssh"><code>sandbox-ssh</code></a></td><td>-</td><td>负责一条经过认证的 OpenSSH 连接、已安装辅助程序身份、独立程序流，以及配套远端提供方的断连清理。</td></tr><tr><td><code>ctx.subprocess</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess"><code>subprocess</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess-local"><code>subprocess-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/subprocess-ssh"><code>subprocess-ssh</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-local"><code>bash-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox"><code>bash-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/terminal-bash"><code>terminal-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp-stdio"><code>lsp-stdio</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-acp"><code>subagent-acp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-codex"><code>subagent-codex</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-claude-code"><code>subagent-claude-code</code></a></td><td>-</td><td>Bash 执行器、PTY shell 后端、LSP Host，以及进程外 ACP、Codex 和 Claude Code subagent 后端都通过 ctx.subprocess 执行 spawn；该服务负责进程坐标、进程树／会话生命周期、stdio 处置、终端机制和 kill 升级。</td></tr><tr><td><code>ctx.shell</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell"><code>shell</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-local"><code>bash-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox"><code>bash-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/pwsh-local"><code>pwsh-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-pwsh"><code>tool-pwsh</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/hooks-claude-code"><code>hooks-claude-code</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/hooks-codex"><code>hooks-codex</code></a></td><td>-</td><td>面向模型的 shell 工具和钩子桥接消费此 seam；沙箱、远程或 PowerShell 执行器可以替换 bash-local，而无需改动这些消费方。</td></tr><tr><td><code>ctx.shellEnv</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell-env"><code>shell-env</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-pwsh"><code>tool-pwsh</code></a></td><td>-</td><td>插件声明限定于 effect 作用域的 DSH_* 事实；每个 shell 工具在每次执行时收集一份可信快照，其执行器据此重建命名空间。</td></tr><tr><td><code>ctx.terminals</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/terminal"><code>terminal</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/terminal-bash"><code>terminal-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/terminal-panel"><code>terminal-panel</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-terminal"><code>tool-terminal</code></a></td><td>-</td><td>注册表负责精确到 Agent 的会话身份和清理；后端负责终端机制，tool-terminal 则提供限定于所有者作用域的模型接口。</td></tr><tr><td><code>ctx.sandbox</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox"><code>sandbox</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local"><code>sandbox-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/sandbox-ssh"><code>sandbox-ssh</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox"><code>bash-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/terminal-bash"><code>terminal-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/terminal-controller"><code>api-terminal-controller</code></a></td><td>-</td><td>消费方交出即将执行 spawn 的确切 argv；与配套子进程提供方共享执行环境的后端按每次调用的策略包装该 argv，并报告强制执行情况。</td></tr><tr><td><code>ctx.sandboxPolicy</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy"><code>sandbox-policy</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox"><code>bash-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-sandbox"><code>fs-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/terminal-bash"><code>terminal-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/terminal-panel"><code>terminal-panel</code></a></td><td>-</td><td>统一保存部署默认模式和工作区根目录；只有沙箱执行器和提供方读取该服务（工具层使用它同时导出的纯 <code>sandbox/mode</code> 折叠区）。两类强制执行组件都读取该服务，因此 bash 与 fs 不会限制到不同的根目录。</td></tr><tr><td><code>ctx.approval</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval"><code>user-approval</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools"><code>tools</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/acp"><code>acp</code></a></td><td>-</td><td>一次性权限决策通过 <code>approval/request</code> waterfall（瀑布式事件）分派；回答方是监听器（即 ACP 为自身 agent 提供的桥接），没有回答方时以 <code>unavailable</code> 关闭失败。</td></tr><tr><td><code>ctx.permissionPresets</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets"><code>permission-presets</code></a></td><td>-</td><td>-</td><td>-</td><td>面向用户的预设表（<code>workspace-write</code>／<code>danger-full-access</code>），将沙箱模式与审批策略选项组合在一起；一次切换会写入一个 <code>permission/preset</code> 事件，并贯通到两个选项事件。</td></tr><tr><td><code>ctx.ptcRuntime</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime"><code>ptc-runtime</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime-node"><code>ptc-runtime-node</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tool-executor-ptc"><code>tool-executor-ptc</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workflow/workflow-ptc"><code>workflow-ptc</code></a></td><td>-</td><td>使用 Host 提供的异步绑定运行程序；tool-executor-ptc 负责 PTC 呈现，workflow-ptc 负责工作流编排。</td></tr><tr><td><code>ctx.fs</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs"><code>fs</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-local"><code>fs-local</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-sandbox"><code>fs-sandbox</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/fs-ssh"><code>fs-ssh</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs"><code>tool-fs</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-observation-policy"><code>fs-observation-policy</code></a></td><td>tool-fs 通过 ctx.fs 执行读取／写入／编辑；fs-sandbox 按共享沙箱模式限制变更；fs-observation-policy 通过 fs/* 事件门禁贡献基于观测状态的检查。</td></tr><tr><td><code>ctx.compaction</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction"><code>compaction</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic"><code>compaction-basic</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic"><code>compaction-basic</code></a></td><td>-</td><td>基础后端消费步骤后的压力事件和请求错误恢复事件；不存在面向模型的压缩工具。</td></tr><tr><td><code>ctx.subagents</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent"><code>subagent</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-spawn-in-process"><code>subagent-spawn-in-process</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-fork-in-process"><code>subagent-fork-in-process</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-acp"><code>subagent-acp</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-codex"><code>subagent-codex</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-claude-code"><code>subagent-claude-code</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-dsh-sdk"><code>subagent-dsh-sdk</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent"><code>tool-subagent</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent-control"><code>tool-subagent-control</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-ralph"><code>tool-ralph</code></a></td><td>-</td><td>提供方准备本地子级或执行外部任务；一个 activation 管理器持有两类生命周期。委派工具选择后端，控制工具投递本地后续消息，工作流等待 activation 结果。</td></tr><tr><td><code>ctx.speechToText</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/speech-to-text"><code>experimental-speech-to-text</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/speech-to-text-sensevoice"><code>experimental-speech-to-text-sensevoice</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/api-speech-to-text"><code>experimental-api-speech-to-text</code></a></td><td>-</td><td>路由显式选择的识别器；浏览器使用带认证的 Remote，并在提交前将转写保留在草稿中。</td></tr><tr><td><code>ctx.agentTeams</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/team/agent-team"><code>agent-team</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/team/tool-agent-team"><code>tool-agent-team</code></a></td><td>-</td><td>负责子代理树共享的任务 DAG；tool-agent-team 提供任务控制工具。</td></tr><tr><td><code>ctx.claudeCodeMods</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/claude-code-mods"><code>experimental-claude-code-mods</code></a></td><td>-</td><td>-</td><td>-</td><td>加载 defineMod 插件添加的模组，从 harness 扩展点触发其钩子链，并通过其 Remote 绘制提示框上方的横幅。</td></tr><tr><td><code>ctx.inspector</code></td><td><code>core</code></td><td><code>inspector</code></td><td>-</td><td>-</td><td>-</td><td>负责 Worker 托管的 CDP target，以及独立于传输的 Host 和 Client observation 与 Cordis tree query API。</td></tr><tr><td><code>ctx.jobs</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs"><code>jobs</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs-local"><code>jobs-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash"><code>tool-bash</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-pwsh"><code>tool-pwsh</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-terminal"><code>tool-terminal</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/tool-jobs"><code>tool-jobs</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/job-controller"><code>api-job-controller</code></a></td><td>-</td><td>生产方（后台 bash/pwsh 与 PTY 发送）登记正在运行的工作；声明 record 的 job 还为非消费观察者流式提供原始输出；tool-jobs 是面向模型的控制器，用于读取、列出和终止这些工作；jobs-local 是进程本地注册表。</td></tr><tr><td><code>ctx.web</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web"><code>web</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web-search-deepseek"><code>web-search-deepseek</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web-deepseek-api"><code>web-deepseek-api</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/web-fetch-http"><code>web-fetch-http</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/web/tool-web"><code>tool-web</code></a></td><td>-</td><td>搜索和抓取提供方注册到同一个 ctx.web seam；tool-web 负责稳定的面向模型名称。</td></tr><tr><td><code>ctx.spillStore</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/spill/spill"><code>spill</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/spill/spill-local"><code>spill-local</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/spill/spill-policy"><code>spill-policy</code></a></td><td>-</td><td>后端保存过大的工具文本，并返回面向模型的定位信息和取回提示；spill-policy 是 tools/post-execute 消费方，负责决定何时 spill。</td></tr><tr><td><code>ctx.directoryPicker</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/directory-picker"><code>host-directory-picker</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/directory-picker-native"><code>host-directory-picker-native</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/directory-picker-browse"><code>host-directory-picker-browse</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller"><code>api-workspace-controller</code></a></td><td>-</td><td>带判别标记的交互能力：原生后端在 Host 显示设备上打开一个操作系统选择器，浏览后端为应用内浏览器提供列表与创建原语；双端后端通过其浏览器侧填充 ui-workspace 目录流程的 slot（不通过协议发布）。</td></tr><tr><td><code>ctx.webServer</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver"><code>host-webserver</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection"><code>client-connection</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules"><code>client-modules</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/hmr"><code>client-hmr</code></a></td><td>-</td><td>普通的 node:http 载体：具名路由注册表、索引转换 tap，以及静态 dist 回退；Web 传输插件注册自己的路由。</td></tr><tr><td><code>ctx.webApp</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app"><code>web-app</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/harness-dev-context"><code>harness-dev-context</code></a></td><td>-</td><td>web-runtime 行为其 Web GUI 公告一个 URL：配置了 publicUrl 时用它，否则用监听器 origin；DSH_WEB_URL、启动 URL 与 harness-dev-context 读取同一个值。</td></tr><tr><td><code>ctx.config</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/config"><code>client-config</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules"><code>client-modules</code></a></td><td>-</td><td>-</td><td>只有类型的声明；client-modules 插件面提供对各包当前同步 Config 的只读查询。</td></tr><tr><td><code>ctx.clientModules</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules"><code>client-modules</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/hmr"><code>client-hmr</code></a></td><td>-</td><td>通过增量 <code>dsh.client</code> 扫描组合 __DSH_BOOT__ 入口图，提供插件组合包，并通知重建／图变更订阅方。</td></tr><tr><td><code>ctx.workflowEngine</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workflow/workflow"><code>workflow</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workflow/workflow-ptc"><code>workflow-ptc</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/workflow/tool-workflow"><code>tool-workflow</code></a>, <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/tool-ralph"><code>tool-ralph</code></a></td><td>-</td><td>每个上下文使用一个引擎，与 bash 相同，且没有具名提供方注册表；通用工作流与固定 Ralph 消费方启动运行，其中的 agent() 调用通过 ctx.subagents 扇出。</td></tr><tr><td><code>ctx.webhookRuntime</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/webhook"><code>webhook</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/webhook-github"><code>webhook-github</code></a></td><td>-</td><td>提供方适配器分派已认证交付；可信插件注册独立的进程本地规则，runtime 把非 null 结果转换为普通的 Workspace-backed Session，不保留交付或完成状态。</td></tr><tr><td><code>ctx.lsp</code></td><td><code>seam</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp"><code>lsp</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp-stdio"><code>lsp-stdio</code></a></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/tool-lsp"><code>tool-lsp</code></a></td><td>-</td><td>提供方注册与选择，加上恰好四种操作的标准化查询执行；该 seam 不提供协议逃生口，后端必须转换为标准化请求和结果。</td></tr><tr><td><code>ctx.dynamicCordisRunner</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/cordis-host-runner"><code>cordis-host-runner</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/tool-cordis"><code>tool-cordis</code></a></td><td>-</td><td>拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。</td></tr><tr><td><code>ctx.cordisInspect</code></td><td><code>core</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/cordis-host-runner"><code>cordis-host-runner</code></a></td><td>-</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/tool-cordis"><code>tool-cordis</code></a></td><td>-</td><td>注册 Host inspect 提供方、镜像 Client 提供方 manifest，并通过动态 Cordis 传输路由 Client 查询。</td></tr><tr><td><code>ctx.liveshareShares</code></td><td><code>service</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/liveshare"><code>experimental-liveshare</code></a></td><td>-</td><td>-</td><td>-</td><td>以单个 Typert Remote 命名空间发布 owner 分享管理操作，供 owner 客户端面调用；每个方法都委托给同源路由原先使用的同一组操作。</td></tr></tbody></table>
+<p>维护模式：混合模式。服务从 Cordis 声明中发现；接口、实现和消费方角色在 <code>scripts/gen-doc-graphs.ts</code> 中分类，并设有完整性守卫。</p></div>
+    <div class="back"><a href="/?focus=reference/capability-seams">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>会话查询 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#逻辑记录">逻辑记录</a><a class="t2" href="#与提供方无关的过滤器和文档">与提供方无关的过滤器和文档</a><a class="t2" href="#全文搜索结果页">全文搜索结果页</a><a class="t2" href="#会话谱系">会话谱系</a><a class="t2" href="#有界事件读取">有界事件读取</a><a class="t2" href="#事件关系">事件关系</a><a class="t2" href="#错误">错误</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.sessionQuery-—-SessionQueryEngine-abstract-seam">ctx.sessionQuery — SessionQueryEngine (abstract seam)</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 会话查询</div>
+    <h1>会话查询</h1>
+    <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session-query.md</div>
+    <div class="body"><h1 id="会话查询">会话查询</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-query.md">English</a> | 中文</p>
+<p>本文定义逻辑会话语料库的查询词汇；当 live 数据存在时，该语料库优先使用 live 数据。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query">Service Definition 包</a>负责精确读取、来源优先级、关系追踪、语义提取，以及与提供方无关的过滤器；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query-sqlite">SQLite 提供方</a>负责具体全文索引的生命周期。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query/src/types.ts"><code>packages/session-query/session-query/src/types.ts</code></a></p>
+<h2 id="逻辑记录">逻辑记录</h2>
+<p><code>SessionRecord</code> 由全语料库列表返回。它除了克隆的、优先取自 live 源的 header 外，还单独公开各源的可用性。<code>SessionEventRecord</code> 是轻量的原始日志投影；分类使用与模型历史推导相同的 <code>foldSurface()</code> 状态转换。</p>
+<pre><code>/** Whether an event is current model context, replaced context, or raw-log-only. */
+type SessionEventSurface = &#x27;current&#x27; | &#x27;shadowed&#x27; | &#x27;log-only&#x27;</code></pre>
+<pre><code>/** Lightweight identity and source availability for one logical session. */
+interface SessionRecord {
+  /** Cloned session header selected from the live-preferred corpus. */
+  header: SessionHeader
+  /** Whether the id currently exists in `ctx.sessions`. */
+  live: boolean
+  /** Whether the active persistence backend currently lists the id, including a created-but-unmaterialized session it already observes. */
+  persisted: boolean
+  /** Current for live Sessions; otherwise the persistence format status when reported. */
+  formatStatus?: &#x27;current&#x27; | &#x27;migration-required&#x27;
+}</code></pre>
+<p><code>SessionLogSnapshot</code> 是供恢复预检使用的完整原始日志：它脱离运行时，并经过回放验证。<code>SessionSurfaceSnapshot</code> 表示一次精确读取的 surface 观测结果，而不是持续保留的订阅。</p>
+<pre><code>/** One validated detached observation of a logical session&#x27;s complete raw log. */
+interface SessionLogSnapshot {
+  /** Cloned session header selected from the same observation as `events`. */
+  session: SessionHeader
+  /** Exact number of fork-inherited events in the observed log. */
+  inheritedEventCount: SessionLogOffset
+  /** Cloned contiguous raw events after in-memory interrupted-turn balancing and replay validation. */
+  events: SessionEvent[]
+}</code></pre>
+<pre><code>/** One atomic live-preferred observation of a session&#x27;s current model surface. */
+interface SessionSurfaceSnapshot {
+  /** Cloned session header selected from the same corpus observation as `events`. */
+  session: SessionHeader
+  /** Exact number of fork-inherited events in the observed log. */
+  inheritedEventCount: SessionLogOffset
+  /** Highest raw-log seq included in the observation, or `null` for an empty log. */
+  capturedThroughSeq: OptionalSessionSeq
+  /** Cloned current surface events in model-history order. */
+  events: SurfaceEvent[]
+}</code></pre>
+<p><code>SessionTitleObservation</code> 将同样的原子观测规则应用于标题折叠，使执行授权检查的消费方能够验证提供标题的源 header。批量读取会按顺序为每个唯一请求 id 返回一个 <code>SessionTitleObservationResult</code>：操作失败只影响对应 id，而取消会拒绝整个操作。</p>
+<pre><code>/** Latest folded title bound to the same session-header observation. */
+interface SessionTitleObservation {
+  /** Cloned header selected with the event log used for the title fold. */
+  session: SessionHeader
+  /** Latest title snapshot, absent when the observed log has no title. */
+  title?: SessionTitleSnapshot
+}</code></pre>
+<pre><code>/** One ordered result from a batch title observation. */
+type SessionTitleObservationResult =
+  | {
+    /** Requested session id. */
+    sessionId: SessionId
+    /** Successful atomic header/title observation. */
+    status: &#x27;fulfilled&#x27;
+    /** Header and optional latest title from one logical source. */
+    value: SessionTitleObservation
+  }
+  | {
+    /** Requested session id. */
+    sessionId: SessionId
+    /** Operational failure isolated to this session. */
+    status: &#x27;rejected&#x27;
+    /** Original failure from logical-source resolution or title folding. */
+    reason: unknown
+  }</code></pre>
+<pre><code>/** Lightweight metadata for one event within a logical session. */
+interface SessionEventRecord {
+  /** Session that owns the event. */
+  sessionId: SessionId
+  /** Monotonic event seq within the session. */
+  seq: SessionSeq
+  /** Discriminant of the session event. */
+  type: SessionEventType
+  /** Event timestamp in Unix epoch milliseconds. */
+  time: number
+  /** Event placement in the folded session surface. */
+  surface: SessionEventSurface
+}</code></pre>
+<h2 id="与提供方无关的过滤器和文档">与提供方无关的过滤器和文档</h2>
+<p>会话和事件过滤器数组内的各项按逻辑与（AND）组合；单个列表子句中的各值按逻辑或（OR）组合。范围包含两端。事件的 <code>text</code> 子句会对提取出的语义文本执行正则表达式扫描：搜索文本按字面量处理，按 Unicode 规则执行不区分大小写的匹配，并允许灵活匹配空白字符；该过程与全文搜索提供方无关。</p>
+<pre><code>/**
+ * One logical-session predicate. A filter array is ANDed; `values` within a
+ * clause are ORed.
+ */
+type SessionResultFilter =
+  | { kind: &#x27;id&#x27;; values: readonly SessionId[] }
+  | { kind: &#x27;cwd&#x27;; values: readonly (string | null)[] }
+  | ({ kind: &#x27;created-at&#x27; } &amp; SessionResultRange)
+  | { kind: &#x27;parent&#x27;; values: readonly (SessionId | null)[] }
+  | { kind: &#x27;availability&#x27;; values: readonly SessionAvailability[] }</code></pre>
+<pre><code>/**
+ * One event predicate. A filter array is ANDed; list-valued clauses are ORed.
+ * Text is a literal, case-insensitive, whitespace-flexible semantic-text scan.
+ */
+type SessionEventResultFilter =
+  | ({ kind: &#x27;seq&#x27; } &amp; SessionResultRange)
+  | ({ kind: &#x27;time&#x27; } &amp; SessionResultRange)
+  | { kind: &#x27;type&#x27;; values: readonly SessionEventType[] }
+  | { kind: &#x27;surface&#x27;; values: readonly SessionEventSurface[] }
+  | { kind: &#x27;text&#x27;; text: string }</code></pre>
+<pre><code>/** Searchable semantic document derived from one session event. */
+interface SessionEventSearchDocument extends SessionEventRecord {
+  /** First-party semantic text used by scan filters and full-text indexes. */
+  text: string
+}</code></pre>
+<p><code>ctx.sessionQuery.filterSessions(filters)</code> 会对完整的逻辑会话语料库应用 <code>SessionResultFilter</code>；<code>ctx.sessionQuery.filterEvents(sessionId, filters)</code> 按 seq 升序返回匹配的文档。消息、工具调用和工具结果、待办事项，以及失败和状态详情会纳入语义文本；推理（reasoning）块、被阻止的提示词、结构事件和流分片则不会。</p>
+<h2 id="全文搜索结果页">全文搜索结果页</h2>
+<p>整合后的 <code>ctx.sessionQuery</code> seam 提供两个全文搜索范围。<code>searchSessions()</code> 按匹配度最强的事件对语料库分组；<code>searchEvents()</code> 搜索单个会话。请求将不透明游标与规范化后的查询、元数据过滤器和结果数量上限绑定。提供方的元数据过滤器有意不包含事件文本扫描。</p>
+<pre><code>/** Provider-owned opaque continuation token returned by session search. */
+type SessionSearchCursor = Branded&lt;&#x27;SessionSearchCursor&#x27;&gt;</code></pre>
+<pre><code>/** Cross-session full-text search request. */
+interface SessionSearchRequest {
+  /** Full-text query interpreted as data, never executable FTS syntax. */
+  query: string
+  /** Logical-session predicates applied before event ranking. */
+  sessionFilters?: readonly SessionResultFilter[]
+  /** Event predicates applied before event ranking. */
+  eventFilters?: readonly SessionEventMetadataFilter[]
+  /** Maximum sessions in this page. */
+  limit?: number
+  /** Opaque cursor returned for the identical normalized request. */
+  cursor?: SessionSearchCursor
+}</code></pre>
+<pre><code>/** Within-session full-text search request. */
+interface SessionEventSearchRequest {
+  /** Session whose live-preferred logical log is searched. */
+  sessionId: SessionId
+  /** Full-text query interpreted as data, never executable FTS syntax. */
+  query: string
+  /** Event predicates applied before ranking. */
+  filters?: readonly SessionEventMetadataFilter[]
+  /** Maximum events in this page. */
+  limit?: number
+  /** Opaque cursor returned for the identical normalized request. */
+  cursor?: SessionSearchCursor
+}</code></pre>
+<pre><code>/** One cursor-paginated result page. */
+interface SessionSearchPage&lt;T&gt; {
+  /** Results for this page in contract-defined order. */
+  items: readonly T[]
+  /** Opaque continuation cursor, absent on the final page. */
+  nextCursor?: SessionSearchCursor
+}</code></pre>
+<p>与跨会话分组 hit 不同，会话内搜索结果即使没有命中项，也必须公开搜索时观测到的目标 header。</p>
+<pre><code>/** Event-search results bound to the indexed target-session observation. */
+interface SessionEventSearchPage extends SessionSearchPage&lt;SessionEventSearchHit&gt; {
+  /** Cloned target header from the same indexed generation as `items`. */
+  session: SessionHeader
+}</code></pre>
+<pre><code>/** One event full-text search hit with a bounded plain-text excerpt. */
+interface SessionEventSearchHit extends SessionEventRecord {
+  /** Plain text excerpt selected around the match. */
+  snippet: string
+}</code></pre>
+<pre><code>/** One grouped cross-session hit, ranked by its strongest matching event. */
+interface SessionSearchHit extends SessionRecord {
+  /** Strongest matching event for this session. */
+  bestMatch: SessionEventSearchHit
+}</code></pre>
+<h2 id="会话谱系">会话谱系</h2>
+<p><code>SessionLineageTrace</code> 按由近及远的顺序携带已知 parent，以及由直接 descendant 递归嵌套而成的森林。完整性判别字段使已知 root 与缺失 parent 互斥。</p>
+<pre><code>/** Recursive descendant node in a session-lineage trace. */
+interface SessionLineageNode {
+  /** Detached logical-corpus record for this descendant. */
+  session: SessionRecord
+  /** Direct children, each carrying its own recursive descendants. */
+  descendants: SessionLineageNode[]
+}</code></pre>
+<pre><code>/** Known ancestry and descendants for one logical session. */
+type SessionLineageTrace = {
+  /** Detached record for the session that was traced. */
+  target: SessionRecord
+  /** Known parents from the immediate parent outward. */
+  ancestors: SessionRecord[]
+  /** Complete known descendant trees rooted at the target&#x27;s direct children. */
+  descendants: SessionLineageNode[]
+} &amp; (
+  | {
+    /** The complete parent chain is present in the logical corpus. */
+    complete: true
+    /** Detached record at the top of the complete lineage. */
+    root: SessionRecord
+  }
+  | {
+    /** The parent chain leaves the visible logical corpus. */
+    complete: false
+    /** First parent id that is not present in the logical corpus. */
+    unresolvedParentId: SessionId
+  }
+)</code></pre>
+<h2 id="有界事件读取">有界事件读取</h2>
+<p>请求指定一个原始 seq 及可选的邻近数量。结果携带 <code>SessionHeader</code> 而非可用性标志，使已知的 live 目标可以独立于持久化健康状态。</p>
+<pre><code>/** Request for one event plus raw neighboring log context. */
+interface SessionEventReadRequest {
+  /** Session that owns the target event. */
+  sessionId: SessionId
+  /** Target event seq. */
+  seq: SessionSeq
+  /** Number of preceding raw events to include. */
+  before?: number
+  /** Number of following raw events to include. */
+  after?: number
+}</code></pre>
+<pre><code>/** Full target event and a bounded raw-log window. */
+interface SessionEventWindow {
+  /** Cloned header for the live-preferred source read. */
+  session: SessionHeader
+  /** Exact number of fork-inherited events in the observed log. */
+  inheritedEventCount: SessionLogOffset
+  /** Full cloned target event. */
+  target: SessionEvent
+  /** Full cloned events from `startSeq` through `endSeq`. */
+  events: SessionEvent[]
+  /** First seq included in `events`. */
+  startSeq: SessionSeq
+  /** Last seq included in `events`. */
+  endSeq: SessionSeq
+}</code></pre>
+<h2 id="事件关系">事件关系</h2>
+<p>事件追踪会区分位置替换与被引用为来源的事件。除 <code>replacementChain</code> 外，每个 seq 列表都只包含直接链接；该链从目标沿直接 replacer 追踪到最终的位置替换。</p>
+<pre><code>/** Request for direct surface replacements and relationships to cited source events around one event. */
+interface SessionEventTraceRequest {
+  /** Session that owns the target event. */
+  sessionId: SessionId
+  /** Target event seq. */
+  seq: SessionSeq
+}</code></pre>
+<pre><code>/** Direct surface replacements and relationships to cited source events for one event. */
+interface SessionEventTrace {
+  /** Lightweight target record. */
+  target: SessionEventRecord
+  /** Immediate positional replacement event, when the target was shadowed. */
+  replacedBy?: SessionSeq
+  /** Positional replacers from the immediate replacement to the final replacement. */
+  replacementChain: SessionSeq[]
+  /** Surface nodes directly removed when the target itself performed a replacement. */
+  replacedEventSeqs: SessionSeq[]
+  /** Earlier events cited directly as sources, in their recorded order. */
+  sourceEventSeqs: SessionSeq[]
+  /** Later events that directly cite the target as a source, in log order. */
+  derivedEventSeqs: SessionSeq[]
+}</code></pre>
+<pre><code>/** Event relationships bound to the same session-header observation. */
+interface SessionEventTraceObservation extends SessionEventTrace {
+  /** Cloned header selected with the event log used for the trace. */
+  session: SessionHeader
+}</code></pre>
+<h2 id="错误">错误</h2>
+<p>封闭的 code 联合类型区分请求校验、目标缺失、surface 日志格式错误、可选后端故障、部署关闭搜索与矛盾的源元数据。</p>
+<pre><code>/** Stable machine-routable failure taxonomy for session reads, traces, and search. */
+type SessionQueryErrorCode =
+  | &#x27;SESSION_QUERY_ABORTED&#x27;
+  | &#x27;SESSION_QUERY_CORRUPT_SESSION&#x27;
+  | &#x27;SESSION_QUERY_EVENT_NOT_FOUND&#x27;
+  | &#x27;SESSION_QUERY_INDEX_FAILED&#x27;
+  | &#x27;SESSION_QUERY_INVALID_CONFIG&#x27;
+  | &#x27;SESSION_QUERY_INVALID_CURSOR&#x27;
+  | &#x27;SESSION_QUERY_INVALID_FILTER&#x27;
+  | &#x27;SESSION_QUERY_INVALID_LIMIT&#x27;
+  | &#x27;SESSION_QUERY_INVALID_QUERY&#x27;
+  | &#x27;SESSION_QUERY_INVALID_LINEAGE&#x27;
+  | &#x27;SESSION_QUERY_INVALID_SURFACE&#x27;
+  | &#x27;SESSION_QUERY_INVALID_WINDOW&#x27;
+  | &#x27;SESSION_QUERY_PERSISTENCE_FAILED&#x27;
+  | &#x27;SESSION_QUERY_SEARCH_DISABLED&#x27;
+  | &#x27;SESSION_QUERY_SESSION_NOT_FOUND&#x27;
+  | &#x27;SESSION_QUERY_STALE_CURSOR&#x27;
+  | &#x27;SESSION_QUERY_SOURCE_CONFLICT&#x27;</code></pre>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsessionquery--sessionqueryengine-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.sessionQuery-—-SessionQueryEngine-abstract-seam"><span id="ctxsessionquery--sessionqueryengine-abstract-seam" class="anch"></span><code>ctx.sessionQuery</code> — <code>SessionQueryEngine</code> (abstract seam)</h3>
+<p>Unified live-preferred session query service.</p>
+<p>Exact reads, filters, and traces are backend-independent concrete behavior. A backend implements full-text observation, reconciliation, ranking, cursor generations, and query execution on the same <code>ctx.sessionQuery</code> service.</p>
+<pre><code>/**
+ * Read the metadata that summarizes one live or prepared Session in a Session list.
+ * @param session - live or prepared Session to summarize.
+ * @returns whether the Session has no turn, and its latest human-authored prompt time.
+ */
+getListMetadata(session: Session): SessionListMetadata
+
+/**
+ * Observe one exact live or prepared Session without a persistence listing preflight.
+ * @param sessionId - logical Session identity.
+ * @param options - cancellation and projection selection for this read.
+ * @returns a caller-owned observation lease.
+ */
+observeSession( sessionId: SessionId, options: SessionObservationOptions = {}, ): Promise&lt;SessionObservation&gt;
+
+/**
+ * Search the live-preferred logical corpus and group by session.
+ * @param request - query text, metadata filters, page size, and cursor.
+ * @param exec - optional cancellation control.
+ * @returns session hits ranked by their strongest matching event.
+ */
+abstract searchSessions( request: SessionSearchRequest, exec?: SessionSearchExecContext, ): Promise&lt;SessionSearchPage&lt;SessionSearchHit&gt;&gt;
+
+/**
+ * Search events within one live-preferred logical session.
+ * @param request - target session, query text, filters, page size, and cursor.
+ * @param exec - optional cancellation control.
+ * @returns matching event hits and their target header from one indexed generation.
+ */
+abstract searchEvents( request: SessionEventSearchRequest, exec?: SessionSearchExecContext, ): Promise&lt;SessionEventSearchPage&gt;
+
+/**
+ * List the complete logical corpus using live-preferred records.
+ * @param signal - optional cancellation for persistence listing.
+ * @returns deterministic newest-first cloned session records.
+ */
+listSessions(signal?: AbortSignal): Promise&lt;SessionRecord[]&gt;
+
+/**
+ * Read and replay-validate one complete logical session log without making it live.
+ * @param sessionId - live or persisted session id to read.
+ * @returns cloned header and complete raw event log from one observation.
+ * @throws when persistence, header compatibility, or replay validation fails.
+ */
+async readSession(sessionId: SessionId): Promise&lt;SessionLogSnapshot&gt;
+
+/**
+ * Filter the complete logical corpus with provider-independent predicates.
+ * @param filters - ANDed session metadata and availability clauses.
+ * @param signal - optional cancellation for persistence listing.
+ * @returns matching cloned records in deterministic newest-first order.
+ */
+async filterSessions( filters: readonly SessionResultFilter[], signal?: AbortSignal, ): Promise&lt;SessionRecord[]&gt;
+
+/**
+ * Fold the latest log-backed title from one live-preferred logical session.
+ * @param sessionId - live or persisted session id to read.
+ * @param signal - optional cancellation for source resolution and title folding.
+ * @returns latest title snapshot, or `undefined` when the log has no title event.
+ */
+async readTitle( sessionId: SessionId, signal?: AbortSignal, ): Promise&lt;SessionTitleSnapshot | undefined&gt;
+
+/**
+ * Fold the latest title and return its source header from one corpus observation.
+ * @param sessionId - live or persisted session id to read.
+ * @param signal - optional cancellation for source resolution and title folding.
+ * @returns cloned source header and optional latest title snapshot.
+ */
+async readTitleSnapshot( sessionId: SessionId, signal?: AbortSignal, ): Promise&lt;SessionTitleObservation&gt;
+
+/**
+ * Fold titles for unique sessions from one cancellable corpus observation.
+ *
+ * Results preserve first-occurrence input order. Operational failures stay
+ * isolated per session, while cancellation rejects the complete operation.
+ * @param sessionIds - live or persisted session ids to observe.
+ * @param signal - optional cancellation shared by all source reads.
+ * @returns one fulfilled or rejected result per unique requested id.
+ */
+async readTitleSnapshots( sessionIds: readonly SessionId[], signal?: AbortSignal, ): Promise&lt;SessionTitleObservationResult[]&gt;
+
+/**
+ * List lightweight raw-log event records for one logical session.
+ * @param sessionId - live-preferred session id to read.
+ * @returns event records in ascending seq order.
+ */
+async listEvents(sessionId: SessionId): Promise&lt;SessionEventRecord[]&gt;
+
+/**
+ * Scan first-party semantic event documents with provider-independent filters.
+ * @param sessionId - live-preferred session id to scan.
+ * @param filters - ANDed metadata and literal-text predicates.
+ * @returns matching semantic documents in ascending seq order.
+ */
+async filterEvents( sessionId: SessionId, filters: readonly SessionEventResultFilter[], ): Promise&lt;SessionEventSearchDocument[]&gt;
+
+/**
+ * Read one session&#x27;s complete current model surface from one corpus observation.
+ * @param sessionId - live-preferred session id to read.
+ * @returns cloned header, current surface, and the last sequence number included in the raw-log capture.
+ * @throws when source resolution fails or the session surface is invalid.
+ */
+async readSurface(sessionId: SessionId): Promise&lt;SessionSurfaceSnapshot&gt;
+
+/**
+ * Trace known ancestry and descendants from one corpus observation.
+ * @param sessionId - logical session id to trace.
+ * @param signal - optional cancellation for persistence listing.
+ * @returns a complete lineage or the first parent that could not be resolved.
+ * @throws when corpus resolution fails, the target is absent, or its known ancestry cycles.
+ */
+async traceSession(sessionId: SessionId, signal?: AbortSignal): Promise&lt;SessionLineageTrace&gt;
+
+/**
+ * Trace one event&#x27;s direct positional replacements and cited source events.
+ * @param request - target session id and event seq.
+ * @param signal - optional cancellation for persisted source resolution.
+ * @returns source header, direct links, and the target&#x27;s positional replacement chain.
+ * @throws when source resolution fails, the target is absent, or surface/source-event validation fails.
+ */
+async traceEvent(request: SessionEventTraceRequest, signal?: AbortSignal): Promise&lt;SessionEventTraceObservation&gt;
+
+/**
+ * Read one full event plus a bounded raw-log context window.
+ * @param request - target session/seq and context sizes.
+ * @param signal - optional cancellation for persisted source resolution.
+ * @returns cloned target and neighboring events.
+ */
+async readEvent(request: SessionEventReadRequest, signal?: AbortSignal): Promise&lt;SessionEventWindow&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-title.zh.md">SessionTitleSnapshot</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query/src/index.ts"><code>packages/session-query/session-query/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/session-query">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

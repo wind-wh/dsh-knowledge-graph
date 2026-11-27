@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HTTP 服务器 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#路由">路由</a><a class="t2" href="#配置">配置</a><a class="t2" href="#服务">服务</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.connection-—-HostConnectionHandle">ctx.connection — HostConnectionHandle</a><a class="t3" href="#ctx.connection.authentication-—-ConnectionAuthentication">ctx.connection.authentication — ConnectionAuthentication</a><a class="t3" href="#ctx.remoteConnection-—-RemoteConnection">ctx.remoteConnection — RemoteConnection</a><a class="t3" href="#ctx.webApp-—-WebApp">ctx.webApp — WebApp</a><a class="t3" href="#ctx.webServer-—-WebServer">ctx.webServer — WebServer</a><a class="t3" href="#connection/-events">connection/ events</a><a class="t3" href="#webserver/-events">webserver/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / HTTP 服务器</div>
+    <h1>HTTP 服务器</h1>
+    <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/web-server.md</div>
+    <div class="body"><h1 id="HTTP-服务器">HTTP 服务器</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/web-server.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver">dsh-host-webserver</a> 提供 GUI Host 的 HTTP 或 TLS 监听、路由匹配与准入、可选 gzip、index 渲染及唯一回退。功能插件注册各自路由；Connection 通过 <code>webserver/authorize</code> 提供来源与凭据决策。载体直接向 handler 或 resource 传递准入 Peer，不构造请求上下文容器（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/app-boot/README.zh.md">分层说明</a>）。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<h2 id="路由">路由</h2>
+<pre><code>/** Route match kind: &#x27;exact&#x27; matches the pathname verbatim; &#x27;prefix&#x27; p matches p and p/&lt;anything&gt;. */
+type WebRouteKind = &#x27;exact&#x27; | &#x27;prefix&#x27;</code></pre>
+<pre><code>/** One named route registration. */
+interface WebRoute {
+  kind: WebRouteKind
+  /** Absolute pathname, no trailing slash. */
+  path: string
+  /** Owns the full response lifecycle (may hold the response open, e.g. SSE). */
+  handler: (req: IncomingMessage, res: ServerResponse, peer?: PeerScope) =&gt; void | Promise&lt;void&gt;
+  /** Defaults to required. Anonymous handlers may receive no Peer. */
+  auth?: WebAuthenticationRule
+}</code></pre>
+<pre><code>/**
+ * Answers one GET or HEAD request with a Fetch response and its admitted Peer.
+ * Anonymous HTTP admission may omit the Peer; an in-process
+ * {@link WebServer.readResource} read passes the Peer its caller admitted.
+ */
+type WebResource = (request: Request, peer?: PeerScope) =&gt; Promise&lt;Response&gt;</code></pre>
+<pre><code>/** One named route answered by a resource instead of a handler. */
+interface WebResourceRoute {
+  kind: WebRouteKind
+  /** Absolute pathname, no trailing slash. */
+  path: string
+  /** Answers HTTP GET and HEAD requests and in-process reads. */
+  resource: WebResource
+  /** Defaults to required; in-process reads still enforce deny. */
+  auth?: WebAuthenticationRule
+}</code></pre>
+<p>所有 <code>webserver/*</code> 事件均以对应的 WebServer 为分发 subject，包括 <code>index-inject</code> 与 <code>entry-url</code>。普通监听器匹配发起者的 <code>webServer</code> isolation；显式 <code>{ global: true }</code> 监听器跳过该过滤。作为事件数据传入的 Peer 不决定监听器选择。自定义载体和应用发起者必须提供 WebServer subject。</p>
+<p>匹配顺序为精确、最长前缀、唯一 owner 的回退；upgrade 精确匹配。匹配后，<code>auth</code> 直接或通过同步请求选择器解析为 <code>anonymous</code>、<code>required</code>（默认）或 <code>deny</code>。<code>deny</code> 不触发准入事件，直接返回403。其余策略触发同步 <code>webserver/authorize</code> 并采用首个决策；无人决策时匿名放行，认证返回503。Connection 对两者均检查来源，仅对认证路由调用 ConnectionAuthentication。因此匿名资源免凭据，但不能免除活动 Connection 的来源策略。</p>
+<p>handler 通过末尾参数取得准入 Peer，resource 使用已有 <code>resource(request, peer?)</code> 参数。认证路由必须取得存活 Peer，匿名路由可省略。准入后 resource 只接受 GET/HEAD。可信 <code>readResource(request, peer)</code> 遵循同样的匹配顺序且仅访问 resource，跳过来源与凭据检查，但解析出的 <code>deny</code> 仍返回403。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/frontend-static/README.zh.md">前端回退</a>选择 index 认证访问与静态资源匿名访问，再为传入 Peer 渲染 index 启动数据。</p>
+<p><code>webserver/request(request, response, next)</code> 保持为路由选择与准入前的 HTTP waterfall；监听器拥有响应或等待 <code>next()</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/authentication-token/README.zh.md">Token 插件</a>通过它处理根 Token 交换，并以匿名 auth 注册 <code>/connect</code>，在 Connection 来源检查后验证启动 Token。页面 resource 使用准入 Peer，不重复认证。</p>
+<p>upgrade 准入成功后，<code>webserver/upgrade(req, socket, head, peer, next)</code> 在已注册协议 handler 前执行。它携带准入 Peer，匿名访问可为 <code>undefined</code>；被拒绝的请求不会进入。监听器自行处理 Socket 或等待 <code>next()</code>；waterfall 的末端等待路由 handler，包括其异步完成。中间件或 handler 失败时记录日志并销毁 Socket。在 <code>/api/remote.mux</code> 上，Token 仅对自己映射表内的 API Peer 执行单 Socket 所有权与凭据撤销；其他 Provider 委派后续处理，不应用 Token 策略。</p>
+<p><code>webserver/entry-url(baseUrl, entries)</code> 根据传入的服务器基地址同步收集完整入口 URL，以 <code>WebEntryUrl</code> 记录表示，字段为 <code>label</code>、完整 <code>url</code> 与布尔值 <code>open</code>。WebApp 在 Loader 装配结束并完成启动检查后触发，按配置逐行打印，并仅在非 SSH 下打开首个允许自动打开的入口。空列表不产生输出或打开动作。Token 无需读取 WebApp 服务即可贡献签名 URL；公开地址配置仍归 WebApp。</p>
+<p><a id="config" class="anch"></a></p>
+<h2 id="配置"><span id="config" class="anch"></span>配置</h2>
+<pre><code>/** Web server listen, TLS, and response-compression config. */
+interface Config {
+  /**
+   * Listen address: a concrete IPv4 or IPv6 literal of one local interface,
+   * for example the container&#x27;s own Pod address from `hostname -i`. A loopback
+   * literal (any address in 127/8, `::1`, or a mapped form of either) keeps the
+   * server on this machine; any other literal serves the network that address
+   * belongs to, over plain HTTP unless `tls` is set. The unspecified address —
+   * IPv4 any, IPv6 any, and the IPv4-mapped forms of IPv4 any — is rejected at
+   * load: it would expose the port on every interface at once.
+   */
+  host: string
+  /** Listen port; zero requests an OS-assigned port. */
+  port: number
+  /**
+   * Serve HTTPS with this certificate and key instead of plain HTTP. Both files
+   * are read once, before the listener binds: an unreadable or empty file,
+   * invalid PEM, or a key that does not match the certificate rejects
+   * initialization rather than falling back to HTTP. The material is never
+   * re-read, so replacing a certificate takes a reload. Omitted or null listens
+   * over plain HTTP.
+   */
+  tls?: TlsConfig
+  /** Response compression for socket-backed HTTP requests. @default &#x27;none&#x27; */
+  compression?: &#x27;none&#x27; | &#x27;gzip&#x27;
+  /** Gzip DEFLATE level from 0 through 9. @default 1 */
+  compressionLevel?: number
+  /** Minimum known response length eligible for gzip; unknown-length streams are eligible. @default 1024 */
+  compressionThresholdBytes?: number
+}</code></pre>
+<pre><code>/**
+ * TLS material for the HTTPS listener: one certificate chain file and the
+ * private key file it pairs with. Both hold PEM text and both resolve against
+ * the process working directory.
+ */
+interface TlsConfig {
+  /** Certificate chain file, leaf certificate first, PEM, no passphrase. */
+  certFile: string
+  /** Private key file for the chain&#x27;s leaf certificate; unencrypted PEM. */
+  keyFile: string
+}</code></pre>
+<p>没有组合能一次性绑定所有网络接口：未指定地址在加载时即被拒绝。导出的 <code>isWildcardHost</code> 与 <code>isLoopbackHost</code> 按解析后的地址值分类，IPv6 的 <code>%zone</code> 会保留给 <code>listen</code>，而分类只读取地址本身。载体执行路由 auth 声明；Connection 拥有来源检查，ConnectionAuthentication 拥有凭据验证；除非 <code>tls</code> 提供证书与密钥，否则以明文 HTTP 提供服务。<code>compression</code> 默认为 <code>none</code>；随附的 Web 组合选择 gzip level 1 和 1024 字节阈值。随附的 <code>dsh web</code> 命令默认选择 loopback 并接受一个具体的 <code>--host</code> 地址，非 loopback 绑定以明文 HTTP 提供服务时会在启动时警告；其 Connection 插件对匹配的匿名与认证路由检查 Host/Origin，并在要求认证时验证凭据，绑定地址加 <code>--trusted-host</code> 决定接受哪个浏览器 Host；<code>--public-url</code> 只改变公告的 URL。其他组合自行拥有绑定与路由认证策略。dist 位置是认领席位的前端插件的组装事实。</p>
+<h2 id="服务">服务</h2>
+<p>嵌套服务 <code>connection.authentication</code> 通过注册的 Provider 选择 Peer；Connection 执行来源策略，WebServer 将选定 Peer 传给各次调用。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/authentication-token/README.zh.md">Token 插件</a>贡献签名登录 URL；WebApp 拥有启动打印和浏览器打开行为。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/README.zh.md">Desktop</a>使用父进程与 Host 之间私有 IPC 通道交付的凭据，注册独立 Provider；其 ready 消息携带普通 Host 地址和启动注入。</p>
+<p><code>WebServer</code>（<code>ctx.webServer</code>）在激活时立即监听；监听失败（EADDRINUSE 等）会使初始化被拒绝，启动进程会报告失败的 fiber。<code>tls</code> 证书对在监听器绑定前读取一次；文件不可读、为空或二者不匹配时同样会使初始化被拒绝，而不是回退到 HTTP。<code>register(route)</code> 添加一条具名路由并返回其 disposer；重复的 <code>(kind, path)</code> 抛出异常，因为路由模式是组合层约定，冲突即配置错误。Gzip 在服务器内部包装符合条件且基于 socket 的响应，因此 handler 继续直接持有 <code>ServerResponse</code>，resource 则把 <code>Response</code> 交给服务写回。已有内容编码、<code>Cache-Control: no-transform</code>、范围响应、SSE、ZIP 与打包后的 <code>.gz</code> Worker 镜像均保持 identity 响应。<code>collectIndexInjections(peer)</code> 经一次传入页面所代表 Peer 的 <code>webserver/index-inject</code> emit 收集结构化 <code>IndexInjection</code> 行，<code>renderIndex(html, peer)</code> 把它们渲染进成功的根路径和配置 index 响应，随后再按注册顺序应用原始的 <code>tapIndex(transform)</code> 逃生口转换；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules">dsh-client-modules</a> 以启动 manifest（元数据清单）行回应该事件。<code>port</code> 读取监听端口，包括 <code>config.port</code> 为 0 时操作系统分配的端口，<code>protocol</code> 则报告监听器提供的协议（<code>http:</code> 或 <code>https:</code>）。</p>
+<p>处理过程中抛出异常的请求（畸形的 % 转义撞上 <code>decodeURIComponent</code>、客户端在请求体中途断开）会记录为警告并应答 400（响应头已发出时则销毁 socket），绝不导致进程退出。dispose（资源释放）把 <code>close()</code> 与 <code>closeAllConnections()</code> 配对使用，因为处理器可能像 SSE（Server-Sent Events）那样保持响应打开，而这类连接永远不会自行结束；没有强制关闭，拆卸就会挂起。TLS socket 只有完成握手后才计入连接，因此服务器会把原始 TLS socket 与升级后的 socket 一并跟踪，并在 dispose 时销毁两者。WebApp 拥有入口 URL 的打印和浏览器打开行为，本服务器负责 HTTP 交付。逐包运维细节（含开发模式的 bundle 监视流水线）留在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/README.zh.md">README</a> 中。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxconnection--hostconnectionhandle" class="anch"></a></p>
+<h3 id="ctx.connection-—-HostConnectionHandle"><span id="ctxconnection--hostconnectionhandle" class="anch"></span><code>ctx.connection</code> — <code>HostConnectionHandle</code></h3>
+<p>Host <code>ctx.connection</code> members consumed by transport-independent adapters.</p>
+<pre><code>/**
+ * Compose exact Fetch routes and the shared-channel RPC interceptor.
+ * @param channel - shared channel mounted by Connection.
+ * @returns Fetch handler for trusted, authenticated requests.
+ */
+createSharedFetchHandler(channel: &#x27;/api&#x27;): ConnectionFetchHandler
+
+/**
+ * Apply Host/Origin checks and admit the first live Peer returned by a registered credential verifier.
+ * @param request - request headers from the HTTP or upgrade request.
+ * @returns the credential&#x27;s Peer, or the rejection status.
+ */
+admit(request: ConnectionTrustRequest): PeerAdmission
+
+/**
+ * Create an independent in-process Peer, disposed with the Context that read `ctx.connection`.
+ * @param options - fixed principal and interaction participation (default answer).
+ * @returns a new Peer distinct from every other Peer.
+ */
+createPeer(options: { readonly principal: Principal; readonly interactions?: &#x27;answer&#x27; | &#x27;none&#x27; }): PeerScope</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/typert.zh.md">Principal</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/src/rpc.ts"><code>packages/client/connection/src/rpc.ts</code></a></p>
+<p><a id="ctxconnectionauthentication--connectionauthentication" class="anch"></a></p>
+<h3 id="ctx.connection.authentication-—-ConnectionAuthentication"><span id="ctxconnectionauthentication--connectionauthentication" class="anch"></span><code>ctx.connection.authentication</code> — <code>ConnectionAuthentication</code></h3>
+<p>Credential verifier registry whose registrations belong to the calling plugin.</p>
+<pre><code>/**
+ * Add a credential verifier after the existing registrations.
+ * @param provider - verifier owning its credential and Peer selection.
+ * @returns disposer withdrawing this registration; the calling scope also withdraws it on unload.
+ */
+register(provider: AuthenticationProvider): () =&gt; Promise&lt;void&gt;
+
+/**
+ * Verify credentials without applying an HTTP response or source policy.
+ * @param request - current carrier headers and cancellation facts.
+ * @returns the first live Peer, 401 if no provider accepts, or 503 when verification failed without success.
+ */
+authenticate(request: ConnectionTrustRequest): PeerAdmission</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/README.zh.md">AuthenticationProvider</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/src/authentication.ts"><code>packages/client/connection/src/authentication.ts</code></a></p>
+<p><a id="ctxremoteconnection--remoteconnection" class="anch"></a></p>
+<h3 id="ctx.remoteConnection-—-RemoteConnection"><span id="ctxremoteconnection--remoteconnection" class="anch"></span><code>ctx.remoteConnection</code> — <code>RemoteConnection</code></h3>
+<p>Owner-authorized browser login through QR codes, private links, or pairing requests.</p>
+<pre><code>/**
+ * Read prerequisites and the state of one invitation without disclosing its credential.
+ * @param id - invitation to inspect, or null to inspect only deployment prerequisites.
+ * @returns deployment availability and invitation state, with the polling interval.
+ */
+@Remote status(id: RemoteLoginId | null): RemoteConnectionStatus
+
+/**
+ * Authorize a new browser by generating a one-use login invitation; replaces any older invitation.
+ * @returns the invitation credential and its fixed expiry.
+ */
+@Remote create(): RemoteLoginTicket
+
+/**
+ * Read the advertised URL carrying the process launch token; QR invitations are unchanged.
+ * @returns owner-only login URL, reusable until the Host process restarts; never persist or log it.
+ */
+@Remote loginUrl(): string
+
+/**
+ * Cancel an unused invitation; this never revokes a browser session already issued.
+ * @param id - invitation being cancelled; an older ID cannot cancel a replacement.
+ * @returns the invitation&#x27;s final state, including used when a redemption won the race.
+ */
+@Remote cancel(id: RemoteLoginId): RemoteLoginState
+
+/**
+ * Read pending requests without the credentials used to collect their sessions.
+ * @param signal - current Remote call&#x27;s cancellation.
+ * @returns pending codes and the deployment&#x27;s refresh interval.
+ */
+@Remote pairingRequests(signal: AbortSignal): PairingRequestsValue
+
+/**
+ * Approve or deny one displayed code; the first decision is retained across retries.
+ * @param id - request selected after comparing its code with the applicant&#x27;s screen.
+ * @param decision - allow or deny full owner access for the requesting browser.
+ * @param signal - current Remote call&#x27;s cancellation before the decision commits.
+ * @returns committed decision, or unavailable after cancellation, expiry, or collection.
+ */
+@Remote decidePairing(id: PairingRequestId, decision: PairingDecision, signal: AbortSignal): PairingDecisionResult</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/remote-connection/src/index.ts"><code>packages/client/remote-connection/src/index.ts</code></a></p>
+<p><a id="ctxwebapp--webapp" class="anch"></a></p>
+<h3 id="ctx.webApp-—-WebApp"><span id="ctxwebapp--webapp" class="anch"></span><code>ctx.webApp</code> — <code>WebApp</code></h3>
+<p>The Web GUI this process serves, provided by the <code>web-runtime</code> row.</p>
+<pre><code>/**
+ * The URL this GUI advertises, also used for `DSH_WEB_URL` and the startup URL line.
+ * @returns the configured `publicUrl`, otherwise the listener origin.
+ */
+getAdvertisedUrl(): string</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app/src/index.ts"><code>packages/bundle/web-app/src/index.ts</code></a></p>
+<p><a id="ctxwebserver--webserver" class="anch"></a></p>
+<h3 id="ctx.webServer-—-WebServer"><span id="ctxwebserver--webserver" class="anch"></span><code>ctx.webServer</code> — <code>WebServer</code></h3>
+<p>The browser HTTP carrier service. Activation loads any configured TLS material, then listens immediately; a material or listen failure rejects initialization, and the boot process reports the failed fiber. Route registration order does not affect requests because configured named routes must be distinct, and a request no named route matches is answered 404 until the fallback owner registers. HTTP and upgrade admission refusals carry <code>Cache-Control: no-store</code>.</p>
+<pre><code>/**
+ * The root URL local clients use to reach the bound listener: the protocol,
+ * the {@link bindUrlHost} form of the bind address, and the listening port.
+ * @returns the origin, for example `http://127.0.0.1:3080`.
+ * @throws before `listen` binds a port, or when the bind address has no URL form.
+ */
+getOrigin(): string
+
+/**
+ * Register a named route. Duplicate (kind, path) throws — route patterns are
+ * a composition-level contract, so a collision is a misconfiguration.
+ * @param route - kind, path, and the owning handler or resource.
+ * @returns the disposer removing the route.
+ */
+register(route: WebRoute | WebResourceRoute): () =&gt; void
+
+/**
+ * Register an exact-path HTTP upgrade route. Duplicate paths throw because
+ * one socket can have only one protocol owner.
+ * @param route - pathname and handler owning negotiation plus socket use.
+ * @returns the disposer removing the route.
+ */
+registerUpgrade(route: WebUpgradeRoute): () =&gt; void
+
+/**
+ * Claim the fallback seat: the handler or resource answering every request
+ * no named route matches (the SPA dist server in the shipped Web
+ * composition). One owner only — a second registration throws, because two
+ * fallbacks cannot compose.
+ * @param fallback - a handler owning the full response lifecycle of
+ * unmatched requests, or an object declaring `handler` or `resource` and auth.
+ * @returns the disposer releasing the seat.
+ */
+registerFallback(fallback: WebRoute[&#x27;handler&#x27;] | WebFallback): () =&gt; void
+
+/**
+ * Read the response an HTTP request for the same URL would receive, as the
+ * resource computes it for `peer`, without an HTTP exchange. The request
+ * path picks the responder by the HTTP match order — exact, longest prefix,
+ * then the fallback — and only a resource answers. This method checks no
+ * cookie, Host, or Origin: the caller admits the reader before reading.
+ * A resolved deny policy returns 403 even for an explicitly admitted Peer.
+ * @param request - the read; its URL path selects the responder.
+ * @param peer - the Peer the read speaks for, passed to the resource.
+ * @returns the resource&#x27;s response, without a body for HEAD as over HTTP;
+ * 405 with `Allow: GET, HEAD` for any other method, checked before matching,
+ * where over HTTP a handler route or an unmatched path answers such a
+ * method itself; 404 when the path matches a handler route, or reaches the
+ * fallback seat while it is unclaimed or holds a handler. A resource that
+ * throws rejects the read, where an HTTP request would receive 400.
+ */
+async readResource(request: Request, peer: PeerScope): Promise&lt;Response&gt;
+
+/**
+ * Register a raw-HTML index transform, the escape hatch for markup no
+ * {@link IndexInjection} row expresses: {@link renderIndex} applies taps in
+ * registration order after rendering the structured rows.
+ * @param transform - pure html-to-html function.
+ * @returns the disposer removing the transform.
+ */
+tapIndex(transform: (html: string) =&gt; string): () =&gt; void
+
+/**
+ * Run an index.html body through the registered taps in registration order
+ * — called by the fallback owner on every index response it renders.
+ * @param html - the raw index.html body.
+ * @returns the transformed body.
+ */
+applyIndexTaps(html: string): string
+
+/**
+ * Gather the structured injection table for one Peer: one
+ * `webserver/index-inject` emit, every subscriber pushes its current rows.
+ * Fresh per call, so subscribers read live state (module graph, theme
+ * preference, the Peer&#x27;s access) at emit time.
+ * @param peer - the Peer the page speaks for.
+ * @returns rows in subscriber activation order.
+ */
+collectIndexInjections(peer: PeerScope): IndexInjection[]
+
+/**
+ * Render one index.html body for one Peer: the structured injection table
+ * first, then the raw `tapIndex` transforms over the result.
+ * @param html - the raw index.html body.
+ * @param peer - the Peer the page speaks for.
+ * @returns the transformed body.
+ */
+renderIndex(html: string, peer: PeerScope): string</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p><a id="connection-events" class="anch"></a></p>
+<h3 id="connection/-events"><span id="connection-events" class="anch"></span><code>connection/*</code> events</h3>
+<p><a id="connectionrequest--waterfall" class="anch"></a></p>
+<h4 id="connection/request-—-waterfall"><code>connection/request</code> — waterfall</h4>
+<p>Admit or wrap an authenticated shared API request, including body transfer. Existing requests continue when a listener refuses subsequent requests.</p>
+<pre><code>/**
+ * Admit or wrap an authenticated shared API request, including body transfer.
+ * Existing requests continue when a listener refuses subsequent requests.
+ * @param request - Authenticated incoming HTTP request.
+ * @param response - Response owned until the delegated bridge settles.
+ * @param next - Delegate to the next listener or the shared API bridge.
+ * @mode waterfall
+ */
+&#x27;connection/request&#x27;(request: IncomingMessage, response: ServerResponse, next: () =&gt; Promise&lt;void&gt;): Promise&lt;void&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/src/index.ts"><code>packages/client/connection/src/index.ts</code></a></p>
+<p><a id="webserver-events" class="anch"></a></p>
+<h3 id="webserver/-events"><span id="webserver-events" class="anch"></span><code>webserver/*</code> events</h3>
+<p><a id="webserverauthorize--bail" class="anch"></a></p>
+<h4 id="webserver/authorize-—-bail"><code>webserver/authorize</code> — bail</h4>
+<p>Admit a matched request synchronously; the first decision wins.</p>
+<pre><code>/**
+ * Admit a matched request synchronously; the first decision wins.
+ * @param request - headers, target, transport, and available cancellation state.
+ * @param policy - resolved route policy; deny never emits this event.
+ * @mode bail
+ */
+&#x27;webserver/authorize&#x27;(request: WebAuthRequest, policy: WebAuthPolicy): WebAdmission | undefined</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p><a id="webserverentry-url--emit" class="anch"></a></p>
+<h4 id="webserver/entry-url-—-emit"><code>webserver/entry-url</code> — emit</h4>
+<p>Collect complete entry URLs for an advertised server address.</p>
+<pre><code>/**
+ * Collect complete entry URLs for an advertised server address.
+ * @param baseUrl - advertised server base URL without provider credentials.
+ * @param entries - entries appended synchronously in listener order.
+ * @mode emit
+ */
+&#x27;webserver/entry-url&#x27;(baseUrl: string, entries: WebEntryUrl[]): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p><a id="webserverindex-inject--emit" class="anch"></a></p>
+<h4 id="webserver/index-inject-—-emit"><code>webserver/index-inject</code> — emit</h4>
+<p>Collect the structured index injection table for the page <code>peer</code> speaks for. Emitted on every index render and every worker boot-payload request; listeners push their current rows, so a row's data is read fresh at emit time.</p>
+<pre><code>/**
+ * Collect the structured index injection table for the page `peer` speaks
+ * for. Emitted on every index render and every worker boot-payload
+ * request; listeners push their current rows, so a row&#x27;s data is read
+ * fresh at emit time.
+ * @param table - Mutable row table; listeners append in activation order.
+ * @param peer - The Peer the rendered page speaks for.
+ * @mode emit
+ */
+&#x27;webserver/index-inject&#x27;(table: IndexInjection[], peer: PeerScope): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p><a id="webserverrequest--waterfall" class="anch"></a></p>
+<h4 id="webserver/request-—-waterfall"><code>webserver/request</code> — waterfall</h4>
+<p>Handle an HTTP request before named-route and fallback dispatch.</p>
+<pre><code>/**
+ * Handle an HTTP request before named-route and fallback dispatch.
+ * @param request - original incoming HTTP request.
+ * @param response - response owned by the listener or its delegated handler.
+ * @param next - dispatch to the next listener or the matching route.
+ * @mode waterfall
+ */
+&#x27;webserver/request&#x27;(request: IncomingMessage, response: ServerResponse, next: () =&gt; Promise&lt;void&gt;): Promise&lt;void&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p><a id="webserverupgrade--waterfall" class="anch"></a></p>
+<h4 id="webserver/upgrade-—-waterfall"><code>webserver/upgrade</code> — waterfall</h4>
+<p>Handle an admitted upgrade before its registered protocol handler.</p>
+<pre><code>/**
+ * Handle an admitted upgrade before its registered protocol handler.
+ * @param request - original upgrade request.
+ * @param socket - transport owned by the upgrade.
+ * @param head - bytes received after the HTTP headers.
+ * @param peer - authenticated identity, absent for anonymous admission.
+ * @param next - delegate to the next listener or protocol handler.
+ * @mode waterfall
+ */
+&#x27;webserver/upgrade&#x27;( request: IncomingMessage, socket: Duplex, head: Buffer, peer: PeerScope | undefined, next: () =&gt; Promise&lt;void&gt;, ): Promise&lt;void&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver/src/index.ts"><code>packages/host/webserver/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/web-server">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

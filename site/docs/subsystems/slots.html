@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Client Slots · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#声明与生命周期">声明与生命周期</a><a class="t2" href="#Cardinality-与-scope">Cardinality 与 scope</a><a class="t3" href="#Hoc-层">Hoc 层</a><a class="t2" href="#组件输入">组件输入</a><a class="t2" href="#框架提供的-hooks">框架提供的 hooks</a><a class="t2" href="#开发者提供的-injection">开发者提供的 injection</a><a class="t2" href="#Conversation-层级">Conversation 层级</a><a class="t2" href="#扩展规则">扩展规则</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Web Client Slots</div>
+    <h1>Web Client Slots</h1>
+    <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/slots.md</div>
+    <div class="body"><h1 id="Web-Client-Slots">Web Client Slots</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/slots.md">English</a> | 中文</p>
+<p>Slots 是 Web Client 的类型化 React 组合系统。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-slots/README.zh.md"><code>dsh-client-ui-slots</code></a>定义不依赖 React 的注册表与类型代数；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-renderer/README.zh.md"><code>dsh-client-ui-renderer</code></a>把可观测源绑定成钩子、渲染整棵树，并在内部拥有 React context。功能插件通过 <code>ctx.slots.register()</code> 贡献 UI，绝不导入其他功能插件的组件。</p>
+<p>本文记录 slot 的所有权、组件输入、扩展 API 与当前层级。外围的启动、Remote、Client model 与 Conversation 数据通路见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/web-client.zh.md">Web Client 架构</a>。</p>
+<p><code>plugins.bundle.config</code> 以 npm 包名为 key，提供 Bundle 详情配置。<code>plugins.bundle.activation</code> 在用户显式启用后渲染可选引导，由拥有者提供关闭引导和打开该 Bundle 详情的回调。<code>conversation.input.activity</code> 提供模型选择器与发送按钮之间的单个活动控件，可展开工具栏并在卸载时释放展开状态。</p>
+<p>插件目录声明 <code>plugins.add.actions</code>，它是 root 作用域的 list，在添加插件菜单的安装项之后提供 <code>MenuItemButton</code> 行。owner 提供 <code>onDismiss()</code>，用于开始动作前关闭菜单。该 slot 遵循所属插件页面声明的生命周期。</p>
+<p>root 作用域的 list <code>sidebar.panellist.actions</code>、<code>conversation.session.header.views.actions</code> 和 <code>sidebar.right.tab.guide.actions</code> 提供面板行、View 标签和右侧栏引导卡片之后“更多”菜单的菜单行。区域只在其 list 有注册项时画“更多”按钮与菜单，并传入可自定义的入口及其 Pin 状态、<code>onOpen</code>、<code>onPinnedChange</code> 与 <code>onDismiss</code>。面板和 View 入口还通过可选的 <code>active</code> 状态标识当前选中项，该状态独立于 Pin 状态。root 作用域的 <code>sidebar.panel.icon</code> factory 拥有 <code>sidebar.panellist</code> list，按 <code>id</code>、<code>size</code> 与 <code>active</code> 为侧栏行和更多菜单入口渲染已注册图标。各区域在内存中维护已收起的入口 id；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-entry-customization/README.zh.md"><code>ui-entry-customization</code></a> 注册随产品提供的菜单行。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-workspace/README.zh.md">ui-workspace</a> 记录 Session 行的扩展位置、显示条件和键盘行为。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-settings/README.zh.md">ui-settings</a> 记录设置页面与导航图标扩展点。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-panel/README.zh.md">ui-session-panel</a> 记录会话面板的分栏、标题控件、行与开关角标扩展位置。</p>
+<h2 id="声明与生命周期">声明与生命周期</h2>
+<p><code>SlotMap</code> 是编译期注册表。包通过声明合并写入 key、cardinality（基数）、scope、owner props、keyed props 与可选的 slot 级 inject face。运行时声明则是拥有该渲染位置的组件在 <code>children</code> 中给出的对应条目。</p>
+<p>声明一个 child 会同时产生三种效果：令该 child key 生效、授权 parent entry 调用 <code>renderSlot</code> 或 <code>renderSlotChain</code>，以及记录运行时 dispatch 规格。每个声明只能有一个存活 owner。向未声明 slot 注册，或重复声明其他 entry 已拥有的 child，都会在插件激活时失败。</p>
+<p><code>root</code> 是唯一内建声明，也是唯一由 Cordis service 自身渲染的 key。<code>ui-renderer</code> 调用 <code>ctx.slots.renderSlot('root', {})</code>；其余每个后代都通过声明它的 entry 所收到的 <code>renderSlot</code> 或 <code>renderSlotChain</code> prop 渲染。</p>
+<p>注册和声明遵循 Cordis effect 生命周期。销毁一个 entry 会移除其贡献，并递归折叠它声明的 child slots。因此，向其他包的 slot 贡献功能时使用 <code>ctx.slots.inject(key, callback)</code>：callback 会在每段声明生命周期内运行，owner 折叠时其 effect 随之移除，owner 再次挂载时则重新运行。</p>
+<pre><code>import type { Context } from &#x27;@deepseek-ai/cordis&#x27;
+import type {} from &#x27;@deepseek-ai/dsh-client-ui-conversation/client&#x27;
+import type {} from &#x27;@deepseek-ai/dsh-client-ui-session/client&#x27;
+import type { PropsRuntime } from &#x27;@deepseek-ai/dsh-client-ui-slots&#x27;
+
+type HeaderActionProps = PropsRuntime&lt;&#x27;conversation.session.header.actions&#x27;&gt;
+
+function HeaderAction({ useSession }: HeaderActionProps) {
+  const running = useSession(snapshot =&gt; snapshot.running)
+  return &lt;button disabled={running}&gt;Review&lt;/button&gt;
+}
+
+export const inject = [&#x27;slots&#x27;]
+
+export function apply(ctx: Context): void {
+  ctx.slots.inject(&#x27;conversation.session.header.actions&#x27;, () =&gt;
+    ctx.slots.register({
+      name: &#x27;conversation.session.header.actions&#x27;,
+      id: &#x27;review&#x27;,
+      order: 100,
+    }, HeaderAction))
+}</code></pre>
+<h2 id="Cardinality-与-scope">Cardinality 与 scope</h2>
+<p>Slot 声明固定两个相互独立的维度。</p>
+<table><thead><tr><th>维度</th><th>值</th><th>含义</th></tr></thead><tbody><tr><td>cardinality</td><td><code>single</code></td><td>单个 cell，渲染当前 priority 胜者；需要并列内容时应声明 child slot，而不是把它当作列表。</td></tr><tr><td>cardinality</td><td><code>list</code></td><td>cell 由必填 <code>id</code> 定址，先按 <code>order</code>、再按注册顺序排列。</td></tr><tr><td>cardinality</td><td><code>keyed</code></td><td>owner 传入 <code>entryKey</code>；匹配 cell 以该 key 对应的 props 渲染。</td></tr><tr><td>cardinality</td><td><code>chain</code></td><td>每个 entry 提供纯 <code>select(owner)</code> 函数；按 priority 顺序遇到的第一个非 null 结果获选，并以 <code>matched</code> 传给组件；全部拒绝时渲染 owner fallback。</td></tr><tr><td>cardinality</td><td><code>hoc</code></td><td>entry 层层包裹 owner 经 <code>renderSlot(key, owner, { children })</code> 传入的内容，最小者在最外层；可选的 <code>key</code> 按 owner 的 <code>entryKey</code> 选层。见 <a href="#hoc-layers">Hoc 层</a>。</td></tr><tr><td>scope</td><td><code>root</code></td><td>一个 root 作用域组件和 store 实例。</td></tr><tr><td>scope</td><td><code>session-maybe</code></td><td>继承外围 Provider binding，但没有 binding 时仍可渲染；Session 值是可选的。</td></tr><tr><td>scope</td><td><code>session</code></td><td>要求可解析的外围 Provider binding，并收到确定存在的 Session 值。</td></tr></tbody></table>
+<p>对于 <code>single</code>、<code>list</code>、<code>keyed</code> 和 <code>hoc</code> cell，<code>priority</code> 是遮蔽优先级；对于 <code>chain</code>，它是选举顺序。数值越小越先运行或渲染。普通增量贡献应选用新的 list 或 hoc <code>id</code>，或 keyed <code>key</code>；复用已有 cell 表示有意替换其展示。</p>
+<p><a id="hoc-layers" class="anch"></a></p>
+<h3 id="Hoc-层"><span id="hoc-layers" class="anch"></span>Hoc 层</h3>
+<p>hoc entry 是以必填 <code>id</code> 和可选 <code>key</code> 寻址的一层。不带 <code>key</code> 的层是通配层，作用于每次分派；带 <code>key</code> 的层只在 owner 向 <code>renderSlot</code> 传入相同 <code>entryKey</code> 时生效，省略 <code>entryKey</code> 的 owner 只得到通配层。每个 <code>(key, id)</code> 组合（通配视为单独的 key）是一个遮蔽 cell；同一 <code>id</code> 下，精确 key 的层替换该 key 的通配层。</p>
+<p>各层依次按 <code>order</code>、<code>priority</code>、注册顺序升序嵌套，最小者在最外层。每层收到同一份 owner props，并以 <code>children</code> 收到内一层（最内层是 owner 的内容），且至多渲染一次；不渲染 <code>children</code> 的层替换其内部的全部内容。owner props 不得使用 <code>children</code> 这个名字。省略 <code>children</code> 时各层包裹空内容；没有适用的层时原样渲染内容。</p>
+<ul>
+<li>重新挂载：增减一个适用于本次分派的层会让其内部内容重新挂载；<code>session</code> 或 <code>session-maybe</code> 作用域的层在 Session binding 变化时也会让内部内容重新挂载。分派同一 key 的 outlet 共享一条编译好的层链，因此为其他 key 注册的层不会让它们的内容重新挂载；outlet 切换 <code>entryKey</code> 时会换到另一条层链，即使生效的层相同，内容也会重新挂载。</li>
+<li>错误：崩溃的层照常上报错误，并在出错的那一处渲染它的 <code>children</code>，直到该处本次挂载结束，owner props 变化也不恢复。该层保持注册，因此其他出现处（包括分派同一 key 的出现处）仍保留它，重新挂载的出现处会再次渲染它。被包裹内容抛出的错误穿过所有层，不记到任何层名下；层如果自己在 <code>children</code> 外包错误边界，捕获到的是内部包装错误而不是原始错误。</li>
+<li>布局：outlet 会在 owner 与内容之间插入一个 <code>display: contents</code> 的 <code>[data-slot]</code> 元素，所以 owner 侧的选择器不能假定内容是直接子元素。包裹 <code>children</code> 的层自身不得产生盒子（其 slot 另有说明的除外）——例如应使用 <code>display: contents</code>——否则内容会脱离父元素的布局。</li>
+</ul>
+<p><a id="component-inputs" class="anch"></a></p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-context-menu/README.zh.md">右键菜单插件</a> 通过 <code>provideRoot</code> 贡献 <code>useContextMenu</code>；每个作用域接收同一个由插件拥有的触发器工厂。提供方卸载时，注入属性与保留的处理器一并失效。其根作用域 keyed Slot <code>contextMenu.icon</code> 根据操作元数据渲染业务方提供的图标。</p>
+<h2 id="组件输入"><span id="component-inputs" class="anch"></span>组件输入</h2>
+<p>注册组件会在 binding 位置收到组装后的输入。组件应从这些类型推导 props，不要重新抄写成员。</p>
+<table><thead><tr><th>输入</th><th>声明者</th><th>组件类型</th></tr></thead><tbody><tr><td>owner 值与标准 scope 值</td><td><code>SlotMap</code> 条目与已安装的 scope adapter</td><td><code>PropsRuntime&lt;K&gt;</code></td></tr><tr><td>获授权的 child renderer</td><td>注册项的 <code>children</code> keys</td><td><code>PropsRenderSlots&lt;S&gt;</code></td></tr><tr><td>共享视图状态的 selector hook 与 mutation callback</td><td>注册项的 <code>store</code></td><td><code>PropsStore&lt;H&gt;</code></td></tr><tr><td>私有数据、callback 与 observable hook</td><td>注册项的 <code>inject</code> factory</td><td><code>InjectFace&lt;I&gt;</code></td></tr><tr><td>本地化 <code>t</code> 函数</td><td>注册项的 <code>locale</code> namespace</td><td><code>PropsLocale&lt;N&gt;</code></td></tr><tr><td>chain 选中的值</td><td>注册项的 <code>select</code> 结果</td><td>通过 <code>ComposedProps</code> 提供的 <code>matched</code></td></tr><tr><td>被包裹的 owner 内容</td><td><code>SlotMap</code> 条目的 <code>hoc</code> kind</td><td>通过 <code>ComposedProps</code> 提供的 <code>children</code></td></tr></tbody></table>
+<p>当 entry 声明 <code>session</code> 或 <code>session-maybe</code> child 时，<code>PropsRenderSlots</code> 还会提供 <code>SessionProvider</code>。不传 <code>session</code> prop 时，它继承外围 binding；显式传入 <code>SessionReference</code> 或 <code>undefined</code> 时，只覆盖该子树。Provider 不为整个 body 设置 key。严格 <code>session</code> entry 在 binding generation 改变时重新挂载。空白 <code>session-maybe</code> entry 接受首个 binding 时不重新挂载，后续 generation 变化或回到缺失状态时才重新挂载。</p>
+<p>组件绝不会收到 <code>ctx</code>。父组件在某次渲染时已经知道的值通过 <code>renderSlot</code> 的 owner 参数进入；共享视图状态使用声明的 store；service 与 model object 留在 <code>apply</code> closure 中，只向组件投影 callback 或 observable source。</p>
+<h2 id="框架提供的-hooks">框架提供的 hooks</h2>
+<p>当前组合中的 adapter 会添加以下标准 props。它们按目标 slot 的 scope 提供，与注册组件来自哪个包无关。</p>
+<table><thead><tr><th>可用范围</th><th>Props</th><th>Owner</th></tr></thead><tbody><tr><td>所有 scope</td><td><code>useSessions</code>、<code>useSessionRetainInfo</code>、<code>useSessionAccess</code></td><td><code>ui-session</code></td></tr><tr><td>所有 scope</td><td><code>useSessionStatus</code></td><td><code>ui-session-status</code></td></tr><tr><td>所有 scope</td><td><code>useWorkspaces</code>、<code>useWorkspaceAccess</code></td><td><code>ui-workspace</code></td></tr><tr><td>所有 scope</td><td><code>useRemoteAccess</code>（<code>global</code> 资源）</td><td><code>api-remote-access</code></td></tr><tr><td>所有作用域</td><td><code>usePanelInfo</code></td><td><code>ui-layout</code></td></tr><tr><td><code>session</code></td><td><code>sessionId</code>、<code>useSession</code>、<code>useProjection</code>、<code>useAccess</code>（所绑定 Session 的答案）</td><td><code>ui-session</code></td></tr><tr><td><code>session-maybe</code></td><td>结果可选的 <code>sessionId</code>、<code>useSession</code>、<code>useProjection</code>、<code>useAccess</code></td><td><code>ui-session</code></td></tr><tr><td><code>session</code></td><td><code>useConversation</code>、<code>useInput</code>、<code>inputActions</code></td><td><code>ui-conversation</code></td></tr><tr><td><code>session-maybe</code></td><td>结果可选的 <code>useConversation</code>、<code>useInput</code>、<code>inputActions</code></td><td><code>ui-conversation</code></td></tr><tr><td><code>session</code></td><td><code>useChat</code></td><td><code>ui-chat</code></td></tr><tr><td><code>session</code></td><td><code>useTrajectory</code></td><td><code>ui-trajectory</code></td></tr></tbody></table>
+<p>Renderer 还会根据声明的 store 创建 <code>useStore</code>，并根据声明的 locale namespace 创建 <code>t</code>。这些是由注册项推导的 props，不属于全局标准 props。</p>
+<p>框架与领域 adapter owner 可以通过 <code>ctx.slots.provideRoot()</code> 或 <code>ctx.uiSession.provide()</code> 扩展标准集合，同时提供对应的 <code>GlobalStandardProps</code>、<code>SessionStandardProps</code> 或 <code>SessionMaybeStandardProps</code> 声明合并。普通功能组件不应自行创建 React hook prop，也不应为 entry 私有数据添加全局标准 prop。</p>
+<h2 id="开发者提供的-injection">开发者提供的 injection</h2>
+<p>注册项的 <code>inject</code> 选项是通常使用的功能私有注入点。它的 factory 在插件的 <code>apply</code> 世界中运行，可以闭包捕获已经注入的 Cordis service，并且只返回组件所需的数据与 callback。对于 <code>session</code> slot，它会收到 <code>sessionId</code>；对于 <code>session-maybe</code>，它收到 <code>sessionId | undefined</code>；声明 store 后，它还会收到该 store 绑定后的 actions。</p>
+<p>返回值中保留的 <code>hooks</code> 对象接收裸 <code>getSnapshot</code>／<code>subscribe</code> source。Renderer 把 <code>hooks: { status }</code> 转换为组件 prop <code>useStatus(selector)</code>，并按 source identity 缓存绑定。组件不会收到 source 本身，也不直接调用 <code>useSyncExternalStore</code>。</p>
+<p>当每个 occupant 都需要同一种能力时，slot owner 可以在 child 声明里放置 <code>inject</code> face。普通成员会原样交给所有 occupant；其 <code>hooks</code> 对象中的函数成员是 hook factory，它会收到 slot 的标准 props 与可选的逐次渲染 <code>hookContext</code>，再返回提供给 occupant 的受限 hook。<code>conversation.chat.node</code> 正是通过这种机制，为当前渲染的 node 提供 <code>useTurnData(key)</code>。</p>
+<p>一次渲染时 owner 已知的值走 owner props；单个 entry 的 callback 与私有 observable 走注册项 <code>inject</code>；由 slot owner 控制、所有 occupant 共享的能力走 slot 级 <code>inject</code>；需要跨 entry 共享或跨重新挂载保留的可变视图状态走声明的 store。React node 通过 child slot 组合，不通过注入值传递。</p>
+<p><a id="current-hierarchy" class="anch"></a></p>
+<h2 id="Conversation-层级"><span id="current-hierarchy" class="anch"></span>Conversation 层级</h2>
+<p>下面的 Conversation 路径区分声明所有者与可复用 Factory 根，省略无关的外壳位置。条目拥有其声明的子 Slot；Factory 在其定义注册期间拥有子 Slot 声明。方括号标出默认 React 组件，普通 React 后代组件可以渲染其所有者的 Slot。Factory 调用指向独立的可复用定义，不是新的 Slot 声明。</p>
+<pre><code>root [AppFrame]
+└─ main[key=conversation] [ConversationPanel]
+   └─ main.conversation [ConversationRoot / ConversationMainPanel]
+      ├─ conversation.header [ConversationHeader]
+      │  ├─ conversation.header.leading
+      │  └─ conversation.session.header [ConversationSessionHeader]
+      │     ├─ conversation.session.header.lineage
+      │     ├─ conversation.session.header.actions
+      │     ├─ conversation.session.header.utilities
+      │     │  └─ id=session-panel [SessionPanelToggle]
+      │     │     └─ conversation.session.panel.indicator [list, inline]
+      │     ├─ conversation.session.header.views.actions
+      │     └─ conversation.session.header.corner
+      └─ calls Factory: conversation.content
+
+Factory: conversation.content [ConversationContent]
+├─ conversation.session [ConversationSession / DefaultConversationViews]
+│  └─ conversation.view
+│     ├─ id=chat [ChatView]
+│     │  ├─ conversation.chat.text-interaction [list]
+│     │  ├─ conversation.chat.markdown.fence [hoc, keyed by fence language]
+│     │  ├─ conversation.chat.aside [SessionPanel]
+│     │  │  ├─ conversation.session.panel.section [list]
+│     │  │  │  └─ id=environment [EnvironmentSection]
+│     │  │  │     └─ conversation.session.panel.environment.row [list]
+│     │  │  └─ conversation.session.panel.section.actions [keyed]
+│     │  └─ conversation.chat.flow [ChatFlow]
+│     │     └─ conversation.chat.node [ChatNodeSeat dispatch]
+│     │        ├─ key=user [UserMessageNodeView]
+│     │        │  ├─ conversation.chat.user.before [chain]
+│     │        │  └─ calls Factory: conversation.chat.user.content
+│     │        ├─ key=steering [UserMessageNodeView]
+│     │        │  └─ calls Factory: conversation.chat.user.content
+│     │        ├─ key=assistant-step [AssistantNodeView / AssistantMarkdown]
+│     │        │  ├─ conversation.chat.message.images [MessageImages]
+│     │        │  └─ conversation.chat.reasoning.body [DefaultReasoningBody]
+│     │        │     └─ calls Factory: conversation.chat.reasoning.content
+│     │        ├─ key=tool-call [ToolCallTree]
+│     │        │  └─ tool.call.toolview
+│     │        │     └─ key=read_image [ReadImageRow / ToolRow]
+│     │        │        └─ tool.call.images [MessageImages]
+│     │        ├─ key=command-input [GoalCommandInputView]
+│     │        │  └─ calls Factory: conversation.user.text
+│     │        ├─ key=command [CommandNodeView]
+│     │        │  └─ conversation.chat.commandview
+│     │        └─ key=turn-tail [TurnTailNodeView]
+│     │           ├─ conversation.chat.turnTail
+│     │           └─ conversation.chat.assistant-actions
+│     └─ id=trajectory [TrajectoryView / TrajectoryTable]
+│        └─ conversation.trajectory.images [MessageImages]
+├─ conversation.composer
+│  ├─ conversation.approval.detail
+│  └─ conversation.plan-review.actions
+├─ conversation.composer.bar [InputBar]
+│  ├─ conversation.input.attachments
+│  ├─ conversation.input.placeholder
+│  ├─ conversation.input.permission
+│  ├─ conversation.input.plan
+│  ├─ conversation.input.model
+│  │  └─ conversation.input.model.label
+│  ├─ conversation.input.overlay
+│  ├─ conversation.composer.dock
+│  ├─ conversation.input.left
+│  └─ conversation.input.right
+├─ conversation.input.dock
+│  └─ id=queue [QueueDock]
+│     └─ calls Factory: conversation.user.text
+├─ conversation.hero.frame [hoc]
+│  └─ id=pixel-whale [PixelWhale]
+├─ conversation.hero.brand.mark
+├─ conversation.hero.workspace
+│  └─ conversation.hero.workspace.directoryFlow
+├─ conversation.hero.agentPreset
+└─ conversation.hero.options
+
+Factory: conversation.chat.user.content [UserContent]
+├─ conversation.chat.user.images [MessageImages]
+└─ calls Factory: conversation.user.text
+
+Factory: conversation.user.text [UserText]
+└─ conversation.user.text.node [keyed, inline]
+
+Factory: conversation.images.content [MessageImagesContent / ImageGallery]
+Factory: conversation.chat.reasoning.content [ReasoningContent / MarkdownText]</code></pre>
+<p>四个图片 Slot 默认均填入 <code>MessageImages</code>，由它携带调用者的图片引用和授权 loader 调用 <code>conversation.images.content</code>。用户与输出图片的替换互不影响。<code>conversation.user.text</code> Factory 由用户内容、Queue 和 Goal 共用；其 <code>inline: true</code> keyed Slot 使用 span 锚点及行内错误占位，而不是块级包装。</p>
+<p>生成的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts">Client inspect catalog</a> 是包含所有外壳分支及每个 key 的完整参考，包含 cardinality、scope、owner props、标准 props、当前 occupant、声明 owner 与替换风险。运行中的动态包可以用 <code>cordis_inspect what:"client"</code> 查询实时树与某个精确 key；源码 catalog 由 <code>pnpm run gen-client-catalog</code> 根据 <code>SlotMap</code> 声明和 <code>slots.register()</code> 调用点生成。</p>
+<p><a id="extension-rules" class="anch"></a></p>
+<h2 id="扩展规则"><span id="extension-rules" class="anch"></span>扩展规则</h2>
+<ul>
+<li>另一个功能包只能通过 <code>import type</code> 引入声明；绝不导入或转发它的运行时值。</li>
+<li>只在拥有并渲染某个位置的组件中声明新的 child slot。其他包通过 <code>ctx.slots.inject()</code> 等待，再通过 <code>ctx.slots.register()</code> 贡献内容。</li>
+<li>业务与传输状态留在所属 Cordis service 或 Client model 中。Slot store 只承载共享的视图与交互状态。</li>
+<li>可观测 source 及其 snapshot identity 在值变化前保持稳定；值变化时通过同一个 source 发布。</li>
+<li>UI domain 之间只传 JSON 兼容数据和 callback。<code>hooks</code> compartment 是裸 observable 的唯一例外；React 内容通过 slot 传递。</li>
+<li>将 <code>single</code> 和已有 occupant 的 keyed cell 视为替换点。增量扩展使用新的 list 或 hoc id，或尚未占用的 key。</li>
+</ul></div>
+    <div class="back"><a href="/?focus=reference/subsystems/slots">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

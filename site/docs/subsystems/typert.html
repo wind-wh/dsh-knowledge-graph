@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Typert 远程调用 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#Lookup-与上下文声明">Lookup 与上下文声明</a><a class="t2" href="#调用-descriptor">调用 descriptor</a><a class="t2" href="#Remote-访问资源">Remote 访问资源</a><a class="t2" href="#Typert-注册表">Typert 注册表</a><a class="t2" href="#Host-Gateway">Host Gateway</a><a class="t2" href="#消费方-Remote">消费方 Remote</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.remoteAccess-—-RemoteAccessService">ctx.remoteAccess — RemoteAccessService</a><a class="t3" href="#ctx.typert-—-TypertRegistry">ctx.typert — TypertRegistry</a><a class="t3" href="#ctx.typertGateway-—-TypertGatewayService">ctx.typertGateway — TypertGatewayService</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Typert 远程调用</div>
+    <h1>Typert 远程调用</h1>
+    <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/typert.md</div>
+    <div class="body"><h1 id="Typert-远程调用">Typert 远程调用</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/typert.md">English</a> | 中文</p>
+<p>以下类型由生成的 Remote 产物、Host Gateway 与消费方 API assembly 共用。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md">Typert Gateway Agent Note</a> 负责架构与传输决策；本页记录 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/protocol/src/types.ts"><code>dsh-typert-protocol</code></a> 和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway/src/types.ts"><code>dsh-api-gateway</code></a> 中公共约定的字面定义。</p>
+<h2 id="Lookup-与上下文声明">Lookup 与上下文声明</h2>
+<p>业务对象包通过声明合并扩展两个空 map。lookup 将一种 Host 对象类型与其 wire identity 关联；上下文声明将一种作用域上下文类别与其 wire identity 关联。生成的 descriptor 引用这些 key，运行时提供方则提供活对象解析行为。</p>
+<pre><code>/** Merge-extensible Host object lookup declarations. */
+interface TypertLookupMap {}</code></pre>
+<pre><code>/** Merge-extensible scoped Context declarations. */
+interface TypertContextMap {}</code></pre>
+<p>lookup 的 resolver 卸载后，注册表仍会保留其 wire 声明。因此 SRC 发现过程会继续把该参数归类为 lookup，并因不可用而失败，而不会把 wire 值当作普通业务对象接受。</p>
+<pre><code>/** Stable wire declaration retained after a lookup provider unloads. */
+interface TypertLookupDefinition {
+  /** Merge-declared lookup key. */
+  readonly key: string
+  /** Source parameter name recognized by the SRC weak parser. */
+  readonly parameter: string
+  /** Wire field replacing the Host object parameter. */
+  readonly wire: string
+  /** Canonical Host type symbol used by strict generation. */
+  readonly hostTypeSymbol: string
+  /** Canonical wire type symbol used by strict generation. */
+  readonly wireTypeSymbol: string
+}</code></pre>
+<h2 id="调用-descriptor">调用 descriptor</h2>
+<p><code>InvocationDescriptor</code> 是本地反射信息，不是 wire message。Host 与消费方构建会生成彼此对应的 descriptor；请求只发送 endpoint 与具名 <code>args</code>。strict codec 携带生成的 schema factory，SRC codec 则在不恢复结构类型的前提下强制要求输入为 JSON 安全值。一元结果 codec 可提供 <code>encode()</code> 处理含字节的子树，并通过 <code>decode()</code> 递归校验原生字节；Client 声明将每个 <code>Uint8Array</code> 限定为以 <code>ArrayBuffer</code> 为底层缓冲区。纯 JSON 结果无需字节识别或 Client 解码。取消通过带外 carrier signal 表达：它在业务参数之后注入，绝不进入 <code>args</code>。</p>
+<p><code>createTypertRemoteInfo</code> 返回实现 <code>TypertRemoteInfo</code> 的惰性类实例，后者扩展可挂载的 <code>TypertRemoteContribution</code>。其 <code>methods</code> 索引引用 <code>descriptors</code> 中的直接方法对象：每个 <code>TypertRemoteMethod</code> 增加具名 <code>input(options?)</code> 和 <code>invoke</code>，在方法及参数上保留文档，并以 <code>result</code> 作为唯一输出 codec。一元 <code>mode</code> 缺省；流式 <code>mode</code> 为 <code>'stream'</code>。仅使用 Context 接收器的方法保留在描述符和作用域声明中。Registry 查询返回基础描述符；<code>isTypertRemoteMethod</code> 收窄生成的直接调用能力，但不会恢复各端点的精确泛型。</p>
+<p><code>TypertSchema</code> 保证解析能力，不保证任意 Zod 操作，尽管原始 factory spec 要求 Zod factory。缺少文档或不支持可选的 JSON Schema 投影，不会使普通方法失效。info 索引与每种输入策略的视图、解析器和派生投影都独立惰性求值并缓存；读取元数据或 schema 绝不发起网络调用。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/protocol/README.zh.md">协议参考</a>定义这些 API，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/generator/README.zh.md">生成器参考</a>定义它们彼此分离的 Host <code>./typert</code>、消费方 <code>./remote</code> 和 Client <code>./client/typert</code> 产物。</p>
+<p><code>TypertRemoteSpec</code> 保存包名与按端点键控的 <code>TypertRemoteMethodSpec</code>。每个有序 <code>TypertRemoteParameterSpec</code> 条目都包含从同一 checker 解析后类型模型生成的普通 <code>codec</code> 和 <code>strictCodec</code> factory；运行时派生标识、默认 wire 名称和具名调用视图。<code>TypertRemoteInputOptions</code> 仅包含 <code>strict?: boolean</code>；<code>method.input(options?)</code> 选择缓存的 <code>TypertRemoteValue&lt;T&gt;</code>，提供匹配的解析及可选文档/投影，而不改变 Host 分发或 <code>result</code>。<code>RemoteDecoded&lt;T&gt;</code> 则描述 carrier 重建的一元结果，不会收窄任意解析器输出。</p>
+<pre><code>/** Codec attached to one invocation parameter or result. */
+type TypertCodec&lt;Value = unknown&gt; =
+  | TypertRemoteValue&lt;Value&gt; &amp; {
+    readonly mode: &#x27;strict&#x27;
+    readonly typeSymbol: string
+    /**
+     * Decode a unary result whose fields require type-specific handling.
+     * @param value - result reconstructed by the RPC carrier.
+     * @returns the validated result, retaining native byte views.
+     */
+    readonly decode?: ((value: unknown) =&gt; unknown) | undefined
+    /**
+     * Project typed binary fields into RPC result attachments.
+     * @param value - native unary result.
+     * @param writeBytes - records a byte view at its result-relative path and returns its JSON placeholder.
+     * @returns JSON metadata with untouched JSON subtrees retained.
+     */
+    readonly encode?: ((value: unknown, writeBytes: (bytes: Uint8Array, path: readonly (string | number)[]) =&gt; null) =&gt; unknown) | undefined
+  }
+  | {
+    readonly mode: &#x27;src-json&#x27;
+  }</code></pre>
+<pre><code>/** One ordered business parameter in a Remote invocation. */
+interface InvocationParameterDescriptor {
+  /** Source-level parameter name. */
+  readonly name: string
+  /** Source parameter documentation, independent of JSON Schema support. */
+  readonly description?: string
+  /** Required key in the wire `args` object. */
+  readonly wire: string
+  /** Whether the value is JSON or requires a registered Host lookup. */
+  readonly source: &#x27;json&#x27; | &#x27;lookup&#x27;
+  /** Lookup key when `source` is `lookup`. */
+  readonly lookup?: string
+  /** Boundary codec for the wire representation. */
+  readonly codec: TypertCodec
+  /** Missing wire fields decode to `undefined` only for an explicitly declared `T | undefined`. */
+  readonly acceptsUndefined?: true
+}</code></pre>
+<pre><code>/** Carrier-independent description of one exported method invocation. */
+interface InvocationDescriptor {
+  /** Globally stable generated identity. */
+  readonly id: string
+  /** Cordis service key owning the method. */
+  readonly service: string
+  /** Wire namespace, defaulting to the service key. */
+  readonly namespace: string
+  /** Public instance method name. */
+  readonly method: string
+  /** Service member invoked when the exported method name is an alias. */
+  readonly implementation?: string
+  /** Absent for unary calls; stream calls deliver every yielded item as the Host produced it. */
+  readonly mode?: &#x27;stream&#x27;
+  /** Receiver selection mode. */
+  readonly invocation:
+    | { readonly kind: &#x27;direct&#x27; }
+    | {
+      readonly kind: &#x27;context&#x27;
+      readonly context: string
+      readonly wire: string
+      readonly codec: TypertCodec
+    }
+  /** Optional consuming-Context projection for one direct lookup parameter. */
+  readonly scope?: {
+    /** Context kind whose Client adapter supplies the identity. */
+    readonly context: string
+    /** Lookup parameter wire field replaced by the Context identity. */
+    readonly wire: string
+  }
+  /** Ordered business parameters. */
+  readonly parameters: readonly InvocationParameterDescriptor[]
+  /**
+   * Client-to-Host items of the same logical stream, generated from the `In`
+   * type argument of the method&#x27;s `RemoteStream&lt;Out, In&gt;` return type; absent
+   * when `In` is `never`. The method reads the items through
+   * `RemoteInvocation.uplink()`, so nothing enters the parameter list.
+   */
+  readonly uplink?: {
+    /** Codec validating every uplink item before `uplink()` delivers it. */
+    readonly codec: TypertCodec
+  }
+  /** Transport cancellation injected after business parameters instead of entering wire args. */
+  readonly cancellation?: {
+    /** Reserved final Host method parameter. */
+    readonly parameter: &#x27;signal&#x27;
+  }
+  /** Codec for the unary result or each yielded stream item. */
+  readonly result: TypertCodec
+  /** Source-owned method documentation; ordinary methods need not have JSDoc. */
+  readonly description?: string
+  /** Source declaration used only for diagnostics. */
+  readonly sourceLocation?: InvocationSourceLocation
+}</code></pre>
+<p>Host 别名 <code>RemoteStream&lt;Out, In&gt;</code> 同时命名一条流的两个方向，接收方法通过 <code>this.ctx.invocation</code> 读取本次调用的上下文：</p>
+<pre><code>/**
+ * One Remote stream as a Host method returns it: the items it yields to the
+ * Client, iterated as a plain `AsyncIterable&lt;Out&gt;`. `In` is the type of the
+ * items the Client may send back on the same logical stream, read through
+ * `RemoteInvocation.uplink()`; it is carried only as a type-level marker. The
+ * default `never` declares a method that reads none, and its descriptor
+ * carries no uplink codec. A generated Client stream method returns the same
+ * stream as a `RemoteStreamHandle&lt;Out, In&gt;`.
+ * @template Out - item type the Host method yields.
+ * @template In - item type the Client may send; `never` when the method reads none.
+ */
+type RemoteStream&lt;Out, In = never&gt; = AsyncIterable&lt;Out&gt; &amp; { readonly [STREAM_UPLINK]?: In }</code></pre>
+<pre><code>/**
+ * One open Remote stream as the Client holds it: the downlink items as an
+ * `AsyncIterable`, plus the uplink and cancellation of the same logical
+ * stream. A generated Client stream method returns it, and calling that
+ * method opens the stream: a holder that neither iterates nor disposes the
+ * handle keeps the Host stream alive. A handle stands for one generation:
+ * when the carrier is lost, iteration fails with the carrier error and the
+ * handle is finished.
+ * @template Out - item type the Host method yields.
+ * @template In - item type the Client may send; `never` when the method reads none.
+ */
+interface RemoteStreamHandle&lt;Out, In&gt; extends AsyncIterable&lt;Out&gt; {
+  /**
+   * Send one uplink item. Items sent before the stream has opened are queued
+   * and sent once the `open` frame is on the wire. A top-level `undefined`
+   * travels as an `item` frame without `value`.
+   * @param item - item the Host validates against the method&#x27;s uplink codec.
+   * @throws {Error} when the item is not a lossless JSON value, when `end()`
+   * was called, or once the stream has terminated.
+   */
+  send(item: In): void
+  /** Half-close the uplink: the Host&#x27;s `uplink()` iteration ends. Idempotent; ignored after termination. */
+  end(): void
+  /**
+   * Cancel the logical stream: send `cancel` unless a terminal frame has
+   * arrived, and end the downlink iterator quietly. Breaking out of
+   * `for await` early does the same.
+   */
+  dispose(): void
+}</code></pre>
+<pre><code>/**
+ * Merge-extensible caller identities. Each driver declares its own entry.
+ * Every entry is a JSON value with a unique literal `kind`, carries no
+ * credential, and is safe to persist in a Session log.
+ */
+interface PrincipalMap {
+  /** The local user who owns this Host. */
+  owner: { readonly kind: &#x27;owner&#x27; }
+}</code></pre>
+<pre><code>/** One caller identity; the authorization layer reads only this. */
+type Principal = PrincipalMap[keyof PrincipalMap]</code></pre>
+<pre><code>/**
+ * One Peer&#x27;s session on this Host. Its creator owns it: `ctx` is the Cordis
+ * scope that owns connection-lifetime registrations and is disposed with the
+ * Peer, and `principal` is the caller identity fixed when the Peer was created.
+ */
+interface PeerScope {
+  readonly id: PeerId
+  /** Connection-lifetime registrations; disposed with the Peer. */
+  readonly ctx: Context
+  /** Caller identity fixed at creation by in-process Host code; no wire field can set it. */
+  readonly principal: Principal
+  /** Aborted once the Peer is disposed; Remote streams that speak for the Peer end with it. */
+  readonly signal: AbortSignal
+  /** Whether the Peer may open a forwarded-event stream; this does not grant business permissions. */
+  readonly interactions: &#x27;answer&#x27; | &#x27;none&#x27;
+  /**
+   * Tear down every registration made through `ctx`.
+   * @returns settles once the scope has quiesced; racing calls share one completion.
+   */
+  dispose(): Promise&lt;void&gt;
+}</code></pre>
+<pre><code>/** Carrier capacity for buffered uplink frames of one logical stream. */
+interface RemoteUplinkWindow {
+  /** Maximum complete encoded frame bytes waiting for the Host consumer. */
+  readonly maxBytes: number
+  /** UTF-8 envelope bytes added to a compact JSON item with a present value field. */
+  readonly frameOverheadBytes: number
+}</code></pre>
+<pre><code>/**
+ * The context of one Remote call, reachable inside the receiving method as
+ * `this.ctx.invocation`. The Gateway derives the receiver from a Context that
+ * carries it, so no parameter is injected and nothing crosses the wire.
+ */
+interface RemoteInvocation {
+  readonly request: {
+    readonly namespace: string
+    readonly method: string
+    readonly args: Readonly&lt;Record&lt;string, unknown&gt;&gt;
+  }
+  /** Cordis service key of the receiving Service. */
+  readonly service: string
+  /** Peer the call speaks for; every carrier names it explicitly. */
+  readonly peer: PeerScope
+  /** Carrier cancellation: Client cancel, socket close, or an uplink failure. */
+  readonly signal: AbortSignal
+  /** Carrier frame capacity; absent when the carrier imposes no encoded-frame inbox limit. */
+  readonly uplinkWindow?: RemoteUplinkWindow | undefined
+  /**
+   * The Client&#x27;s uplink items for this call. Available once; a second call
+   * throws. With an uplink codec on the descriptor every item is decoded to
+   * `In`; without one items arrive as `unknown` after a JSON-safety check.
+   * Iteration ends when the Client ends its uplink; when the method finishes
+   * its downlink the Gateway calls the iterator&#x27;s `return()` and unread items
+   * are dropped. `In` is the caller&#x27;s assertion: the runtime decodes by the
+   * descriptor and does not cross-check it.
+   * @template In - item type the caller reads; the descriptor codec decides what arrives.
+   * @returns the single-consumer uplink iterable.
+   */
+  uplink&lt;In = unknown&gt;(): AsyncIterable&lt;In&gt;
+}</code></pre>
+<h2 id="Remote-访问资源">Remote 访问资源</h2>
+<p>每个 Remote 方法都受 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access/README.zh.md"><code>dsh-api-remote-access</code></a> 的访问控制：只有当该 principal 种类的 policy 在调用访问的每个资源上都绑定了列出该端点 action 的 role 时，非 owner 调用才被放行。拥有某个身份类型的包把其资源种类声明合并进 <code>TypertResourceMap</code>；内置的无身份资源 <code>global</code> 从不是其中的种类。Gateway 从 <code>@Remote({ resources })</code> 或 <code>@RemoteScope(key, { resources })</code> 的 <code>resources</code> 读取函数读取某个种类的身份，其次是把该种类声明为 <code>resource</code> 的 lookup 参数或作用域 Context，再次是在 <code>typert.resources</code> 中登记的默认字段或 resolver；不指向任何资源的调用访问 <code>global</code>。决策由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-10-12-peer-principal-and-remote-access.zh.md">Peer 身份属性 Agent Note</a> 负责。</p>
+<pre><code>/**
+ * Merge-extensible resource kinds whose identities a Remote call or forwarded
+ * event may carry. The package that owns an identity type declares its kind;
+ * the value is that kind&#x27;s identity type, a string type such as a branded id.
+ * `global` names the built-in identity-less resource and is never a kind here.
+ */
+interface TypertResourceMap {}</code></pre>
+<pre><code>/** One resource kind: the built-in `global` kind or a declared kind. */
+type RemoteAccessResourceKind = &#x27;global&#x27; | TypertResourceKind</code></pre>
+<pre><code>/**
+ * One resource a call or forwarded event touches: `global`, or one identity
+ * of a declared kind. Identities are wire values, read before any lookup
+ * resolves or validates them.
+ */
+type RemoteAccessResource =
+  | { readonly kind: &#x27;global&#x27; }
+  | {
+    [Kind in TypertResourceKind]: { readonly kind: Kind; readonly id: TypertResourceId&lt;TypertResourceMap[Kind]&gt; }
+  }[TypertResourceKind]</code></pre>
+<pre><code>/**
+ * Explicit endpoint and resource choices for one Remote Scope method.
+ * @template WireArgs - the decorated method&#x27;s positional parameters as the
+ *   wire carries them; the default `never` admits readers of any tuple.
+ */
+interface RemoteScopeOptions&lt;WireArgs extends readonly unknown[] = never&gt; {
+  /** Exported endpoint method; omission retains the implementation member name. */
+  readonly name?: string
+  /**
+   * Per-kind readers of the resources one call touches. Each receives the
+   * method&#x27;s arguments as its own parameters, JSON arguments as their Typert
+   * codecs validated them, a lookup parameter as its wire identity and a
+   * cancellation parameter as the call&#x27;s signal, so it performs plain reads
+   * only, and returns one identity, several, or `undefined` for none. A
+   * throw, an empty list, or an identity other than a non-empty string
+   * refuses the call. For a kind without a reader, the Gateway reads the
+   * identity of a scoped Context whose Host adapter declares that `resource`
+   * and of lookup parameters declaring it, else the registered default of
+   * `typert.resources`: a `resolve` function receiving the validated named
+   * wire values and their ordered parameters, or a `field` naming a top-level
+   * argument or, failing that, a field of the first object argument. A
+   * throwing resolver, an array result, or a field holding an array refuses
+   * the call. A call that carries no identity touches `global`. The readers
+   * and these defaults together must name every resource the method accesses:
+   * access control never checks a resource they omit.
+   */
+  readonly resources?: TypertResourceReaders&lt;WireArgs&gt;
+}</code></pre>
+<pre><code>/**
+ * Explicit endpoint, stream, and resource choices for one direct Remote method.
+ * @template WireArgs - the decorated method&#x27;s positional parameters as the
+ *   wire carries them; the default `never` admits readers of any tuple.
+ */
+interface RemoteMethodOptions&lt;WireArgs extends readonly unknown[] = never&gt; extends RemoteScopeOptions&lt;WireArgs&gt; {
+  /** `stream`: deliver each Iterable item over the shared logical-stream carrier. */
+  readonly mode?: &#x27;stream&#x27;
+}</code></pre>
+<h2 id="Typert-注册表">Typert 注册表</h2>
+<p><code>ctx.typert</code> 分开保存当前环境的 descriptor、显式选择的 Remote contribution、lookup 提供方、作用域上下文提供方与资源种类的默认字段或 resolver。lookup 提供方拥有稳定 wire 声明和默认 resolver；Host 组合可以为同一个 key 配置 effect-scoped 同步或异步 resolver，配置卸载后恢复默认策略。各项注册都是由 Cordis 持有的 effect，并返回可等待的 disposer。</p>
+<pre><code>/** Minimal Typert runtime consumed through dependency inversion. */
+interface TypertRegistryContract {
+  readonly local: TypertLocalRegistry
+  readonly remotes: TypertRemoteRegistry
+  readonly lookups: TypertLookupRegistry
+  readonly contexts: TypertContextRegistry
+  readonly resources: TypertResourceRegistry
+}</code></pre>
+<p>生成的消费方声明会把 direct namespace 合并到 <code>TypertClientRemote</code> 继承的 map 中。</p>
+<pre><code>/** Merge-extensible direct namespace surface generated for Client Remote services. */
+interface TypertRemoteNamespaceMap {}</code></pre>
+<h2 id="Host-Gateway">Host Gateway</h2>
+<p>Connection 会先解码 carrier envelope，再调用 <code>ctx.typertGateway</code>。请求将精确的具名 wire 字段、carrier 的取消 signal 与本次调用代表的 Peer 分开携带；每个载体与进程内调用方都显式给出该 Peer，Gateway 以 <code>gateway/peer-disposed</code> 拒绝已 dispose 的 Peer。对非 owner 调用，Gateway 在参数校验之后、任何 lookup 或 Context 解析之前解析其资源并询问 <code>ctx.remoteAccess.decide()</code>；基础设施与边界失败由 <code>TypertGatewayError</code> 承载，其 <code>gateway/*</code> 码就是普通的 <code>RemoteError</code> 码，因此 RPC 适配器会把每个经结构识别的 <code>RemoteError</code> 连同其 code 与 details 原样放行，只把无法识别的异常归并为 <code>gateway/internal</code>。</p>
+<pre><code>/** One Remote method request after a carrier has decoded its envelope. */
+interface InvokeRemoteRequest {
+  /** Remote namespace selected by the generated descriptor. */
+  readonly namespace: string
+  /** Exported Service method name. */
+  readonly method: string
+  /** Named wire values; fields must exactly match the descriptor. */
+  readonly args: Readonly&lt;Record&lt;string, unknown&gt;&gt;
+  /**
+   * Client uplink items of this logical stream, delivered to the method through
+   * `invocation.uplink()`; absent means an immediately ended iterable.
+   */
+  readonly uplink?: AsyncIterable&lt;unknown&gt;
+  /** Carrier-provided frame capacity; absent for carriers without an encoded-frame inbox limit. */
+  readonly uplinkWindow?: RemoteUplinkWindow | undefined
+  /** Peer the call speaks for; every carrier and in-process caller names it explicitly. */
+  readonly peer: PeerScope
+  /** Carrier or direct-caller cancellation injected only into cancellation-aware methods. */
+  readonly signal?: AbortSignal
+}</code></pre>
+<pre><code>/** Stable infrastructure and boundary failures emitted before or after business execution. */
+type TypertGatewayErrorCode =
+  | &#x27;gateway/ambiguous-endpoint&#x27;
+  | &#x27;gateway/arguments-invalid&#x27;
+  | &#x27;gateway/binding-invalid&#x27;
+  | &#x27;gateway/context-failed&#x27;
+  | &#x27;gateway/context-not-found&#x27;
+  | &#x27;gateway/context-unavailable&#x27;
+  | &#x27;gateway/definition-unavailable&#x27;
+  | &#x27;gateway/input-invalid&#x27;
+  | &#x27;gateway/interactions-forbidden&#x27;
+  | &#x27;gateway/invocation-unavailable&#x27;
+  | &#x27;gateway/lookup-failed&#x27;
+  | &#x27;gateway/lookup-not-found&#x27;
+  | &#x27;gateway/lookup-unavailable&#x27;
+  | &#x27;gateway/method-unavailable&#x27;
+  | &#x27;gateway/peer-disposed&#x27;
+  | &#x27;gateway/protocol&#x27;
+  | &#x27;gateway/provider-mismatch&#x27;
+  | &#x27;gateway/result-invalid&#x27;
+  | &#x27;gateway/service-unavailable&#x27;
+  | &#x27;gateway/signature-invalid&#x27;
+  | &#x27;gateway/uplink-overflow&#x27;</code></pre>
+<pre><code>/** Host dispatcher consumed by Connection adapters. */
+interface TypertGateway {
+  /** Carrier adapter shared by WebSocket and in-process transports. */
+  readonly wireStream: TypertGatewayWireStream
+  /**
+   * Check for an active owner Client event stream, the only kind that can answer forwarded waterfalls.
+   * @returns whether an owner stream is open and has not been cancelled.
+   */
+  hasLiveClient(): boolean
+  /** @returns detached metadata for all unsettled forwarded events in arrival order. */
+  getPendingRemoteEvents(): readonly PendingRemoteEventInfo[]
+  /**
+   * Register the application-selected forwarded-event source.
+   * @param source - stream factory installed by the Remote assembly.
+   * @param host - stable Host facts included in each Client generation&#x27;s opening frame.
+   * @returns disposer removing this exact source and cancelling its active streams.
+   */
+  registerRemoteEvents(
+    source: TypertRemoteEventSource,
+    host: RemoteEventHostInfo,
+  ): () =&gt; Promise&lt;void&gt;
+  /**
+   * Invoke one live Remote method without assuming a carrier or response envelope.
+   * @param request - decoded endpoint and named wire arguments.
+   * @returns the business result without output decoding.
+   * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
+   */
+  invoke(request: InvokeRemoteRequest): Promise&lt;unknown&gt;
+  /**
+   * Open one live stream Remote method without assuming a physical carrier.
+   * @param request - decoded endpoint, named wire arguments, and the Client uplink when the carrier has one.
+   * @returns a cancellation-aware iterable over the business results.
+   */
+  stream(request: InvokeRemoteRequest): Promise&lt;AsyncIterable&lt;unknown&gt;&gt;
+}</code></pre>
+<h2 id="消费方-Remote">消费方 Remote</h2>
+<p><code>ctx.remote</code> 只暴露由已导入 <code>/remote</code> 产物贡献的 namespace。<code>$mount()</code> 会把生成的 descriptor 与具体方法作为一项由 fiber 持有的操作统一注册。每个 namespace 都是可追踪的 <code>remote.&lt;namespace&gt;</code> Cordis 子服务，其生命周期覆盖已挂载的方法；JavaScript Proxy 与 Host 业务服务类型都不会进入消费方。</p>
+<p>元数据所有权与连接所有权相互独立；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/registry/README.zh.md">注册表参考</a>说明离线注册与挂载生命周期。</p>
+<pre><code>/** Client Remote capability implemented by the Gateway and consumed by Remote assemblies. */
+interface TypertClientRemote extends TypertRemoteNamespaceMap {
+  /**
+   * Mount one generated Host-for-Client contribution in the caller&#x27;s fiber.
+   * @param contribution - explicitly selected Remote package artifact.
+   * @returns disposer after namespace services and concrete methods are ready.
+   */
+  $mount(contribution: TypertRemoteContribution): Promise&lt;TypertDisposer&gt;
+  /**
+   * Subscribe to one forwarded Host event. Notifications run in registration
+   * order and isolate failures; scoped waterfalls return, delegate through
+   * `next()`, or reject the Host dispatch.
+   * @template Event - forwarded event name selected by the Host assembly.
+   * @param event - forwarded Host event name, unchanged on the wire.
+   * @param listener - receives the Client projection of the Cordis `Events` declaration.
+   * @returns disposer owned by the calling fiber.
+   */
+  $on&lt;Event extends TypertRemoteEvent&gt;(event: Event, listener: TypertClientEventListener&lt;Event&gt;): () =&gt; void
+}</code></pre>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxremoteaccess--remoteaccessservice" class="anch"></a></p>
+<h3 id="ctx.remoteAccess-—-RemoteAccessService"><span id="ctxremoteaccess--remoteaccessservice" class="anch"></span><code>ctx.remoteAccess</code> — <code>RemoteAccessService</code></h3>
+<p>Registry of access policies, the Gateway's access decisions, list filtering, and the per-Peer access snapshot. Every composition that mounts the Gateway mounts this service too.</p>
+<pre><code>/**
+ * Register the policy of one non-owner principal kind in the caller&#x27;s
+ * fiber; open snapshots are recomputed on registration and removal.
+ * @param kind - the principal kind the policy serves; never `owner`.
+ * @param policy - business-owned bindings and refusal reasons for principals of `kind`.
+ * @returns disposer removing this policy.
+ * @throws Error when `kind` already has a policy.
+ */
+registerPolicy&lt;K extends Exclude&lt;keyof PrincipalMap, &#x27;owner&#x27;&gt;&gt;(kind: K, policy: RemoteAccessPolicy&lt;PrincipalMap[K]&gt;): () =&gt; void
+
+/**
+ * Report that the bindings or condition answers for `principal` may have
+ * changed. Business packages call this on every grant, revocation, mode
+ * change, and expiry; open snapshots re-push, and the next failure of each
+ * policy is logged again.
+ * @param principal - affected principal; omitted for every principal.
+ */
+invalidate(principal?: Principal): void
+
+/**
+ * Gateway-only: decide one request whose resources the Gateway resolved.
+ * The owner is allowed, and so is `remoteAccess/follow`: every Peer reads
+ * its own snapshot. Otherwise the action is allowed only when, on every
+ * listed resource, some binding of the principal&#x27;s policy names that
+ * resource, has a role listing the action, and has no condition or a
+ * condition that allows. `bindings()` is called once per decision.
+ * @param request - the caller or recipient, the action, the resources it
+ *   touches, and a call&#x27;s arguments.
+ * @returns `allow`; or `deny` with `no-allow` when the principal kind has
+ *   no policy, the first refusing condition&#x27;s reason on the first resource
+ *   no binding allows, else `explain()`&#x27;s reason, else `no-allow`;
+ *   `policy-failed` when `bindings()`, a condition, or `explain()` throws,
+ *   logged once per policy until the next `invalidate()`. The Gateway
+ *   throws `remote-access/denied` for a denied call and drops a denied event.
+ */
+decide(request: RemoteAccessRequest&lt;Principal&gt;): RemoteAccessDecision
+
+/**
+ * Filter items inside a Remote method. The invocation is read from the
+ * Context that accessed this service, so call it as
+ * `this.ctx.remoteAccess.allows(resource)` from the Remote method. Each
+ * check reads the policy&#x27;s bindings again, so a long-running stream sees
+ * binding changes from the next check on.
+ * @param resource - resource of one result item.
+ * @returns true for the owner and outside a Remote call; otherwise whether
+ *   the invocation&#x27;s endpoint action is allowed on `resource` without call
+ *   arguments, false when the policy is absent or fails.
+ */
+allows(resource: RemoteAccessResource): boolean
+
+/**
+ * The baseline a page opens with before its snapshot stream connects; every
+ * index the webServer renders carries it under
+ * {@link REMOTE_ACCESS_SNAPSHOT_KEY} for the Peer the page speaks for.
+ * @param principal - the page&#x27;s caller identity.
+ * @returns the owner baseline for the owner; otherwise the principal&#x27;s current grants.
+ */
+snapshotFor(principal: Principal): RemoteAccessBaseline
+
+/**
+ * Stream the calling Peer&#x27;s access snapshot: one baseline, then `upsert`
+ * and `remove` frames after each `invalidate()` and each policy
+ * registration or removal that changes a grant. The owner receives only
+ * `{ owner: true }`. The generation ends when `signal` aborts or this
+ * service unloads, so a reloaded service starts every reader from a fresh
+ * baseline.
+ * @param signal - generation cancellation.
+ * @returns the access frames of one generation.
+ */
+@Remote({ mode: &#x27;stream&#x27; }) async *follow(signal: AbortSignal): AsyncIterable&lt;RemoteAccessFrame&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access/src/index.ts"><code>packages/api/remote-access/src/index.ts</code></a></p>
+<p><a id="ctxtypert--typertregistry" class="anch"></a></p>
+<h3 id="ctx.typert-—-TypertRegistry"><span id="ctxtypert--typertregistry" class="anch"></span><code>ctx.typert</code> — <code>TypertRegistry</code></h3>
+<p>Registry of generated schemas, package reflection, invocations, and Remote dependency providers.</p>
+<pre><code>/**
+ * Register one generated contribution atomically for the calling fiber.
+ * Duplicate package-face identities, schemas, invocation ids, or endpoints
+ * reject the whole batch.
+ * @param contribution - generated schemas, reflection, and Host invocations.
+ * @returns the exact effect disposer that removes this contribution.
+ */
+register(contribution: TypertContribution): TypertDisposer
+
+/**
+ * Look up one schema by `&lt;package&gt;#&lt;name&gt;`.
+ * @param key - global schema key.
+ * @returns a record containing the cached schema, or `undefined` when absent.
+ */
+get(key: string): TypertSchemaRecord | undefined
+
+/**
+ * Resolve one required schema.
+ * @param key - global schema key.
+ * @returns a record containing the cached schema.
+ * @throws when the key is malformed, the package face is absent, or the schema is not contributed.
+ */
+resolve(key: string): TypertSchemaRecord
+
+/**
+ * Enumerate live schemas in registration order.
+ * @param filter - optional package and face restriction.
+ * @returns matching records containing the cached schemas.
+ */
+list(filter: TypertSchemaFilter = {}): TypertSchemaRecord[]
+
+/**
+ * Look up generated reflection for one package face.
+ * @param packageName - exact npm package name.
+ * @param face - face to query; defaults to the host runtime.
+ * @returns the live package record, or `undefined` when absent.
+ */
+getPackage(packageName: string, face: TypertFace = &#x27;host&#x27;): TypertPackageRecord | undefined
+
+/**
+ * Enumerate generated package reflection in registration order.
+ * @param filter - optional package and face restriction.
+ * @returns matching package records.
+ */
+listPackages(filter: TypertPackageFilter = {}): TypertPackageRecord[]
+
+/**
+ * Project a live Zod schema to JSON Schema without caching the result.
+ * @param key - global schema key.
+ * @param params - Zod projection parameters.
+ * @returns a fresh JSON Schema document.
+ */
+toJSONSchema(key: string, params?: z.core.ToJSONSchemaParams): z.core.JSONSchema.BaseSchema</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/registry/src/service.ts"><code>packages/typert/registry/src/service.ts</code></a></p>
+<p><a id="ctxtypertgateway--typertgatewayservice" class="anch"></a></p>
+<h3 id="ctx.typertGateway-—-TypertGatewayService"><span id="ctxtypertgateway--typertgatewayservice" class="anch"></span><code>ctx.typertGateway</code> — <code>TypertGatewayService</code></h3>
+<p>Resolve strict generated definitions or conservative SRC markers against current Cordis Services and Typert providers.</p>
+<pre><code>/**
+ * Check for an active owner Client event stream, the only kind that can answer forwarded waterfalls.
+ * @returns whether an owner stream is open and has not been cancelled.
+ */
+hasLiveClient(): boolean
+
+/**
+ * Inspect unsettled forwarded events without changing their lifetime.
+ * @returns detached event names and Agent identities.
+ */
+getPendingRemoteEvents(): readonly PendingRemoteEventInfo[]
+
+/**
+ * Register the sole application-selected forwarded-event source.
+ * @param source - stream factory installed by the Remote assembly.
+ * @param host - stable Host facts included in each Client generation&#x27;s opening frame.
+ * @returns disposer removing this source and cancelling its active streams.
+ */
+registerRemoteEvents( source: TypertRemoteEventSource, host: RemoteEventHostInfo, ): () =&gt; Promise&lt;void&gt;
+
+/**
+ * Invoke one live Remote method through strict generated reflection or SRC markers.
+ * @param request - decoded endpoint and exact named wire arguments.
+ * @returns the business result without output decoding.
+ * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
+ */
+async invoke(request: InvokeRemoteRequest): Promise&lt;unknown&gt;
+
+/**
+ * Open one live stream Remote method without assuming a physical carrier.
+ * @param request - decoded endpoint, named wire arguments, and the Client uplink when the carrier has one.
+ * @returns a cancellation-aware iterable over the business results.
+ */
+async stream(request: InvokeRemoteRequest): Promise&lt;AsyncIterable&lt;unknown&gt;&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway/src/index.ts"><code>packages/api/gateway/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/typert">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

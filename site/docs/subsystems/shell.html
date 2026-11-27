@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shell 执行器 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#受管-shell-环境命名空间">受管 shell 环境命名空间</a><a class="t2" href="#请求与规格：resolve-拆分">请求与规格：resolve() 拆分</a><a class="t2" href="#前台运行：ShellRunResult">前台运行：ShellRunResult</a><a class="t2" href="#文件沙箱：ShellSandboxInfo">文件沙箱：ShellSandboxInfo</a><a class="t2" href="#后台进程：ShellProcess">后台进程：ShellProcess</a><a class="t2" href="#服务">服务</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.shell-—-ShellExecutor-abstract-seam">ctx.shell — ShellExecutor (abstract seam)</a><a class="t3" href="#ctx.shellEnv-—-ShellEnvRegistry">ctx.shellEnv — ShellEnvRegistry</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Shell 执行器</div>
+    <h1>Shell 执行器</h1>
+    <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/shell.md</div>
+    <div class="body"><h1 id="Shell-执行器">Shell 执行器</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/shell.md">English</a> | 中文</p>
+<p>shell 执行 seam 由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell">dsh-shell</a> 在 <code>ctx.shell</code> 上提供 Service Definition。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/README.zh.md">shell 包组</a>列出其 Bash 与 PowerShell 提供方以及面向模型的 Consumer。通用后台任务的 id、所有权与控制位于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">jobs.md</a>；本 seam 返回进程句柄，不注册后台任务。managed-range 机制封装在<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>之后。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell/src/types.ts"><code>packages/shell/shell/src/types.ts</code></a></p>
+<h2 id="受管-shell-环境命名空间">受管 shell 环境命名空间</h2>
+<p><code>DSH_*</code> 变量是归 Harness 所有的子进程事实。面向模型的 bash 工具通过 <code>ctx.shellEnv</code> 收集它们，再经由 <code>ShellExecRequest.dshEnv</code> 传递；子进程服务在合并当前快照之前会移除继承而来的 <code>DSH_*</code> 名称。<code>DshEnvironmentKey</code>／<code>DshEnvironment</code> 词汇归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
+<h2 id="请求与规格：resolve-拆分">请求与规格：<code>resolve()</code> 拆分</h2>
+<p>该 seam 将<strong>面向模型/插件的请求</strong>（<code>workdir</code>/<code>timeoutMs</code>/<code>stdoutMaxBytes</code> 可选，由配置或请求策略补全）与执行器实际使用的<strong>完全解析后的 spec</strong>（这些字段均为必填）分开。工具层在二者之间调用 <code>ctx.shell.resolve(request)</code>（仓库的「包边界处显式优于隐式」规则）；<code>ShellExecSpec</code> 携带的是已解析的值。</p>
+<pre><code>/**
+ * A caller&#x27;s execution REQUEST: `workdir` and `timeoutMs` are optional and
+ * filled by {@link ShellExecutor.resolve} from the implementation&#x27;s config.
+ * This is the model-/plugin-facing shape; pass it to `resolve()` to obtain a
+ * fully-resolved {@link ShellExecSpec}.
+ */
+interface ShellExecRequest {
+  command: string
+  /** Working directory override (default: implementation-configured). */
+  workdir?: string | undefined
+  /** Timeout override in milliseconds (implementations cap it). */
+  timeoutMs?: number | undefined
+  /** Deadline policy at `timeoutMs` expiry (default `&#x27;kill&#x27;`). */
+  onExpiry?: ShellExpiryPolicy | undefined
+  /**
+   * Foreground stdout capture budget in bytes. Absent uses the executor&#x27;s
+   * default output cap. Trusted in-process consumers use this when they must
+   * parse complete stdout up to their own bounded limit; the model-facing bash
+   * tool does not expose it as a parameter.
+   */
+  stdoutMaxBytes?: number | undefined
+  /** Abort signal — implementations kill the command when it fires, and treat a signal that is already aborted as fired. */
+  signal?: AbortSignal | undefined
+  /**
+   * Bytes to write to the command&#x27;s stdin, then close it. Absent leaves stdin
+   * closed/empty (the default for model-driven tool calls). Set by in-process
+   * plugins (e.g. the hooks bridges, which write a hook command&#x27;s JSON payload
+   * to its stdin); the model-facing bash tool does not expose it as a parameter
+   * (a model that needs stdin uses shell syntax like a heredoc or a pipe).
+   */
+  stdin?: string | undefined
+  /**
+   * Ordinary environment entries for the command, merged after the credential
+   * scrub. Managed facts belong in {@link dshEnv}, which merges after this
+   * map, so an entry here can never displace one. Set by in-process plugins
+   * (the hooks bridges set `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`, …); the
+   * model-facing bash tool does not expose it as a parameter.
+   */
+  env?: Record&lt;string, string&gt; | undefined
+  /**
+   * Harness-owned `DSH_*` variables for this execution (typed to managed
+   * keys). Executors discard ambient `DSH_*` entries before merging this
+   * snapshot last, so an unavailable current fact cannot inherit a stale
+   * value from the harness process and a caller {@link env} entry cannot
+   * displace a managed one.
+   */
+  dshEnv?: DshEnvironment | undefined
+  /** Fully resolved per-call sandbox policy; sandboxing executors default it. */
+  sandboxPolicy?: SandboxExecutionPolicy | undefined
+}</code></pre>
+<pre><code>/**
+ * A resolved execution spec. {@link ShellExecutor.resolve} fills and caps the
+ * required fields; under `onExpiry: &#x27;none&#x27;` the resolved `timeoutMs` arms no
+ * timer and is only echoed into {@link ShellRunResult.timeoutMs}.
+ */
+interface ShellExecSpec {
+  command: string
+  workdir: string
+  timeoutMs: number
+  /** Deadline policy at `timeoutMs` expiry ({@link ShellExecutor.resolve} defaults it to `&#x27;kill&#x27;`). */
+  onExpiry: ShellExpiryPolicy
+  /**
+   * Resolved stdout capture budget in bytes, applied to every execution&#x27;s
+   * stdout; stderr keeps the executor&#x27;s own output cap.
+   */
+  stdoutMaxBytes: number
+  /** Abort signal — implementations kill the command when it fires, and treat a signal that is already aborted as fired. */
+  signal?: AbortSignal | undefined
+  /** Bytes to write to stdin before closing it; absent means no stdin. */
+  stdin?: string | undefined
+  /**
+   * Ordinary environment entries carried through from
+   * {@link ShellExecRequest.env}; {@link dshEnv} still merges after them.
+   * OPTIONAL on the spec for the same reason as `stdin`: absent means no
+   * ordinary extra environment.
+   */
+  env?: Record&lt;string, string&gt; | undefined
+  /** Managed `DSH_*` snapshot (typed to managed keys); merges after {@link env}. */
+  dshEnv?: DshEnvironment | undefined
+  /** Resolved sandbox policy; ignored by executors that do not confine. */
+  sandboxPolicy: SandboxExecutionPolicy | undefined
+}</code></pre>
+<p><code>stdin</code> 和 <code>env</code> 是受信任的进程内插件输入，不由 <code>dsh-tool-bash</code> 暴露。本地执行器会先清除环境中的凭据，再合并调用方显式提供的 env。</p>
+<p><code>stdoutMaxBytes</code> 同样仅供受信任插件使用。它让前台消费方能在有界解析预算内请求完整 stdout，而不会改变 stderr、后台任务或面向模型的 bash 工具的常规输出上限。</p>
+<h2 id="前台运行：ShellRunResult">前台运行：<code>ShellRunResult</code></h2>
+<p>一次已完成（或被终止）的前台运行的结果。正交的结果<strong>独立报告</strong>：一个进程可以同时超时并以退出码 0 退出（因为它捕获了信号），因此 <code>timedOut</code>、<code>aborted</code>、<code>signal</code> 和 <code>exitCode</code> 各自独立为一个字段；调用方永远不会把一次被提前中断的运行误读为正常成功。</p>
+<pre><code>/** The outcome of a foreground run, including timeout during preparation. */
+interface ShellRunResult {
+  /** Exit code; null when preparation expired or the process died from a signal. */
+  exitCode: number | null
+  /** Terminating signal, or null when none was reported, including preparation expiry. */
+  signal: NodeJS.Signals | null
+  /**
+   * True when the executor&#x27;s own timeout was the FIRST cause to cut the command
+   * short. Mutually exclusive with {@link aborted}: one fused deadline drives
+   * both the timeout and the caller&#x27;s cancellation, so a timeout and an abort
+   * racing before process close report the single first-abort cause, not both
+   * (see the [timeout-library Agent Note](../../../../.agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md)).
+   */
+  timedOut: boolean
+  /**
+   * True when the caller&#x27;s `AbortSignal` was the FIRST cause to kill the command
+   * (and it was not the executor&#x27;s own timeout). Mutually exclusive with
+   * {@link timedOut} — see there for the first-cause classification.
+   */
+  aborted: boolean
+  /** The effective timeout applied to this run (after defaulting/capping). */
+  timeoutMs: number
+  stdout: CollectedOutput
+  stderr: CollectedOutput
+  /** Sandbox execution facts, absent for an unsandboxed executor. */
+  sandbox?: ShellSandboxInfo
+}</code></pre>
+<p>每个流是一个 <code>CollectedOutput</code>：（可能被截断的）文本加恢复信息；截断时，<code>text</code> 是<strong>尾部</strong>，完整流溢出到一个私有文件。这些字段归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
+<h2 id="文件沙箱：ShellSandboxInfo">文件沙箱：<code>ShellSandboxInfo</code></h2>
+<p>使用沙箱的执行器通过 <code>ShellExecutor.sandboxMode</code> 暴露其已配置的模式回退值。工具层请求 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/README.zh.md"><code>@deepseek-ai/dsh-sandbox-policy</code></a>，把每个调用会话的持久 <code>sandbox/mode</code> 覆盖值与不可变 cwd 解析为 <code>ShellExecRequest.sandboxPolicy</code>；经用户批准、严格更宽松的调用只替换模式。模式/root/enforcement 词汇归 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md"><code>@deepseek-ai/dsh-sandbox</code> 沙箱 seam</a> 所有；模式仅管辖文件效果。</p>
+<p>沙箱化运行会报告其模式、保守的拒绝分类与强制执行完整度。<code>runnerFailed</code> 标记命令运行前沙箱 runner 已失败；前台执行会抛出 <code>SANDBOX_UNAVAILABLE</code>，而已结束的后台进程只能通过其事实通道报告。</p>
+<pre><code>/**
+ * Sandbox facts for one run, present iff a sandboxing executor handled it.
+ * Facts are reported independently of process exit status so callers can
+ * distinguish command failures from policy denials and runner failures.
+ */
+interface ShellSandboxInfo {
+  /** The mode the command actually ran under. */
+  mode: SandboxMode
+  /** Whether the sandbox denied a file operation. */
+  denied: boolean
+  /** How completely the selected runner enforced the requested mode. */
+  enforcement?: SandboxEnforcement
+  /** Whether the sandbox runner failed before the command could run. */
+  runnerFailed?: boolean
+}</code></pre>
+<p>当受限模式没有可用后端时，<code>ctx.sandbox</code> 提供方会抛出、执行器会传播由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md">沙箱 seam</a>所有的 <code>SANDBOX_UNAVAILABLE</code> 错误码。选定的 runner 拒绝其 profile 时会触达同一个故障关闭的前台错误；已结束的后台任务则记录 <code>runnerFailed</code>。模型会在结果中收到拒绝/runner 事实，仅当拒绝标记指出生效模式时才得知该模式，并可通过 <code>sandbox_permissions</code> 加 <code>justification</code> 请求一次性、严格更宽松的重试；执行任何操作前，<code>ctx.approval</code> 必须批准该次确切调用。完整的策略与切换设计见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/README.zh.md">沙箱 参考</a>。</p>
+<h2 id="后台进程：ShellProcess">后台进程：<code>ShellProcess</code></h2>
+<p><code>start()</code> 在异步启动准备完成后返回句柄；取消或准备失败会在发布前拒绝调用。该句柄没有 id 或 owner。<code>dsh-tool-bash</code> 将它适配为 <code>ctx.jobs.start()</code> 钩子；随后由通用运行时拥有任务标识与生命周期。<code>done</code> 会在底层进程结算时完成且绝不 reject；subprocess 提供方的 rejection 会生成状态为 <code>killed</code> 的进程，并把不声明阶段的错误写入 stderr。进程结算后仍可读取，并且沙箱事实会在 <code>done</code> 完成前写入。</p>
+<pre><code>/**
+ * A background process handle returned by {@link ShellExecutor.start}. It is the
+ * only access path; buffered output remains readable after exit. Composition
+ * teardown (the subprocess service&#x27;s disposal) kills running processes and
+ * awaits {@link done}; an executor-only reload leaves them running.
+ */
+interface ShellProcess {
+  /** Process lifecycle state (settled exactly once). */
+  status: ShellProcessStatus
+  /** Exit code once finished (null = killed by signal / still running). */
+  exitCode: number | null
+  /** Terminating signal name, when signal-killed. */
+  signal: NodeJS.Signals | null
+  /**
+   * Resolves when the underlying process settles (never rejects — provider
+   * rejection settles as `killed` with a stage-neutral error on stderr).
+   */
+  readonly done: Promise&lt;void&gt;
+  /** Sandbox facts, stamped once a confined process settles. */
+  sandbox?: ShellSandboxInfo
+  /**
+   * Read output produced since the previous read (consuming — consecutive
+   * reads never re-deliver). Reads that lost data flag `lossy` and point at
+   * full-stream spill files when available.
+   */
+  readOutput(): ShellProcessRead
+  /**
+   * Non-consuming offset readers over the same captured streams the consuming
+   * {@link readOutput} cursor drains, including the provider-failure note a
+   * rejected spawn leaves on stderr. Independent observers read here at their
+   * own offsets without stealing bytes from `readOutput`.
+   */
+  observed: ShellObservedStreams
+  /**
+   * Terminate the provider-managed range. Returns false when it had already finished
+   * (no-op); idempotent.
+   */
+  kill(): boolean
+}</code></pre>
+<p><code>readOutput()</code> 返回增量内容与 spill 恢复信息：</p>
+<pre><code>/** One incremental {@link ShellProcess.readOutput} read. */
+interface ShellProcessRead {
+  /** Output produced since the previous read (stderr in a marked section). */
+  delta: string
+  /** True when truncation dropped unread bytes the delta cannot include. */
+  lossy: boolean
+  /** Full stdout spill file, when stdout truncation occurred and a safe path is available. */
+  stdoutSpillPath?: string
+  /** Full stderr spill file, when stderr truncation occurred and a safe path is available. */
+  stderrSpillPath?: string
+}</code></pre>
+<h2 id="服务">服务</h2>
+<p><code>ShellExecutor</code> 拥有 <code>resolve</code>、前台 <code>run</code>、后台进程 <code>start</code> 以及 <code>sandboxMode</code> 能力事实。<code>dsh-bash-local</code> 拥有命令默认值补全、超时/中止分类、终端环境以及后台读取合并；managed-range 终止、有界收集器、spill 文件、凭据清除与 dispose（资源释放）后完全停稳归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程服务</a>所有。<code>dsh-tool-bash</code> 拥有面向模型的渲染，并将后台句柄适配到<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">通用任务运行时</a>。<code>dsh-shell</code> 拥有 shell 工具共享的退出状态约定：导出的 <code>parseExitStatus</code>/<code>ParsedExitStatus</code> 是 <code>dsh-tool-bash</code> 的 <code>renderResult</code> 与 <code>dsh-tool-pwsh</code> 的 <code>renderPwshResult</code> 所追加的 <code>[exit code: N]</code> / <code>[killed by signal: X]</code> 标记的逆解析，两个工具的 <code>presentResult</code> 都用它把渲染文本拆分为 terminal 卡的输出正文与退出状态 pill。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxshell--shellexecutor-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.shell-—-ShellExecutor-abstract-seam"><span id="ctxshell--shellexecutor-abstract-seam" class="anch"></span><code>ctx.shell</code> — <code>ShellExecutor</code> (abstract seam)</h3>
+<p>Abstract bash execution service. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as <code>ctx.shell</code> (one implementation per context; loading a second throws, which is cordis' standard duplicate-service behavior).</p>
+<p>execute resolves with the process handle after preparation. "Foreground" is a property of what the caller awaits, not of the spawn — a caller that awaits ShellExecution.result ran the command in the foreground; one that keeps the handle ran it in the background. A caller that waits only for a while runs the command under <code>onExpiry: 'none'</code> and bounds its own wait; the handle stays valid after the caller stops waiting.</p>
+<p>Implementations must honor these semantics:</p>
+<ul>
+<li>ShellExecution.result rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a descriptive result: first-cause <code>timedOut</code>/<code>aborted</code>, the spec's <code>timeoutMs</code> echoed.</li>
+<li>The handle is published after preparation. <code>done</code> settles at process close and never rejects; spawn failures settle as <code>killed</code> with the error on the read path, while <code>result()</code> carries the same failure as its rejection.</li>
+<li><code>onExpiry: 'none'</code> arms no deadline; <code>'kill'</code> kills at expiry. Expiry during preparation returns a settled timed-out handle without output.</li>
+<li>ShellProcess.readOutput is incremental: consecutive reads never repeat output. Lossy reads report truncation and available spill files.</li>
+<li>A still-running process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is <code>ctx.subprocess</code> disposal, so a process survives an executor-only reload.</li>
+</ul>
+<pre><code>/**
+ * Apply implementation-owned defaults and caps to a request before execution.
+ * @param request - the caller&#x27;s request; omitted fields get this
+ *   implementation&#x27;s defaults, capped fields are clamped.
+ * @returns the fully-specified spec to hand to {@link execute}.
+ */
+abstract resolve(request: ShellExecRequest): ShellExecSpec
+
+/**
+ * Prepare and spawn the command under its resolved deadline.
+ * @param spec - a resolved spec from {@link resolve}, never a raw request.
+ * @returns the prepared handle, including its result projection;
+ *   preparation timeout yields an already-settled handle with no output.
+ * @throws on preparation failure or caller cancellation before process publication.
+ */
+abstract execute(spec: ShellExecSpec): Promise&lt;ShellExecution&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell/src/index.ts"><code>packages/shell/shell/src/index.ts</code></a></p>
+<p><a id="ctxshellenv--shellenvregistry" class="anch"></a></p>
+<h3 id="ctx.shellEnv-—-ShellEnvRegistry"><span id="ctxshellenv--shellenvregistry" class="anch"></span><code>ctx.shellEnv</code> — <code>ShellEnvRegistry</code></h3>
+<p>Registry (<code>ctx.shellEnv</code>) for trusted, per-execution <code>DSH_*</code> variables. The namespace is rebuilt for every model shell call: ambient <code>DSH_*</code> values are discarded by the executor, then the registry's current snapshot is injected. Built-in shell facts remain owned by the registry itself while plugins can register additional, enumerable facts with effect-scoped disposal.</p>
+<pre><code>/**
+ * Register one environment contributor. Names and keys are unique; built-in
+ * keys are reserved. Registration is disposed with the calling plugin fiber.
+ * @param contributor - declared key ownership and per-execution resolver.
+ * @returns the disposer that unregisters the contribution.
+ */
+register(contributor: BashEnvContributor): () =&gt; void
+
+/**
+ * Build the trusted `DSH_*` snapshot for one shell tool execution.
+ * @param execution - the current tool execution.
+ * @returns an immutable environment overlay containing built-ins and current contributions.
+ */
+collect(execution: ToolExecution): DshEnvironment
+
+/**
+ * Enumerate plugin-contributed variables without executing their resolvers.
+ * @returns declarations sorted by environment variable name.
+ */
+list(): BashEnvVariableInfo[]</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">DshEnvironment</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">ToolExecution</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell-env/src/index.ts"><code>packages/shell/shell-env/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/shell">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

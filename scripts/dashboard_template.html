@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSeek Harness · 知识图谱</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#131a23; --panel2:#0f1620; --line:#222d3a;
+    --fg:#e6edf3; --fg2:#9aa7b4; --fg3:#647382;
+    --accent:#58a6ff; --accent2:#f0883e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    overflow:hidden; display:flex;
+  }
+  /* ---------- 侧栏 ---------- */
+  aside{
+    width:352px; flex:0 0 352px; background:var(--panel);
+    border-right:1px solid var(--line); display:flex; flex-direction:column; z-index:5;
+  }
+  .head{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+  .head h1{margin:0 0 2px;font-size:15px;letter-spacing:.2px}
+  .head .sub{color:var(--fg2);font-size:11.5px}
+  .stats{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--fg2)}
+  .chip b{color:var(--fg);font-weight:600}
+  .search{padding:10px 14px;border-bottom:1px solid var(--line)}
+  .search input{
+    width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    color:var(--fg);padding:7px 10px;font-size:12px;outline:none;
+  }
+  .search input:focus{border-color:var(--accent)}
+  .scroll{overflow-y:auto;flex:1;padding:6px 0 24px}
+  .scroll::-webkit-scrollbar{width:8px}
+  .scroll::-webkit-scrollbar-thumb{background:#26313f;border-radius:4px}
+  h2{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fg3);margin:14px 18px 8px;font-weight:600}
+  /* 导览 */
+  .tour{padding:0 10px}
+  .step{
+    display:flex;gap:9px;padding:8px 9px;border-radius:7px;cursor:pointer;
+    border:1px solid transparent;transition:background .12s,border-color .12s;
+  }
+  .step:hover{background:var(--panel2)}
+  .step.active{background:#16202c;border-color:#2b3d52}
+  .step .no{
+    flex:0 0 20px;height:20px;border-radius:50%;background:#1d2733;color:var(--fg2);
+    font-size:10.5px;display:flex;align-items:center;justify-content:center;margin-top:1px
+  }
+  .step.active .no{background:var(--accent);color:#08121e;font-weight:700}
+  .step .tt{font-size:12.5px;color:var(--fg);line-height:1.35}
+  .step .meta{font-size:10.5px;color:var(--fg3);margin-top:2px}
+  .stepdesc{
+    position:absolute;left:14px;top:14px;width:min(404px, calc(100% - 28px));max-height:46%;
+    padding:13px 15px;background:rgba(15,22,32,.97);border:1px solid #2b3d52;border-radius:10px;
+    color:var(--fg2);font-size:12px;line-height:1.72;display:none;z-index:6;overflow-y:auto;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);backdrop-filter:blur(8px)
+  }
+  .stepdesc.on{display:block}
+  .stepdesc .sdhead{display:flex;align-items:flex-start;gap:10px;margin-bottom:7px}
+  .stepdesc .sdno{
+    flex:0 0 22px;height:22px;border-radius:50%;background:var(--accent2);color:#150d05;
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center
+  }
+  .stepdesc .sdtitle{font-size:13.5px;font-weight:600;color:var(--fg);line-height:1.4}
+  .stepdesc .sdclose{
+    position:absolute;right:10px;top:9px;color:var(--fg3);cursor:pointer;font-size:15px;line-height:1
+  }
+  .stepdesc .sdclose:hover{color:var(--fg)}
+  .stepdesc .sdbody{white-space:pre-wrap}
+  .stepdesc .sddoc{
+    display:inline-flex;align-items:center;gap:5px;margin-top:11px;padding:4px 10px;
+    border:1px solid #35506b;border-radius:6px;color:#9dc0e0;font-size:11px;text-decoration:none;
+    background:rgba(88,166,255,.07);transition:background .12s,color .12s,border-color .12s
+  }
+  .stepdesc .sddoc:hover{background:rgba(88,166,255,.16);color:#d6e8fa;border-color:#4d6f92}
+  .stepdesc::-webkit-scrollbar{width:8px}
+  .stepdesc::-webkit-scrollbar-thumb{background:#26313f;border-radius:4px}
+  /* 图层 */
+  .layers{padding:0 12px}
+  .lay{
+    display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;
+    font-size:11.5px;color:var(--fg2)
+  }
+  .lay:hover{background:var(--panel2)}
+  .lay.off{opacity:.34}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+  .lay .cnt{margin-left:auto;color:var(--fg3);font-size:10.5px}
+  .lay .laydoc{
+    flex:0 0 auto;color:var(--fg3);font-size:10px;text-decoration:none;opacity:.32;
+    padding:0 1px;transition:opacity .12s,color .12s
+  }
+  .lay:hover .laydoc{opacity:.95}
+  .lay .laydoc:hover{color:var(--accent2)}
+  /* ---------- 画布 ---------- */
+  main{flex:1;position:relative;min-width:0}
+  canvas{display:block;width:100%;height:100%;cursor:grab}
+  canvas.drag{cursor:grabbing}
+  .toolbar{
+    position:absolute;top:14px;right:14px;display:flex;gap:6px;z-index:4
+  }
+  .btn{
+    background:rgba(19,26,35,.94);border:1px solid var(--line);color:var(--fg2);
+    border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;backdrop-filter:blur(6px)
+  }
+  .btn:hover{color:var(--fg);border-color:#33465c}
+  .btn.on{color:#08121e;background:var(--accent);border-color:var(--accent)}
+  .tip{
+    position:absolute;pointer-events:none;z-index:9;max-width:340px;
+    background:rgba(9,14,20,.97);border:1px solid #2b3d52;border-radius:8px;
+    padding:8px 10px;font-size:11.5px;line-height:1.55;display:none;
+    box-shadow:0 8px 26px rgba(0,0,0,.55)
+  }
+  .tip .n{color:var(--fg);font-weight:600;font-size:12px;margin-bottom:3px}
+  .tip .p{color:var(--fg3);font-size:10.5px;margin-bottom:5px;word-break:break-all}
+  .tip .s{color:var(--fg2)}
+  /* 详情 */
+  .detail{
+    position:absolute;left:14px;bottom:14px;width:392px;max-height:56%;
+    background:rgba(15,22,32,.97);border:1px solid #2b3d52;border-radius:10px;
+    padding:13px 15px;display:none;z-index:6;overflow-y:auto;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);backdrop-filter:blur(8px)
+  }
+  .detail.on{display:block}
+  .detail .close{position:absolute;right:10px;top:8px;color:var(--fg3);cursor:pointer;font-size:15px}
+  .detail .dname{font-size:14px;font-weight:600;margin-right:18px}
+  .detail .dpath{color:var(--fg3);font-size:11px;margin:3px 0 8px;word-break:break-all}
+  .detail .doclink{color:#58a6ff;text-decoration:none;border-bottom:1px dotted rgba(88,166,255,.5)}
+  .detail .doclink:hover{color:#9ecbff}
+  .detail .dsum{color:var(--fg2);font-size:12px;line-height:1.68}
+  .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .kv span{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:10.5px;color:var(--fg2)}
+  .nb{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .nb h3{font-size:10.5px;color:var(--fg3);margin:0 0 6px;letter-spacing:.6px;text-transform:uppercase}
+  .nb a{display:block;color:var(--accent);font-size:11px;text-decoration:none;padding:2px 0;cursor:pointer;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nb a:hover{text-decoration:underline}
+  /* ---------- 文档悬浮展开 ---------- */
+  .docpop{
+    position:fixed;z-index:40;display:none;width:min(620px, calc(100vw - 32px));max-height:min(78vh, 720px);
+    background:rgba(16,23,33,.985);border:1px solid #33506e;border-radius:10px;
+    box-shadow:0 18px 56px rgba(0,0,0,.72);backdrop-filter:blur(10px);overflow:hidden;
+    color:var(--fg2);font-size:12.5px;line-height:1.7
+  }
+  .docpop.on{display:flex;flex-direction:column}
+  .docpop .dphead{
+    display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid #2b3d52;
+    background:linear-gradient(180deg,rgba(88,166,255,.10),rgba(88,166,255,.02));flex:0 0 auto
+  }
+  .docpop .dpgroup{
+    font-size:10px;color:#8fb6d8;border:1px solid #35506b;border-radius:4px;padding:1px 6px;white-space:nowrap
+  }
+  .docpop .dptitle{font-size:13px;font-weight:600;color:var(--fg);flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .docpop .dpopen{color:#7fb3e0;font-size:11px;text-decoration:none;white-space:nowrap}
+  .docpop .dpopen:hover{color:#cfe6ff;text-decoration:underline}
+  .docpop .dpbody{padding:10px 15px 14px;overflow-y:auto;flex:1 1 auto}
+  .docpop .dpbody::-webkit-scrollbar{width:8px}
+  .docpop .dpbody::-webkit-scrollbar-thumb{background:#2a3a4c;border-radius:4px}
+  .docpop .dpbody h1,.docpop .dpbody h2,.docpop .dpbody h3,.docpop .dpbody h4{
+    color:var(--fg);line-height:1.4;margin:14px 0 6px;font-weight:600
+  }
+  .docpop .dpbody h1{font-size:17px}.docpop .dpbody h2{font-size:15px}
+  .docpop .dpbody h3{font-size:13.5px}.docpop .dpbody h4{font-size:12.5px}
+  .docpop .dpbody p{margin:6px 0}
+  .docpop .dpbody ul,.docpop .dpbody ol{margin:6px 0;padding-left:20px}
+  .docpop .dpbody li{margin:2px 0}
+  .docpop .dpbody code{
+    background:rgba(88,166,255,.10);color:#a9d3f5;border-radius:3px;padding:1px 4px;font-size:11.5px
+  }
+  .docpop .dpbody pre{
+    background:#0b1119;border:1px solid #243444;border-radius:6px;padding:9px 11px;
+    overflow-x:auto;margin:8px 0;font-size:11.5px;line-height:1.55
+  }
+  .docpop .dpbody pre code{background:none;color:#b9c9d8;padding:0}
+  .docpop .dpbody table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11.5px}
+  .docpop .dpbody th,.docpop .dpbody td{border:1px solid #2b3d52;padding:4px 7px;text-align:left;vertical-align:top}
+  .docpop .dpbody th{background:rgba(88,166,255,.08);color:var(--fg)}
+  .docpop .dpbody blockquote{
+    margin:8px 0;padding:4px 10px;border-left:3px solid #3b6b96;background:rgba(88,166,255,.05);color:var(--fg3)
+  }
+  .docpop .dpbody a{color:#79b8ff}
+  .docpop .dpfoot{
+    flex:0 0 auto;padding:6px 13px;border-top:1px solid #2b3d52;color:var(--fg3);font-size:10.5px;
+    display:flex;gap:10px;align-items:center
+  }
+  .docpop .dpfoot .dplocal{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .docpop .dpfoot .dpmore{margin-left:auto;color:#7fb3e0;white-space:nowrap}
+  .docpop .dploading{padding:20px;color:var(--fg3);text-align:center}
+</style>
+</head>
+<body>
+<aside>
+  <div class="head">
+    <h1>DeepSeek Harness</h1>
+    <div class="sub">Everything is a Plugin · Cordis 插件化 agent harness</div>
+    <div class="stats">
+      <span class="chip" title="图谱全量实体（含类 / 函数 / 文档条目 / 配置字段 / 持久化类型等）"><b id="s-n">0</b> 实体</span>
+      <span class="chip" title="图谱全量关系"><b id="s-e">0</b> 关系</span>
+      <span class="chip"><b id="s-l">0</b> 层</span>
+      <span class="chip"><b id="s-t">0</b> 步导览</span>
+    </div>
+    <div class="sub" id="s-canvas" style="margin-top:7px;font-size:10px;opacity:.62"></div>
+  </div>
+  <div class="search"><input id="q" placeholder="搜索文件 / 路径 / 标签…" autocomplete="off"></div>
+  <div class="scroll">
+    <h2>引导式导览</h2>
+    <div class="tour" id="tour"></div>
+    <h2>架构分层</h2>
+    <div class="layers" id="layers"></div>
+    <h2>图例</h2>
+    <div class="layers" style="padding-bottom:10px">
+      <div class="lay" style="cursor:default"><span class="dot" style="background:#58a6ff"></span>圆点大小 = 连接度数（枢纽度）</div>
+      <div class="lay" style="cursor:default"><span class="dot" style="background:#3d4b5c"></span>连线 = 文件级依赖 / 配置 / 文档关系</div>
+    </div>
+  </div>
+</aside>
+
+<main>
+  <canvas id="cv"></canvas>
+  <div class="stepdesc" id="stepdesc"></div>
+  <div class="docpop" id="docpop"></div>
+  <div class="toolbar">
+    <button class="btn" id="zin">＋</button>
+    <button class="btn" id="zout">－</button>
+    <button class="btn" id="fit">适配</button>
+    <button class="btn" id="dim">聚焦选中</button>
+  </div>
+  <div class="tip" id="tip"></div>
+  <div class="detail" id="detail">
+    <div class="close" id="dclose">×</div>
+    <div class="dname" id="dname"></div>
+    <div class="dpath" id="dpath"></div>
+    <div class="dsum" id="dsum"></div>
+    <div class="kv" id="dkv"></div>
+    <div class="nb"><h3>直接关联</h3><div id="dnb"></div></div>
+  </div>
+</main>
+
+<script>
+const DATA = /*__DATA__*/;
+const nodes = DATA.nodes, edges = DATA.edges, layers = DATA.layers, tour = DATA.tour;
+const clusters = DATA.clusters || [];
+const drawOrder = nodes.map((_,i)=>i).sort((a,b)=>nodes[a].d - nodes[b].d);
+
+const PALETTE = ["#58a6ff","#f0883e","#3fb950","#d2a8ff","#f778ba",
+                 "#39c5cf","#e3b341","#ff7b72","#7ee787","#79c0ff","#a5a5a5"];
+const layerColor = {}, layerName = {}, layerShort = {}, layerCount = {}, layerOn = {};
+layers.forEach((l,i)=>{
+  layerColor[l.id] = PALETTE[i % PALETTE.length];
+  layerName[l.id] = l.name;
+  layerShort[l.id] = l.id === 'layer:reference-docs' ? '参考文档' : l.name;
+  layerCount[l.id] = l.nodeIds.length;
+  layerOn[l.id] = true;
+});
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W=0, H=0, dpr=1;
+const view = {x:0, y:0, k:0.36};
+let hovered = null, selected = null, activeStep = null;
+let focusMode = false;
+const hidden = new Set();      // 被筛选/隐藏的节点集合
+const matchSet = new Set();    // 搜索命中
+let searchActive = false;
+
+// ---------- 邻居索引 ----------
+const adj = nodes.map(()=>[]);
+edges.forEach(e=>{ adj[e.s].push(e.t); adj[e.t].push(e.s); });
+const neighbors = new Set();
+
+// ---------- 空间网格（世界坐标，静态布局） ----------
+const GRID = 60, grid = new Map();
+function gkey(x,y){ return ((x/GRID)|0) + ',' + ((y/GRID)|0); }
+nodes.forEach((n,i)=>{
+  const k = gkey(n.x, n.y);
+  if(!grid.has(k)) grid.set(k, []);
+  grid.get(k).push(i);
+});
+
+/*__V2__*/
+</script>
+</body>
+</html>

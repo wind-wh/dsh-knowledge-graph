@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>插件配置表单 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#标识与值">标识与值</a><a class="t2" href="#编辑">编辑</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.settings-—-SettingsForms">ctx.settings — SettingsForms</a><a class="t3" href="#ctx.settingsController-—-SettingsController">ctx.settingsController — SettingsController</a><a class="t3" href="#settings/-events">settings/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 插件配置表单</div>
+    <h1>插件配置表单</h1>
+    <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/settings.md</div>
+    <div class="body"><h1 id="插件配置表单">插件配置表单</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/settings.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/README.zh.md">设置服务</a> 从活动 profile 条目投影 volatile Config 字段。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/config-editor/README.zh.md">配置编辑器</a> 通过 Cordis patch 持久化编辑。业务消费者对自己的 Config 引用调用 <code>.get()</code>。</p>
+<h2 id="标识与值">标识与值</h2>
+<p>表单命名空间是当前 profile 中可唯一定位条目的本地 id。多个插件实例在条目 id 不同时拥有独立表单。普通字段被排除。描述符包含实际值、继承值、显式 profile 覆盖值和乐观修订号。</p>
+<h2 id="编辑">编辑</h2>
+<p><code>update</code> 合并提交的字段。<code>replace</code> 先将即时字段重置为继承配置，再应用提交的字段。<code>mutate</code> 操作独立路径，保留客户端响应中未包含的秘密值。每次写入都会验证完整 Config，并在持久化前拒绝过期修订号。</p>
+<p><code>settings/document-updated</code> 在 Loader 配置变化后使表单描述符失效。这是 UI 通知；消费者仅在需要刷新注册信息时使用 <code>loader/volatile-update</code>。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsettings--settingsforms" class="anch"></a></p>
+<h3 id="ctx.settings-—-SettingsForms"><span id="ctxsettings--settingsforms" class="anch"></span><code>ctx.settings</code> — <code>SettingsForms</code></h3>
+<p>Project Config schemas into forms and own optional instance-level UI policy.</p>
+<pre><code>/** Register the calling plugin instance&#x27;s page policy without changing its Config.
+ * @param presentation Automatic-page policy for this instance; `auto` defaults to true.
+ * @param owner Plugin instance the policy belongs to; defaults to the calling fiber.
+ * @returns Disposer; register it with the calling plugin&#x27;s effects.
+ * @throws If this instance already has a registered policy.
+ */
+configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () =&gt; void
+
+/** Locate the profile patch for native editing.
+ * @returns The existing profile patch path.
+ */
+prepareDocument(): Promise&lt;string&gt;
+
+/** Read active plugin schemas and their live values.
+ * @param options Redaction required for remote callers.
+ * @returns Forms keyed by unique profile entry ids.
+ */
+describe(options?: SettingsDescribeOptions): SettingsDescriptor[]
+
+/** Merge editable fields into an entry&#x27;s config.
+ * @param ns Profile entry id.
+ * @param patch Fields to merge.
+ * @param expectedRevision Revision returned by describe.
+ */
+async update(ns: string, patch: object, expectedRevision?: number): Promise&lt;void&gt;
+
+/** Reset all live fields, then set the supplied fields; ordinary config is preserved.
+ * @param ns Profile entry id.
+ * @param section Complete form values.
+ * @param expectedRevision Revision returned by describe.
+ */
+async replace(ns: string, section: object, expectedRevision?: number): Promise&lt;void&gt;
+
+/** Apply field edits without restating redacted secrets; unsetting an array index removes its element.
+ * @param ns Profile entry id.
+ * @param ops Ordered form edits.
+ * @param expectedRevision Revision returned by describe.
+ */
+async mutate(ns: string, ops: readonly SettingsPathOp[], expectedRevision?: number): Promise&lt;void&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/src/index.ts"><code>packages/settings/settings/src/index.ts</code></a></p>
+<p><a id="ctxsettingscontroller--settingscontroller" class="anch"></a></p>
+<h3 id="ctx.settingsController-—-SettingsController"><span id="ctxsettingscontroller--settingscontroller" class="anch"></span><code>ctx.settingsController</code> — <code>SettingsController</code></h3>
+<p>Host service backing the generated <code>ctx.remote.settings</code> namespace. Every remote read uses <code>redactSecrets: true</code>, so a <code>role('secret')</code> field cannot ride a response. Writes expose the settings service's merge, replacement, and path-addressed operations, and classify every provider refusal as <code>settings/conflict</code> or <code>settings/rejected</code> with the service's message.</p>
+<pre><code>/**
+ * Describe every registered namespace for a configuration page: redacted
+ * layered values plus the serialized schema the page renders its form from.
+ * @returns provider writability, local-document presence, and one view per namespace.
+ * @throws RemoteError when no settings provider is mounted.
+ */
+@Remote describe(): SettingsDescribeValue
+
+/**
+ * Merge a patch into one namespace&#x27;s stored user section.
+ * @param ns - namespace key to write.
+ * @param patch - fields to merge into the user section.
+ * @param expectedRevision - revision the caller read; `undefined` writes unconditionally.
+ * @returns the namespace&#x27;s redacted view after the write.
+ * @throws RemoteError when the request is invalid, no provider is mounted, or the provider refuses the write.
+ */
+@Remote update( ns: string, patch: Record&lt;string, JsonValue&gt;, expectedRevision: number | undefined, ): Promise&lt;SettingsNamespaceView&gt;
+
+/**
+ * Replace one namespace&#x27;s stored user section wholesale.
+ * @param ns - namespace key to write.
+ * @param section - complete replacement user section.
+ * @param expectedRevision - revision the caller read; `undefined` writes unconditionally.
+ * @returns the namespace&#x27;s redacted view after the write.
+ * @throws RemoteError when the request is invalid, no provider is mounted, or the provider refuses the write.
+ */
+@Remote replace( ns: string, section: Record&lt;string, JsonValue&gt;, expectedRevision: number | undefined, ): Promise&lt;SettingsNamespaceView&gt;
+
+/**
+ * Apply path-addressed edits to one namespace&#x27;s user section, resolved against
+ * the section as stored rather than against whatever the caller last read,
+ * then answer with that namespace&#x27;s new redacted view.
+ * @param ns - namespace key to write.
+ * @param ops - the edits to apply, in order.
+ * @param expectedRevision - revision the caller read; `undefined` writes unconditionally.
+ * @returns the namespace&#x27;s redacted view after the write.
+ * @throws RemoteError when the request is invalid, no provider is mounted, or the provider refuses the write.
+ */
+@Remote async mutate( ns: string, ops: SettingsPathOpView[], expectedRevision: number | undefined, ): Promise&lt;SettingsNamespaceView&gt;
+
+/**
+ * Materialize the provider-owned settings document and open it in a native text editor.
+ * @param signal - caller lifetime; abort terminates preparation or the native command.
+ * @returns confirmation after the native opener accepts the document.
+ * @throws RemoteError when no document exists, preparation fails, or opening fails.
+ */
+@Remote async openSettingsDocument(signal: AbortSignal): Promise&lt;SettingsDocumentOpenValue&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller/src/index.ts"><code>packages/api/settings-controller/src/index.ts</code></a></p>
+<p><a id="settings-events" class="anch"></a></p>
+<h3 id="settings/-events"><span id="settings-events" class="anch"></span><code>settings/*</code> events</h3>
+<p><a id="settingsdocument-updated--emit" class="anch"></a></p>
+<h4 id="settings/document-updated-—-emit"><code>settings/document-updated</code> — emit</h4>
+<p>One profile entry's form values, availability, or page policy changed. Form clients re-read its schema, resolved values, and revision.</p>
+<pre><code>/**
+ * One profile entry&#x27;s form values, availability, or page policy changed.
+ * Form clients re-read its schema, resolved values, and revision.
+ * @param ns Profile entry id.
+ * @param revision The entry&#x27;s new revision.
+ * @mode emit
+ */
+&#x27;settings/document-updated&#x27;(ns: SettingsNamespace, revision: number): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/src/types.ts"><code>packages/settings/settings/src/types.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/settings">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

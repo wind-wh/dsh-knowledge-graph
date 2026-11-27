@@ -1,0 +1,16 @@
+# 临时文件
+*.tmp
+*.bak
+*.log
+__pycache__/
+*.pyc
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# 构建中间产物（不随源码分发）
+intermediate/
+node_modules/

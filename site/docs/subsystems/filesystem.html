@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文件系统 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#目标标识与元数据（提供方约定）">目标标识与元数据（提供方约定）</a><a class="t2" href="#补丁语法记录">补丁语法记录</a><a class="t2" href="#写入与编辑守卫（提供方约定）">写入与编辑守卫（提供方约定）</a><a class="t2" href="#fs-策略事件（提供方约定词汇）">fs 策略事件（提供方约定词汇）</a><a class="t2" href="#执行上下文（策略插件）">执行上下文（策略插件）</a><a class="t2" href="#读取结果（消费方-/-读取渲染）">读取结果（消费方 / 读取渲染）</a><a class="t2" href="#已观测文件状态（策略插件）">已观测文件状态（策略插件）</a><a class="t2" href="#补丁执行（消费方）">补丁执行（消费方）</a><a class="t2" href="#错误分类体系（提供方约定）">错误分类体系（提供方约定）</a><a class="t2" href="#文件-IO-不设超时">文件 IO 不设超时</a><a class="t2" href="#服务与插件">服务与插件</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.fs-—-FileSystem-abstract-seam">ctx.fs — FileSystem (abstract seam)</a><a class="t3" href="#fs/-events">fs/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 文件系统</div>
+    <h1>文件系统</h1>
+    <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/filesystem.md</div>
+    <div class="body"><h1 id="文件系统">文件系统</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/filesystem.md">English</a> | 中文</p>
+<p>可选的文件系统能力由以下角色组成：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs">dsh-fs</a> 拥有 <code>ctx.fs</code> 和受防护的文件变更操作；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-local">dsh-fs-local</a> 实现本地磁盘后端；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-observation-policy">dsh-fs-observation-policy</a> 记录观测到的存在或缺失状态，并通过事件（而非服务）添加新鲜度规则；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs">dsh-tool-fs</a> 直接执行面向模型的 read/write/edit 调用并渲染窗口。它位于 agent loop（智能体循环）主干之外；替换后端不会改变策略或工具 schema。纯库 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-patch/README.zh.md">dsh-fs-patch</a> 提供补丁解析与文本应用。</p>
+<p><code>dsh-fs-observation-policy</code> 是可选插件。没有该插件时，<code>FileSystem</code> 服务定义、一个提供方和 <code>dsh-tool-fs</code> 消费方组成完整且不受约束的文件系统 seam：<code>write</code> 无条件创建或覆盖，<code>edit</code> 无条件替换字面文本。策略插件通过裁决 <code>fs/*</code> waterfall（瀑布式事件）来改变这些操作。移除该插件不会破坏工具，因为工具调用 <code>ctx.fs</code> 并分发事件，而不调用策略方法。随发行版交付的组合不启用它：<code>dsh-base</code> 中的 <code>fs-observation-policy</code> 行写着 <code>disabled: true</code>，需要「先读后写/编辑」的部署把该行改为 <code>disabled: false</code>。</p>
+<p>提供方源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/types.ts"><code>packages/fs/fs/src/types.ts</code></a> 与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a>。策略源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-observation-policy/src/types.ts"><code>packages/fs/fs-observation-policy/src/types.ts</code></a>。读取渲染源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs/src/read-render.ts"><code>packages/fs/tool-fs/src/read-render.ts</code></a>。</p>
+<h2 id="目标标识与元数据（提供方约定）">目标标识与元数据（提供方约定）</h2>
+<p>每个操作首先将用户提供的路径解析为不透明的后端目标。消费方可以显示 <code>displayPath</code>，但禁止解析 <code>targetKey</code>（一个品牌化的不透明 id），也不得假设它是本地绝对路径。</p>
+<p>与文件系统共享执行世界的消费方通过提供方获取跨能力坐标，而不是解释该身份：<code>processPath(target)</code> 返回子进程可以打开的规范化绝对路径；<code>processPathFromHostPath(hostPath)</code> 只在该执行世界共享相应宿主文件时映射其绝对路径；<code>fileUrl(target)</code> 返回采用提供方平台语法的 <code>file:</code> URI；<code>contains(parent, child)</code> 检查规范化身份相等或后代包含关系。</p>
+<pre><code>/**
+ * A path resolved by a backend into a stable identity. `resolve()` produces
+ * this; every other operation takes it.
+ */
+interface FsTarget {
+  /** Opaque key for stale guards and target lookup. */
+  targetKey: FsTargetKey
+  /**
+   * Path for model/UI-facing output. May be a local absolute path,
+   * workspace-relative path, or remote URI depending on the backend.
+   */
+  displayPath: string
+}</code></pre>
+<p>后端拥有文件版本 token，即变更所守卫的新鲜度 token。策略插件存储它们以进行陈旧检查；消费方不解释其内容。两个 id 都是品牌化的不透明字符串。</p>
+<pre><code>/**
+ * Opaque key for stale guards and target lookup. The local backend uses a
+ * realpath-like string; a remote backend might use a workspace URI or file id.
+ * Consumers MUST NOT parse it or assume it is a local absolute path.
+ */
+type FsTargetKey = Branded&lt;&#x27;FsTargetKey&#x27;&gt;</code></pre>
+<pre><code>/**
+ * Opaque file-version token — the freshness token a write/edit guards against.
+ * The local backend derives it from high-resolution stat identity and freshness
+ * fields; a remote backend might use a revision id. The policy layer records it
+ * for stale checks; consumers may display related metadata but MUST NOT
+ * interpret this token.
+ */
+type FsVersion = Branded&lt;&#x27;FsVersion&#x27;&gt;</code></pre>
+<p><code>stat</code> 返回元数据（从不返回内容），目标不存在时返回 <code>undefined</code>。<code>type</code> 让消费方在读取前拒绝目录和特殊文件；<code>size</code> 让文本消费方无需通过失败探测即可选择 <code>readText</code> 还是 <code>streamText</code>。文本消费方在消费 <code>streamText</code> 时执行自己的保留量上限。原始字节消费方调用 <code>readBytes(target, signal, maxBytes)</code>；其必填的完整内容上限会使已知或读取中发现的超限以 <code>FS_TOO_LARGE</code> 失败，不会截断结果或无界缓冲。</p>
+<pre><code>/**
+ * Metadata about a target — what {@link FileSystem.stat} returns. Lets the
+ * policy layer reject directories/special files before reading and choose
+ * `readText` vs `streamText` from `size` without probing by failure. `version`
+ * is the freshness token. `undefined` from `stat` means the target is absent.
+ */
+interface FsInfo {
+  /** Opaque freshness token of the target right now. */
+  version: FsVersion
+  /** Whether the target is a regular file, a directory, or something else. */
+  type: &#x27;file&#x27; | &#x27;directory&#x27; | &#x27;other&#x27;
+  /** Byte size of a regular file, when the backend can report it. */
+  size?: number
+}</code></pre>
+<p><code>lstat</code> 是路径级、不跟随链接的元数据原语。它接收路径而不是 <code>FsTarget</code>，因为 <code>resolve</code> 会有意跟随 symlink 以产生稳定标识；需要检查信任边界的消费方可以先调用 <code>lstat</code>，在解析前拒绝 <code>symlink</code>。</p>
+<pre><code>/**
+ * Metadata about a path without following the final path component when it is a
+ * symbolic link. Unlike {@link FsInfo}, this path-level probe can report
+ * `symlink` so consumers with trust-boundary rules can reject repository-owned
+ * links before resolving a target.
+ */
+interface FsPathInfo {
+  /** Opaque freshness token of the path entry right now. */
+  version: FsVersion
+  /** Whether the path entry is a regular file, directory, symlink, or other. */
+  type: &#x27;file&#x27; | &#x27;directory&#x27; | &#x27;symlink&#x27; | &#x27;other&#x27;
+  /** Byte size of the path entry, when the backend can report it. */
+  size?: number
+}</code></pre>
+<p><code>listDir</code> 按稳定的名称顺序返回直接子条目。每个条目携带子项的 basename、类型、已解析目标，以及后端能报告时的廉价元数据。它禁止读取文件内容，因此 <code>size</code> 仅用于普通文件，<code>version</code> 来自元数据。已损坏或已消失的子项可以作为 <code>other</code> 返回且不带元数据；列出或解析子项元数据时的权限或后端 I/O 失败会以 <code>FS_PERMISSION_DENIED</code> 或 <code>FS_IO_ERROR</code> 使整个列表操作失败。</p>
+<pre><code>/**
+ * One direct child returned by {@link FileSystem.listDir}. Listing returns
+ * metadata and resolved targets only; it must not read file contents.
+ */
+interface FsDirEntry {
+  /** Basename of the child inside the listed directory. */
+  name: string
+  /** Whether the child is a regular file, a directory, or something else. */
+  type: &#x27;file&#x27; | &#x27;directory&#x27; | &#x27;other&#x27;
+  /** Resolved child target for follow-up operations. */
+  target: FsTarget
+  /** Opaque freshness token when the backend can report metadata cheaply. */
+  version?: FsVersion
+  /** Byte size of a regular file, when the backend can report it. */
+  size?: number
+}</code></pre>
+<p><a id="patch-syntax-records" class="anch"></a></p>
+<h2 id="补丁语法记录"><span id="patch-syntax-records" class="anch"></span>补丁语法记录</h2>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs-patch/README.zh.md">dsh-fs-patch</a> 将完整补丁文本解析为可序列化的操作，路径保持为未解析的字符串；<code>applyHunks</code> 将 hunk 应用于调用方提供的 LF 规范化文本，返回完整新文本或结构化匹配失败。固定的解析与匹配规则由包 README 维护。</p>
+<pre><code>/** One contiguous update. */
+interface PatchHunk {
+  /** One-based input line containing the marker or first implicit hunk line. */
+  lineNumber: number
+  /** Text following `@@ `, used as a search anchor by the text matcher. */
+  context?: string
+  /** Context and removed lines, without patch prefixes or line endings. */
+  oldLines: string[]
+  /** Context and added lines, without patch prefixes or line endings. */
+  newLines: string[]
+  /** Whether `*** End of File` follows this hunk. */
+  isEndOfFile: boolean
+}
+</code></pre>
+<pre><code>/** Ordered file operation; a move is an update with a destination path. */
+type PatchOperation =
+  | {
+    kind: &#x27;add&#x27;
+    path: string
+    lineNumber: number
+    /** Added lines joined with LF, including a final LF for every added line. */
+    content: string
+  }
+  | {
+    kind: &#x27;delete&#x27;
+    path: string
+    lineNumber: number
+  }
+  | {
+    kind: &#x27;update&#x27;
+    path: string
+    lineNumber: number
+    moveTo?: string
+    hunks: PatchHunk[]
+  }</code></pre>
+<pre><code>/** The first hunk whose anchor or old lines could not be located in the original text. */
+interface HunkApplyFailure {
+  /** One-based line of the failing hunk in the patch input. */
+  hunkLineNumber: number
+  /** The failed anchor or old-content search. */
+  stage: &#x27;context&#x27; | &#x27;oldLines&#x27;
+  /** Zero-based sequential search cursor; EOF searches override it with the tail candidate. */
+  searchStart: number
+  /** Original anchor or old lines, including any trailing empty line retried without its sentinel. */
+  pattern: string[]
+}
+</code></pre>
+<pre><code>/** Complete new text or a match failure; failures contain no partially updated text. */
+type ApplyHunksResult =
+  | { ok: true; after: string }
+  | { ok: false; failure: HunkApplyFailure }</code></pre>
+<h2 id="写入与编辑守卫（提供方约定）">写入与编辑守卫（提供方约定）</h2>
+<p>相同的可选防护规则也覆盖补丁、删除和移动。提供方不记录观察；调用方分派意图并记录已完成的结果。</p>
+<table><thead><tr><th>操作</th><th>意图</th><th>成功观察</th></tr></thead><tbody><tr><td><code>patchText</code></td><td><code>fs/edit-intent</code></td><td>目标存在于返回的版本。</td></tr><tr><td><code>deleteFile</code></td><td><code>fs/delete-intent</code></td><td>源缺失。</td></tr><tr><td><code>moveFile</code> 源</td><td><code>fs/edit-intent</code></td><td>仅在 <code>sourceDeleted</code> 为 true 时记录源缺失。</td></tr><tr><td><code>moveFile</code> 目标</td><td><code>fs/write-intent</code></td><td>目标存在于 <code>destination.version</code>。</td></tr></tbody></table>
+<p>补丁、删除和移动的源必须是普通文件；源缺失或版本陈旧报告 <code>FS_STALE_VERSION</code>。补丁在变更锁内对 LF 规范化文本匹配，不匹配报告 <code>FS_PATCH_MISMATCH</code>，包含补丁 hunk 行号与阶段。移动以 <code>FS_SAME_TARGET</code> 拒绝相同目标 key，对目标使用写入防护，并保留源的行尾风格与模式。删除、移动源和被覆盖目标的基线是有界、可空的 LF 文本。移动是两个效果：目标可能已发布而源删除失败。本地移动在暂存目标前检查取消；随后提供方完成两端效果并报告结果。</p>
+<p>目标已跟随符号链接，因此拒绝符号链接源的调用方在 <code>resolve</code> 前用 <code>lstat</code> 检查路径。</p>
+<pre><code>/** Outcome of a guarded delete; the bounded basis follows FsWriteOutcome.before. */
+interface FsDeleteOutcome {
+  /** LF-normalized removed content, or null for an unavailable, binary, or over-limit basis. */
+  before: string | null
+}</code></pre>
+<pre><code>/** Serializable failure after a move has published its destination but retained its source. */
+interface FsMoveSourceFailure {
+  /** Filesystem failure code for source removal. */
+  code: FsErrorCode
+  /** Diagnostic identifying the source and the failed removal. */
+  message: string
+}</code></pre>
+<pre><code>/** Published destination and removal status; sourceBefore is the bounded LF source basis captured under the move lock. */
+type FsMoveOutcome =
+  | { sourceBefore: string | null; destination: FsWriteOutcome; sourceDeleted: true }
+  | { sourceBefore: string | null; destination: FsWriteOutcome; sourceDeleted: false; sourceFailure: FsMoveSourceFailure }</code></pre>
+<p><code>writeText</code> 和 <code>editText</code> 的版本守卫都是可选的：省略守卫时执行无条件的裸提供方变更，提供守卫时则执行相应的条件检查。<code>writeText</code> 的守卫是 <code>FsWriteIntent</code>：<code>createIfAbsent</code> 在目标缺失时创建，目标已存在时以 <code>FS_NOT_OBSERVED</code> 拒绝；即使目标在提供方初始探测后才出现，也必须拒绝，因为发布操作本身不得替换。<code>replaceIfVersion</code> 仅在目标存在且版本匹配时替换，否则报 <code>FS_STALE_VERSION</code>。省略 <code>expected</code> 则无条件创建或覆盖。联合类型本身只包含两种有守卫的意图；「无守卫」通过省略表达，因此 write 和 edit 都使用同一个可选的 <code>expected</code> 字段。</p>
+<pre><code>/**
+ * Guarded write intent. `createIfAbsent` rejects an existing target with
+ * `FS_NOT_OBSERVED`; `replaceIfVersion` rejects absence or mismatch with
+ * `FS_STALE_VERSION`. Omitting the intent from `writeText` means unconditional
+ * create-or-overwrite, not a third union arm.
+ */
+type FsWriteIntent =
+  | { kind: &#x27;createIfAbsent&#x27; }
+  | { kind: &#x27;replaceIfVersion&#x27;; version: FsVersion }</code></pre>
+<pre><code>/** Outcome of a full-file write. */
+interface FsWriteOutcome {
+  /** Whether the write created a new file or replaced an existing one. */
+  operation: &#x27;create&#x27; | &#x27;update&#x27;
+  /** Opaque version of the file after the write. */
+  version: FsVersion
+  /**
+   * The file&#x27;s content BEFORE the write, or `null` when the file did not exist
+   * (a create) or the backend declined a contextual basis (for example, a
+   * binary/non-UTF-8 prior file or either overwrite side reaching its exclusive limit).
+   * LF-normalized storage text (the diff basis), never a diff — a consumer
+   * computes the result-time contextual diff from `before`/`after` when
+   * `before` is present, else falls back to a whole-file diff.
+   */
+  before: string | null
+  /** The file&#x27;s content AFTER the write, LF-normalized to share `before`&#x27;s diff basis. */
+  after: string
+}</code></pre>
+<p><code>editText</code> 是提供方级别的变更操作，而非在别处组合的 <code>read</code> 加 <code>write</code>。带守卫时，它在字面匹配之前先验证预期版本（因此对陈旧内容的编辑报 <code>FS_STALE_VERSION</code>，而非对更新内容的匹配失败）；不带守卫时，它编辑当前内容。无论哪种路径，它都应用替换并原子写入——将匹配、行尾处理、陈旧检查和原子替换保持在一个变更临界区内——目标缺失时两条路径都报 <code>FS_STALE_VERSION</code>。</p>
+<pre><code>/** A literal-replacement edit request. */
+interface FsEditRequest {
+  /** Literal non-empty text to replace. Must match exactly (after line-ending normalization). */
+  oldString: string
+  /** Literal replacement text. An empty string deletes the matched text. */
+  newString: string
+  /** Replace every match instead of requiring exactly one. */
+  replaceAll: boolean
+}</code></pre>
+<pre><code>/** Outcome of a literal edit. */
+interface FsEditOutcome {
+  /** Opaque version of the file after the edit. */
+  version: FsVersion
+  /**
+   * The file&#x27;s content BEFORE the edit. Raw storage text (LF-normalized by the
+   * backend), never a diff — a consumer computes the result-time contextual diff
+   * (the applied hunk with context) from `before`/`after`.
+   */
+  before: string
+  /** The file&#x27;s content AFTER the edit. */
+  after: string
+}</code></pre>
+<h2 id="fs-策略事件（提供方约定词汇）">fs 策略事件（提供方约定词汇）</h2>
+<p><code>dsh-fs</code> 为变更消费方与观察策略定义四个事件。消费方在操作前分发意图，并记录已完成的效果，无需依赖策略插件。它们只携带 <code>dsh-fs</code> 词汇加一个不透明的 <code>object</code> actor，不含面向模型的概念，也不含 agent/会话所有者结构。</p>
+<p><code>fs/write-intent</code>、<code>fs/edit-intent</code> 与 <code>fs/delete-intent</code> 是<strong>单槽决策 waterfall</strong>：工具分发时附带一个默认 thunk（返回 <code>undefined</code>，即裸提供方），监听方完全决策而不调用 <code>next()</code>。该 slot 按注册顺序先到先得——由策略插件占据是部署约定，而非强制不变式。<code>fs/observed</code> 是一个即发即弃的记录事件，携带 <code>FsObservation</code>：存在于某个版本，或确认缺失。该事件通过普通 <code>ctx.emit</code> 分发；其监听方必须是同步的、仅产生副作用，因为工具不会捕获该 emit 抛出的异常——抛出异常的监听方可能取代读取操作原本待返回的错误，或使工具在变更已经成功后返回 <code>isError</code> 结果。下方生成的 <a href="#cordis-surface">cordis surface</a> 展示确切签名。</p>
+<pre><code>/**
+ * One authoritative observation of a target. A present observation carries the
+ * version used by guarded replacement; an absent observation authorizes only a
+ * guarded create, never an edit.
+ */
+type FsObservation =
+  | { readonly kind: &#x27;present&#x27;; readonly version: FsVersion }
+  | { readonly kind: &#x27;absent&#x27; }</code></pre>
+<h2 id="执行上下文（策略插件）">执行上下文（策略插件）</h2>
+<p>策略插件只需要足够的执行上下文，通过收窄 <code>fs/*</code> 事件携带的不透明 <code>object</code> actor 来推导观测状态的所有者。<code>ToolExecution</code> 包含必需的字段，因此 <code>dsh-tool-fs</code> 将其执行对象作为 actor 直接传递，而无需让 <code>dsh-fs-observation-policy</code> 导入工具、agent 或会话包。</p>
+<pre><code>/**
+ * Minimal structural view of a tool execution the policy plugin needs to derive
+ * an observed-state owner. `@deepseek-ai/dsh-tools`&#x27; `ToolExecution` contains
+ * these fields, so the tool passes its `exec` straight through as the opaque
+ * `object` actor on the `fs/*` events; this plugin narrows that actor to
+ * `FsObservationActor` without importing `dsh-tools`, `dsh-agent`, or `dsh-session`.
+ *
+ * The owner is `agent.session` when present. It is treated as an opaque object
+ * identity (a `WeakMap` key); this package never reads any of its fields.
+ */
+interface FsObservationActor {
+  /** The agent on whose behalf the call runs, when there is one. */
+  agent?: {
+    /** The session that owns observed-file state, used as an opaque key. */
+    session?: object
+  }
+}</code></pre>
+<h2 id="读取结果（消费方-/-读取渲染）">读取结果（消费方 / 读取渲染）</h2>
+<p>文本读取受行窗口、字节上限和后端限制约束。达到字节上限后，扫描仍会继续，但不再保留更多行，因此 <code>totalLines</code> 仍为精确值。面向模型的 <code>read</code> 工具渲染的结果纯粹是展示性的；不存在 <code>full</code>/<code>partial</code> 视图区分——授权基于新鲜度（工具发出表示目标存在的 <code>fs/observed</code> 事件，并直接携带 stat 的版本），因此任何窗口化读取在文件未变时都能授权后续的 write/edit。元数据未命中时，工具会在返回 <code>FS_NOT_FOUND</code> 前 emit 缺失观测，使后续带守卫的写入可以重新创建外部删除的目标，但不会授权 edit。拥有读取操作的执行器 <code>dsh-tool-fs</code> 实现读取窗口化并构造该结果；策略插件不执行这些操作。</p>
+<pre><code>/** Outcome of a bounded text read — what {@link formatReadOutput} renders. */
+interface FileReadOutcome {
+  /** 1-based first line requested. */
+  offset: number
+  /** Returned lines, already numbered. */
+  lines: FileTextLine[]
+  /** Exact total line count in the file. */
+  totalLines: number
+  /** Whether selected output hit the byte cap. */
+  truncatedByBytes?: true
+}</code></pre>
+<h2 id="已观测文件状态（策略插件）">已观测文件状态（策略插件）</h2>
+<p>已观测状态是 <code>dsh-fs-observation-policy</code> 插件内部持有的 <code>WeakMap&lt;owner, Map&lt;targetKey, FsObservation&gt;&gt;</code>。映射中没有条目表示未见；<code>{ kind: 'absent' }</code> 表示 <code>read</code> 的元数据未命中，或 <code>str_replace_editor</code> 的 <code>view</code>、<code>str_replace</code>、<code>insert</code> 命令发生元数据未命中，从而确认缺失；<code>{ kind: 'present', version }</code> 表示 read、write 或 edit 观测到该版本。写入决策把未见和缺失映射到 <code>createIfAbsent</code>，把存在映射到 <code>replaceIfVersion</code>；编辑/删除决策把未见映射到 <code>FS_NOT_OBSERVED</code>，把缺失映射到 <code>FS_NOT_FOUND</code>，把存在映射到其版本守卫。所有者从事件 actor 推导（通常是 <code>exec.agent.session</code>），被视为不透明且从不读取。dispose（资源释放）时丢弃全部数据（HMR（热模块替换）安全），策略不执行任何文件系统 I/O。</p>
+<h2 id="补丁执行（消费方）">补丁执行（消费方）</h2>
+<p>内部 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs/README.zh.md">tool-fs 补丁执行器</a> 在预检时分发意图决策而不发出观察、模拟前序操作，并在每次提交时重新取得防护。沙箱围栏与 <code>write</code>、<code>edit</code> 一样由提供方在提交时判断。提供方结果决定记录哪些效果；执行器细节与失败保证由包 README 维护。</p>
+<table><thead><tr><th>操作</th><th>首次使用目标的预检意图</th><th>提交意图</th><th>成功观察</th></tr></thead><tbody><tr><td>add</td><td><code>fs/write-intent</code></td><td><code>fs/write-intent</code></td><td>目标 present(version)</td></tr><tr><td>update</td><td><code>fs/edit-intent</code></td><td><code>fs/edit-intent</code></td><td>目标 present(version)</td></tr><tr><td>delete</td><td><code>fs/delete-intent</code></td><td><code>fs/delete-intent</code></td><td>目标 absent</td></tr><tr><td>move</td><td>源 <code>fs/edit-intent</code>；目标 <code>fs/write-intent</code></td><td>重新分发同一组意图</td><td>目标 present(version)；仅在源删除成功时记录 absent</td></tr></tbody></table>
+<p><code>apply_patch</code> 工具返回严格的提交值，包含各操作诊断及用于渲染的完整文本变更输入；持久化元数据只保留基于提供方有界基线的 diff hunk 与停止标志。语法和预检拒绝为 <code>isError: true</code>；停止的提交报告仍为 <code>isError: false</code>，确保已知部分 diff 进入 Session 展示，但被取消的调用与其他工具一样收到工具注册表的中止结果。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/tool-fs/README.zh.md">工具 README</a> 维护格式与恢复规则。</p>
+<h2 id="错误分类体系（提供方约定）">错误分类体系（提供方约定）</h2>
+<p>文件系统故障使用稳定的 <code>FsErrorCode</code> 字符串，由 <code>FsError</code>（<code>HarnessError</code>）携带。工具注册表在错误结果上保留 <code>{ name, code }</code>，使重试、权限和 UI 层可以按 code 分支而无需解析文本。</p>
+<p><code>FS_PATCH_MISMATCH</code> 表示 hunk 在提供方提交阶段未匹配；消息标明补丁行号与失败的搜索阶段。<code>FS_SAME_TARGET</code> 表示移动源与目标共享已解析身份。删除意图遵循编辑意图：未见为 <code>FS_NOT_OBSERVED</code>，观察到缺失为 <code>FS_NOT_FOUND</code>，存在状态提供版本。提供方收到缺失的补丁/删除/移动源时，即使没有防护也使用 <code>FS_STALE_VERSION</code>。</p>
+<pre><code>import { FS_ERROR_CODES } from &#x27;@deepseek-ai/dsh-fs&#x27;</code></pre>
+<pre><code>/** One machine-routable filesystem failure code from FS_ERROR_CODES. */
+type FsErrorCode = typeof FS_ERROR_CODES[number]</code></pre>
+<p>目录列表使用 <code>FS_NOT_DIRECTORY</code>、<code>FS_PERMISSION_DENIED</code> 与 <code>FS_IO_ERROR</code> 区分已存在但并非目录的目标、被拒绝的列表操作和意外的后端 I/O 失败。<code>FS_SANDBOX_DENIED</code> 是强制执行沙箱的后端（<code>dsh-fs-sandbox</code>）所作的策略拒绝——模式边界拒绝了变更——与 <code>FS_PERMISSION_DENIED</code>（宿主内核拒绝）不同。<code>FS_NOT_OBSERVED</code> 表示策略插件没有此所有者的先前观测记录（或 <code>createIfAbsent</code> 遇到了现有文件）。<code>FS_NOT_FOUND</code> 也表示策略因确认缺失而拒绝 edit。<code>FS_STALE_VERSION</code> 表示后端版本不再与观测到的版本匹配（或提供方本身收到针对缺失目标的 edit）。新鲜度授权没有部分/完整之分，因此不存在 <code>FS_PARTIAL_OBSERVATION</code>。<code>FS_ALREADY_EXISTS</code> 表示仅创建的工具命令遇到了已存在的目标；调用方应换一个路径或编辑现有文件。<code>dsh-fs-local</code> 与 <code>dsh-fs-sandbox</code> 的包含性检查用 <code>dsh-fs</code> 的函数 <code>fsErrorFromErrno</code> 分类解析、元数据、读取与目录列表中的 errno 失败：<code>ENOENT</code> 与 <code>ENOTDIR</code> 报告 <code>FS_NOT_FOUND</code>，<code>EACCES</code> 与 <code>EPERM</code> 报告 <code>FS_PERMISSION_DENIED</code>，<code>EISDIR</code> 报告 <code>FS_NOT_REGULAR_FILE</code>，其他 errno 报告 <code>FS_IO_ERROR</code>，均以 Node 错误为 <code>cause</code>。</p>
+<h2 id="文件-IO-不设超时">文件 IO 不设超时</h2>
+<p><code>read</code>/<code>write</code>/<code>edit</code> <strong>不</strong>接受 <code>timeoutMs</code>，提供方约定也不设置截止时间——不同于 bash 与 web（它们消费 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/timeout/README.zh.md"><code>@deepseek-ai/dsh-timeout</code></a>）以及 subprocess 支撑的 <code>glob</code>/<code>grep</code>（其声明的 <code>timeoutMs</code> 由 <code>@deepseek-ai/dsh-tool-call-timeout-policy</code> 强制执行）：那些是进程支撑的，截止时间可以真正终止工作。本地系统调用至多是尽力中止——超时无法迫使进行中的 <code>fsync</code>/<code>rename</code> 停下，因此这里的 <code>timeoutMs</code> 会成为 seam 无法强制执行的截止时间，而且恰好落在「显式优于隐式」禁止隐式默认值的位置。取消仍通过工具执行 signal 传播，在系统调用边界尽力中止。</p>
+<h2 id="服务与插件">服务与插件</h2>
+<p><code>FileSystem</code>（<code>ctx.fs</code>，abstract）拥有提供方原语：<code>resolve</code>、<code>processPath</code>、<code>processPathFromHostPath</code>、<code>fileUrl</code>、<code>contains</code>、<code>stat</code>、<code>lstat</code>、<code>readText</code>、<code>streamText</code>、<code>readBytes</code>、<code>listDir</code>、<code>writeText</code>、<code>editText</code>、<code>patchText</code>、<code>deleteFile</code> 与 <code>moveFile</code>。<code>dsh-fs-observation-policy</code> <strong>不注册服务</strong>。它通过 <code>fs/*</code> 事件门禁添加策略，根据未见、缺失或存在状态对写入、编辑与删除意图 waterfall 作出决策，并记录 <code>FsObservation</code> 值。执行器是 <code>dsh-tool-fs</code>：它通过 <code>ctx.fs</code> 读取、写入或编辑，分发 waterfall，并 emit 记录事件。下方生成的 <a href="#ctxfs--filesystem-abstract-seam"><code>ctx.fs</code> 小节</a> 展示确切的 <code>ctx.fs</code> 签名。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxfs--filesystem-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.fs-—-FileSystem-abstract-seam"><span id="ctxfs--filesystem-abstract-seam" class="anch"></span><code>ctx.fs</code> — <code>FileSystem</code> (abstract seam)</h3>
+<p>Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and single-file publication is atomic. Moves can retain their source after publishing the destination. Optional guards add stale protection without changing the unguarded provider contract.</p>
+<pre><code>/**
+ * Observe one file or a directory&#x27;s direct entries in this provider&#x27;s execution world.
+ * @param target - resolved file or directory, including an absent path to observe for creation.
+ * @param changed - invalidation callback; errors can be reported during or after initialization.
+ * @param signal - cancels watcher initialization; the caller closes an initialized watcher.
+ * @returns a promise resolving once observation is active, with an asynchronous close function.
+ * @throws when the provider does not support watching or cannot initialize the watcher.
+ */
+watch(target: FsTarget, changed: (error?: Error) =&gt; void, signal: AbortSignal): Promise&lt;() =&gt; Promise&lt;void&gt;&gt;
+
+/**
+ * Resolve a model/plugin-supplied path into a stable {@link FsTarget}. May perform I/O (a
+ * remote/sandboxed backend may need a round-trip to map a path to a stable identity), hence
+ * async even though the local backend only normalizes + realpaths.
+ *
+ * @param path - the path to resolve; relative paths resolve against `opts.cwd`.
+ * @param opts - optional cwd override and cancellation signal.
+ * @returns the stable target; the same file yields the same `targetKey`.
+ */
+abstract resolve(path: string, opts?: { cwd?: string; signal?: AbortSignal }): Promise&lt;FsTarget&gt;
+
+/**
+ * Return the canonical absolute path a subprocess in this filesystem&#x27;s
+ * execution world can open. The path is deliberately separate from
+ * {@link FsTarget.targetKey}: consumers may pass this value to another OS
+ * capability, but must continue treating the target key as opaque.
+ * @param target - the resolved target whose process path is required.
+ * @returns an absolute path in the backend&#x27;s execution world.
+ */
+abstract processPath(target: FsTarget): string
+
+/**
+ * Map an absolute path from the harness host into this filesystem&#x27;s
+ * execution world when both paths identify the same file. The base provider
+ * exposes no mapping; host-backed or explicitly shared backends override it.
+ * @param hostPath - absolute path in the harness host filesystem.
+ * @returns the process path for the same file, or undefined when this
+ *   execution world cannot read that host file.
+ */
+processPathFromHostPath(hostPath: string): string | undefined
+
+/**
+ * Return the canonical `file:` URI for a target in this filesystem&#x27;s
+ * execution world. Backends own URI encoding because the host platform may
+ * differ from the execution platform.
+ * @param target - the resolved target to encode.
+ * @returns the target&#x27;s canonical file URI.
+ */
+abstract fileUrl(target: FsTarget): string
+
+/**
+ * Test canonical containment without exposing or parsing backend target
+ * keys. Both targets must come from this provider.
+ * @param parent - canonical directory target.
+ * @param child - canonical candidate target.
+ * @returns true when `child` is `parent` or a descendant of it.
+ */
+abstract contains(parent: FsTarget, child: FsTarget): boolean
+
+/**
+ * Return target metadata, or `undefined` when the target does not exist.
+ * @param target - the resolved target to stat.
+ * @param signal - aborts the metadata round-trip.
+ * @returns metadata only, never content; undefined for an absent target.
+ */
+abstract stat(target: FsTarget, signal?: AbortSignal): Promise&lt;FsInfo | undefined&gt;
+
+/**
+ * Return path metadata without following the final path component when it is a
+ * symbolic link. This is intentionally path-shaped, not target-shaped:
+ * {@link resolve} follows symlinks to produce the stable identity used by
+ * normal reads/writes, while `lstat` lets a consumer reject the path itself
+ * before that follow happens.
+ *
+ * `opts.cwd` follows {@link resolve}&#x27;s cwd rules. `undefined` means the path is
+ * absent.
+ * @param path - the path to inspect; relative paths resolve against `opts.cwd`.
+ * @param opts - `cwd` overrides the backend&#x27;s default base for relative paths.
+ * @param signal - aborts the metadata round-trip.
+ * @returns metadata only, never content; undefined for an absent path.
+ */
+abstract lstat(path: string, opts?: { cwd?: string }, signal?: AbortSignal): Promise&lt;FsPathInfo | undefined&gt;
+
+/**
+ * Read the whole regular text file as a single decoded string.
+ * @param target - the resolved target to read.
+ * @param signal - aborts the read.
+ * @returns the full decoded UTF-8 content.
+ */
+abstract readText(target: FsTarget, signal?: AbortSignal): Promise&lt;string&gt;
+
+/**
+ * Stream the whole regular text file as decoded text chunks (same text
+ * semantics as {@link readText}, for large files). The backend owns
+ * cross-chunk UTF-8 decoding and binary rejection so the policy layer never
+ * touches raw bytes.
+ * @param target - the resolved target to read.
+ * @param signal - aborts the stream, including between chunks.
+ * @returns the chunk iterable, decoded and validated like {@link readText}.
+ */
+abstract streamText(target: FsTarget, signal?: AbortSignal): Promise&lt;AsyncIterable&lt;string&gt;&gt;
+
+/**
+ * Read the whole regular file as raw bytes with no decoding or binary
+ * rejection. The bound lives at this seam so a backend can never buffer an
+ * unbounded file: a target known or discovered to exceed `maxBytes` fails
+ * with `FS_TOO_LARGE` instead of returning a truncated result.
+ * @param target - the resolved target to read.
+ * @param signal - aborts the read.
+ * @param maxBytes - inclusive byte cap on the complete content.
+ * @returns the full raw content, at most `maxBytes` long.
+ */
+abstract readBytes(target: FsTarget, signal: AbortSignal | undefined, maxBytes: number): Promise&lt;Uint8Array&gt;
+
+/**
+ * Read one byte window of the regular file as raw bytes with no decoding or
+ * binary rejection: the bytes at `[offset, offset + length)`, shorter when
+ * the file ends inside the window and empty when `offset` lies at or past
+ * its end. The window is the bound here, not the file: a backend transfers
+ * at most `length` bytes of content beyond the prefix it skips to reach
+ * `offset` and never buffers the whole file, so the caller&#x27;s cap on `length`
+ * is the guard against unbounded buffering.
+ * @param target - the resolved target to read.
+ * @param range - `offset`, the 0-based first byte, and `length`, the largest byte count; both non-negative integers.
+ * @param signal - aborts the read.
+ * @returns the window&#x27;s bytes, at most `length` long.
+ */
+abstract readByteRange(target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal): Promise&lt;Uint8Array&gt;
+
+/**
+ * List direct children of a directory in stable name order. Returns resolved
+ * child targets plus cheap metadata only; never reads file contents.
+ * @param target - the resolved directory target.
+ * @param signal - aborts the listing.
+ * @returns one entry per direct child, in stable name order.
+ */
+abstract listDir(target: FsTarget, signal?: AbortSignal): Promise&lt;FsDirEntry[]&gt;
+
+/**
+ * Atomically create or replace UTF-8 text. `expected` guards intent and
+ * staleness; omission allows unconditional overwrite.
+ * @param target - the resolved target to write.
+ * @param content - the full new file content.
+ * @param expected - the write intent guarding the write; omit for unconditional.
+ * @param signal - aborts before atomic publication takes effect.
+ * @param sandboxPolicy - the per-call mode and workspace root this write
+ *   runs under; a sandboxing backend fences the write by it, the bare backend
+ *   ignores it. Omit to leave the backend its own default.
+ * @returns the outcome, including the version the write produced.
+ */
+abstract writeText( target: FsTarget, content: string, expected?: FsWriteIntent, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise&lt;FsWriteOutcome&gt;
+
+/**
+ * Atomically edit literal text. When supplied, the version guard is checked
+ * before matching so stale content reports `FS_STALE_VERSION`; omission edits
+ * the current content without a freshness precondition.
+ * @param target - the resolved target to edit.
+ * @param edit - the literal search/replace request.
+ * @param expected - the version guard; omit for an unconditional edit.
+ * @param signal - aborts before atomic publication takes effect.
+ * @param sandboxPolicy - the per-call mode and workspace root this edit runs
+ *   under; a sandboxing backend fences the edit by it, the bare backend
+ *   ignores it. Omit to leave the backend its own default.
+ * @returns the outcome, including the version the edit produced.
+ */
+abstract editText( target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise&lt;FsEditOutcome&gt;
+
+/**
+ * Atomically apply parsed hunks to the LF-normalized text and restore the
+ * stored line-ending style. A missing or stale target reports
+ * `FS_STALE_VERSION`; an unmatched hunk reports `FS_PATCH_MISMATCH`.
+ * @param target - the resolved regular file to patch.
+ * @param hunks - ordered hunks from `parsePatch`.
+ * @param expected - the version guard; omit for an unconditional patch.
+ * @param signal - aborts before atomic publication takes effect.
+ * @param sandboxPolicy - the per-call mode and workspace root this patch runs
+ *   under; a sandboxing backend fences the patch by it, the bare backend
+ *   ignores it. Omit to leave the backend its own default.
+ * @returns the outcome, including the version the patch produced.
+ */
+abstract patchText( target: FsTarget, hunks: readonly PatchHunk[], expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise&lt;FsEditOutcome&gt;
+
+/**
+ * Remove a regular file. A missing or stale target reports `FS_STALE_VERSION`;
+ * a directory or other non-file reports `FS_NOT_REGULAR_FILE`. Resolution has
+ * already followed symlinks, so the target is the real file.
+ * @param target - the resolved file to remove.
+ * @param expected - the version guard; omit for an unconditional removal.
+ * @param signal - aborts before removal.
+ * @param sandboxPolicy - the per-call mode and workspace root this removal
+ *   runs under; a sandboxing backend fences it, the bare backend ignores it.
+ *   Omit to leave the backend its own default.
+ * @returns the bounded LF-normalized removed text, or null when no basis is available.
+ */
+abstract deleteFile( target: FsTarget, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise&lt;FsDeleteOutcome&gt;
+
+/**
+ * Publish the source text, optionally patched, at the destination, then remove
+ * the source. Both targets stay locked in canonical order. Identical targets
+ * report `FS_SAME_TARGET`; the source guard follows `patchText` and the
+ * destination guard follows `writeText`. The two effects are separate: a
+ * published destination with a retained source is a final outcome reported
+ * through `sourceDeleted: false`.
+ * @param source - the resolved regular source; its line-ending style and mode carry over.
+ * @param destination - the resolved destination within the same provider.
+ * @param options - optional hunks and the source/destination guards; an omitted guard is unconditional.
+ * @param signal - checked before destination staging; the commit then completes both effects.
+ * @param sandboxPolicy - the per-call mode and workspace root both paths run
+ *   under; a sandboxing backend fences them, the bare backend ignores it.
+ *   Omit to leave the backend its own default.
+ * @returns the bounded LF source basis, the destination outcome, and the source-removal status.
+ */
+abstract moveFile( source: FsTarget, destination: FsTarget, options: { hunks?: readonly PatchHunk[] expectedSource?: { version: FsVersion } expectedDestination?: FsWriteIntent }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise&lt;FsMoveOutcome&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md">SandboxExecutionPolicy</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a></p>
+<p><a id="fs-events" class="anch"></a></p>
+<h3 id="fs/-events"><span id="fs-events" class="anch"></span><code>fs/*</code> events</h3>
+<p><a id="fsdelete-intent--waterfall" class="anch"></a></p>
+<h4 id="fs/delete-intent-—-waterfall"><code>fs/delete-intent</code> — waterfall</h4>
+<p>Single-slot decision for FileSystem.deleteFile; the first returned guard wins. Calling next() delegates to an unconditional deletion.</p>
+<pre><code>/**
+ * Single-slot decision for FileSystem.deleteFile; the first returned guard wins.
+ * Calling next() delegates to an unconditional deletion.
+ * @param target - the resolved source about to be removed.
+ * @param actor - the opaque tool-execution context used to select observed state.
+ * @mode waterfall
+ */
+&#x27;fs/delete-intent&#x27;(target: FsTarget, actor: object | undefined, next: () =&gt; { version: FsVersion } | undefined | Promise&lt;{ version: FsVersion } | undefined&gt;): Promise&lt;{ version: FsVersion } | undefined&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a></p>
+<p><a id="fsedit-intent--waterfall" class="anch"></a></p>
+<h4 id="fs/edit-intent-—-waterfall"><code>fs/edit-intent</code> — waterfall</h4>
+<p>Single-slot decision for the next FileSystem.editText. Calling <code>next()</code> yields an unconditional edit; the first returned guard wins.</p>
+<pre><code>/**
+ * Single-slot decision for the next {@link FileSystem.editText}. Calling
+ * `next()` yields an unconditional edit; the first returned guard wins.
+ * @param target - the resolved target about to be edited.
+ * @param actor - the opaque tool-execution context the decider keys off.
+ * @mode waterfall
+ */
+&#x27;fs/edit-intent&#x27;(target: FsTarget, actor: object | undefined, next: () =&gt; { version: FsVersion } | undefined | Promise&lt;{ version: FsVersion } | undefined&gt;): Promise&lt;{ version: FsVersion } | undefined&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a></p>
+<p><a id="fsobserved--emit" class="anch"></a></p>
+<h4 id="fs/observed-—-emit"><code>fs/observed</code> — emit</h4>
+<p>Record an authoritative positive or negative observation. Listeners must be synchronous recorders: throws fail the tool call and returned promises are not awaited.</p>
+<pre><code>/**
+ * Record an authoritative positive or negative observation. Listeners must
+ * be synchronous recorders: throws fail the tool call and returned promises
+ * are not awaited.
+ * @param target - the target whose presence or absence was observed.
+ * @param observation - present with its version, or confirmed absent.
+ * @param actor - the observing tool-execution context; undefined records nothing useful.
+ * @mode emit
+ */
+&#x27;fs/observed&#x27;(target: FsTarget, observation: FsObservation, actor: object | undefined): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a></p>
+<p><a id="fswrite-intent--waterfall" class="anch"></a></p>
+<h4 id="fs/write-intent-—-waterfall"><code>fs/write-intent</code> — waterfall</h4>
+<p>Single-slot decision for the next FileSystem.writeText. Calling <code>next()</code> yields the bare provider's unconditional write; the first listener that returns an intent owns the decision rather than composing with peers.</p>
+<pre><code>/**
+ * Single-slot decision for the next {@link FileSystem.writeText}. Calling
+ * `next()` yields the bare provider&#x27;s unconditional write; the first listener
+ * that returns an intent owns the decision rather than composing with peers.
+ * @param target - the resolved target about to be written.
+ * @param actor - the opaque tool-execution context the decider keys off.
+ * @mode waterfall
+ */
+&#x27;fs/write-intent&#x27;(target: FsTarget, actor: object | undefined, next: () =&gt; FsWriteIntent | undefined | Promise&lt;FsWriteIntent | undefined&gt;): Promise&lt;FsWriteIntent | undefined&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/fs/fs/src/index.ts"><code>packages/fs/fs/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/filesystem">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

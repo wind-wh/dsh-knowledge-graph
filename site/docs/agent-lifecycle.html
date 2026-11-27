@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent 轮次与步骤生命周期 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><span class="none">无章节</span></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Agent 轮次与步骤生命周期</div>
+    <h1>Agent 轮次与步骤生命周期</h1>
+    <div class="meta">分组：概念 · 本地副本：.ua/docs-local/agent-lifecycle.md</div>
+    <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-doc-graphs.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
+<p>     更新时先运行 <code>pnpm run gen-doc-graphs</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/agent-lifecycle.md</code> 重新记录配对。 --&gt;</p>
+<h1 id="Agent-轮次与步骤生命周期">Agent 轮次与步骤生命周期</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/agent-lifecycle.md">English</a> | 中文</p>
+<p>此时序图是 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.zh.md">architecture.md</a> 的配套图示。持久的回放事实保存在 <code>session/event</code> 中，实时控制与状态则保存在 <code>agent/*</code> 中。</p>
+<pre><code>sequenceDiagram
+  participant User
+  participant Agent
+  participant Driver
+  participant Hooks as hook listeners
+  participant Prompt as ctx.systemPrompt
+  participant LLM as ctx.llm
+  participant Tools as ctx.tools
+  participant Session
+  participant SDK as UI or SDK listener
+  User-&gt;&gt;Agent: followup(content)
+  Agent--&gt;&gt;SDK: &lt;code&gt;agent/inbox/spliced&lt;/code&gt;
+  Agent--&gt;&gt;SDK: &lt;code&gt;agent/inbox/inserted&lt;/code&gt; { message }
+  Agent-&gt;&gt;Driver: queued work wakes driver
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/status&lt;/code&gt; running
+  Driver-&gt;&gt;Session: &lt;code&gt;turn/start&lt;/code&gt;
+  Note over Agent,Driver: claim pending next-step input plus one queued prompt
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/inbox/spliced&lt;/code&gt; pure deletion
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/inbox/claimed&lt;/code&gt; { message, turn } per message
+  Driver-&gt;&gt;Tools: resolve({ agent, modelSelection, signal }) once per proposed step
+  Driver-&gt;&gt;Prompt: &lt;code&gt;system-prompt/assemble&lt;/code&gt; waterfall with the step tool set
+  Driver-&gt;&gt;Hooks: &lt;code&gt;agent/pre-step&lt;/code&gt; waterfall
+  Hooks--&gt;&gt;Driver: authoritative reject or enter(messages)
+  alt proposed step rejected, first batch empty, or pre-step failed
+    Driver--&gt;&gt;Driver: claimed batch stays removed, the open turn spends no step
+  else enter proposed step
+  Driver-&gt;&gt;Session: &lt;code&gt;step/start&lt;/code&gt;
+  Driver-&gt;&gt;Hooks: &lt;code&gt;agent/request&lt;/code&gt; waterfall
+  Driver-&gt;&gt;LLM: prepareCall(config, signal)
+  Note over Driver,LLM: cancellation during either async phase commits neither system nor users
+  Note over Driver,Session: synchronous admission using the prepared call capability
+  Driver-&gt;&gt;Session: &lt;code&gt;system/message&lt;/code&gt; ordered per-node reconciliation
+  Driver-&gt;&gt;Session: &lt;code&gt;user/message&lt;/code&gt; per entered message
+  Driver-&gt;&gt;Session: &lt;code&gt;request/header&lt;/code&gt; and &lt;code&gt;request/context&lt;/code&gt; as needed
+  Driver-&gt;&gt;Driver: derive and freeze request from the log
+  Driver-&gt;&gt;LLM: bound prepared call through &lt;code&gt;llm/stream&lt;/code&gt; waterfall
+  LLM--&gt;&gt;Driver: StreamChunk*
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/assistant-stream&lt;/code&gt; chunk*
+  alt final adapter or terminal in-band request failure
+    Driver-&gt;&gt;Session: &lt;code&gt;assistant/attempt&lt;/code&gt;
+    Driver--&gt;&gt;SDK: &lt;code&gt;agent/assistant-stream&lt;/code&gt; committed end
+    Driver-&gt;&gt;Hooks: &lt;code&gt;agent/request-error&lt;/code&gt; waterfall
+    Hooks--&gt;&gt;Driver: return retry action or preserve the original error
+    Note over Driver,LLM: retry in the open step: prepare and reconcile the same rendered assembly without repeating pre-step or users
+  else model request succeeded
+  Driver-&gt;&gt;Session: &lt;code&gt;assistant/message&lt;/code&gt;
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/assistant-stream&lt;/code&gt; committed end
+  Driver-&gt;&gt;Tools: classify pending call by executionMode
+  loop barriers and bounded rolling pool, reclassify before start
+    opt call starts
+      Driver-&gt;&gt;Session: &lt;code&gt;tool/call&lt;/code&gt;
+      Driver-&gt;&gt;Tools: ordered pre, concurrent execute
+      Tools--&gt;&gt;Session: tool-owned events when applicable
+    end
+    opt next model-order result ready
+      Driver-&gt;&gt;Tools: ordered post
+      Driver-&gt;&gt;Session: &lt;code&gt;tool/result&lt;/code&gt;
+    end
+  end
+  Driver-&gt;&gt;Session: &lt;code&gt;step/end&lt;/code&gt;
+  Driver-&gt;&gt;Tools: dispose the step tool set
+  opt natural stop and next-step inbox empty
+    Driver-&gt;&gt;Hooks: &lt;code&gt;agent/turn-stopping&lt;/code&gt; serial terminal checkpoint
+  end
+  opt next-step input is pending
+    Driver--&gt;&gt;Driver: claim pending next-step input
+    Driver--&gt;&gt;SDK: &lt;code&gt;agent/inbox/claimed&lt;/code&gt; { message, turn } per message
+    Driver-&gt;&gt;Hooks: &lt;code&gt;agent/pre-step&lt;/code&gt; waterfall
+    Hooks--&gt;&gt;Driver: authoritative reject or enter(messages)
+  end
+  end
+  end
+  Driver-&gt;&gt;Session: &lt;code&gt;turn/end&lt;/code&gt;
+  Driver--&gt;&gt;SDK: &lt;code&gt;agent/status&lt;/code&gt; idle</code></pre>
+<p><code>assistant/message</code> 事件会记录每次成功的提供方调用，包括返回空内容或以 <code>max-tokens</code> 结束的调用，并嵌入精确的紧凑带时间 stream。空内容不会进入派生历史。失败、重试、取消或 stream error attempt 到达 settlement 时，如果没有 surface message，就会把 stream 记录为 <code>assistant/attempt</code>。实时 <code>agent/assistant-stream</code> chunk frame 是瞬态数据；回放读取任一种持久 settlement，如果进程在 settlement 前硬中断，则不会留下持久 attempt stream。</p>
+<p><code>dsh-compaction-basic</code> 在派生请求之前通过 <code>agent/pre-step</code> 处理压力，而 <code>agent/request-error</code> 仅用于规范的上下文溢出。任一触发条件满足后，系统都会先执行可选的工具结果剪枝，再选择摘要。恢复发生在仍打开的步骤内，只有剪枝或摘要生成推进 surface replacement generation 时才重试，否则仍以原始请求错误为准。每次重试都会准备调用，并在派生请求之前协调保留的已渲染组装结果，不重复组装、pre-step 或用户消息准入。</p>
+<p>以返回的 <code>agent/pre-step</code> 决策为准；通过包装 <code>next()</code> 的监听器会保留下游消息与 <code>startsRequestSeries</code>，除非有意替换。steering（中途引导）和注入的上下文在后续的认领操作取得其下一步骤批次后，会经过同一 waterfall（瀑布式事件）。</p>
+<p>需要可回放 transcript（文本记录）数据的 SDK 用户应当消费 <code>session/event</code>；<code>agent/*</code> 是用于队列与状态、提示词拦截、请求构造、steering、继续执行和错误处理的实时协调接口。</p>
+<p>维护模式：英文源文件包含人工维护的 Mermaid 时序图，并由生成器写出；本中文文件作为经评审对侧通过双语配对维护。确切的事件签名位于生成的 Cordis 目录中。</p></div>
+    <div class="back"><a href="/?focus=reference/agent-lifecycle">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

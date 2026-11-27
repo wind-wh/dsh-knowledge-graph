@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>会话投影 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#投影单元">投影单元</a><a class="t2" href="#快照与变更流">快照与变更流</a><a class="t2" href="#摘要读取">摘要读取</a><a class="t3" href="#摘要词汇">摘要词汇</a><a class="t2" href="#注册表：ctx.sessionProjections">注册表：ctx.sessionProjections</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.sessionProjectionCache-—-SessionProjectionCache">ctx.sessionProjectionCache — SessionProjectionCache</a><a class="t3" href="#ctx.sessionProjections-—-SessionProjectionRegistry">ctx.sessionProjections — SessionProjectionRegistry</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 会话投影</div>
+    <h1>会话投影</h1>
+    <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session-projection.md</div>
+    <div class="body"><h1 id="会话投影">会话投影</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-projection.md">English</a> | 中文</p>
+<p>会话投影 seam 是一项<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/capability-seams.zh.md">能力 seam</a>：领域 host 插件经由它向客户端载体供给按会话的日志派生状态的当前全量值；三方分别是 Service Definition 与注册表（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection">dsh-session-projection</a>，<code>ctx.sessionProjections</code>）、领域贡献方（每个领域注册一个纯单元）与载体（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller">dsh-session-controller</a> 的历史尾页与 <code>session/projection</code> 推送帧）。Host 状态读取方在激活期间要求注册表存在。框架负责驱动，领域负责计算：注册表只订阅一次 <code>session/event</code>，并把每个已提交事件折叠进每个单元；领域不持有任何订阅，客户端也从不折叠领域事件——它们收到的是成品值。设计权威：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/proposed/architecture/2026-07-27-session-projection-and-command-log.zh.md">session-projection RFC</a>；驱动、缓存与变更流约定：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">包 README</a>。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
+<p><code>ProjectionHandle</code> 在注销后仍保留同步 reader。<code>stateOf(session)</code> 用原有单元折叠新提交的事件，不会重新加入全局快照或通知。必须等待注册完成才能使用 handle。参见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">注册生命周期</a>。</p>
+<pre><code>/** An effect-owned registration with a reader retained independently of registration. */
+interface ProjectionHandle&lt;S&gt; {
+  /**
+   * Read the current state, including after unregistering, by folding new
+   * Session events with this handle&#x27;s original unit. Do not mutate the live value.
+   * After the final release, a read also advances the released cell that
+   * `checkpoint(session)` serves, until the key registers again.
+   * @param session - Session whose committed events are folded.
+   * @returns the projection state at the Session&#x27;s current cursor.
+   */
+  stateOf(session: Session): S
+  /**
+   * Create a reader for one exact Session without reading state or preparing it.
+   * The reader retains this unit after unregistration and owns no disposal.
+   * @param session - Session whose committed events the bound reader folds.
+   * @returns a synchronous callback with the same state and failures as `stateOf(session)`.
+   */
+  readerFor(session: Session): () =&gt; S
+  /**
+   * Unregister from global drives and snapshots without invalidating this reader.
+   * @returns a promise that resolves when this registration is released.
+   */
+  dispose(): Promise&lt;void&gt;
+}</code></pre>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">兼容规则</a>规定旧释放操作、按键读取及其每个键一次的弃用警告。</p>
+<p><code>ProjectionHandle.readerFor(session)</code> 为一个确切的 Session 返回 <code>() =&gt; S</code> 回调。调用它会读取原有单元，保留借用状态、就绪要求和同步失败。所有者可将多个读取函数组合成一个类型化对象；领域服务将它们保留在内部。参见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">绑定多个状态</a>。</p>
+<h2 id="投影单元">投影单元</h2>
+<p><code>ProjectionDefinition&lt;K, S&gt;</code> 在各单元内部携带宿主状态类型；注册从 <code>stateSchema</code> 推导 <code>S</code>，并返回 <code>ProjectionHandle&lt;S&gt;</code>。只有客户端可见的 key 合并到 <code>SessionProjectionMap</code>，由它约束对应的全量值。<code>wire</code> 块使单元对客户端可见，渲染归 slot 体系管，永远不归本层：</p>
+<pre><code>/**
+ * One domain&#x27;s state-driven computation unit: a pure synchronous fold plus
+ * declarations and an optional client view — never an opaque getter. The framework drives
+ * `apply` on every committed session event; the domain holds no
+ * subscriptions and owns only the computation. All functions MUST be
+ * synchronous (an async unit would tear the carriers&#x27; consistency cut), and
+ * `state` MUST be plain JSON (the persisted-cache precondition).
+ */
+interface ProjectionDefinition&lt;K extends string, S&gt; {
+  /** The projection key this unit owns. */
+  key: K
+  /** Validates persisted state before it seeds a fold. */
+  stateSchema: ZodType&lt;S&gt;
+  /**
+   * State for the empty log and its immutable Session metadata.
+   * @param header - immutable metadata for the Session being projected.
+   * @param inheritedEventCount - exact fork-inherited prefix length.
+   * @returns the initial state.
+   */
+  init(header: SessionHeader, inheritedEventCount: SessionLogOffset): NoInfer&lt;S&gt;
+  /**
+   * Pure transition: previous state + one committed event → next state. A
+   * unit uninterested in an event MUST return the same state reference — an
+   * unchanged reference (`Object.is`) produces zero downstream work.
+   * @param state - the state covering all prior events.
+   * @param event - the next committed session event.
+   * @returns the next state (same reference when the event is not the unit&#x27;s).
+   */
+  apply(state: NoInfer&lt;S&gt;, event: SessionEvent): NoInfer&lt;S&gt;
+  /** Client view. Omit for host-only units. */
+  wire?: K extends keyof SessionProjectionMap ? {
+    /** Validates the wire payload before it leaves the host. */
+    viewSchema: ZodType&lt;SessionProjectionViewValue&lt;SessionProjectionMap[K]&gt;&gt;
+    /**
+     * State → wire payload (the read-side projection). The live drive keeps
+     * the two latest raw results and compares them with `Object.is`; an
+     * object-valued view must reuse its reference to suppress publication
+     * across internal-only state changes.
+     * @param state - the current state.
+     * @returns the whole current value for this unit&#x27;s key.
+     */
+    view(state: NoInfer&lt;S&gt;): SessionProjectionViewValue&lt;SessionProjectionMap[K]&gt;
+    /**
+     * Whether a Session summary carries this unit; omitted means `true`.
+     * Declare `false` on a key whose map entry carries the
+     * `SessionProjectionSummaryExcluded` mark: the runtime key set follows this
+     * field, while the client view type follows the mark.
+     * @default true
+     */
+    summary?: boolean
+  } : never
+  /**
+   * Non-negative persisted-cache invalidation version. Bump when state fields or fold
+   * semantics change, except for optional additions whose absence preserves historical
+   * meaning and whose old-checkpoint suffix replay matches full replay. Test that
+   * equivalence before retaining a version; schema acceptance alone is insufficient.
+   */
+  stateVersion: number
+}</code></pre>
+<p>每个对外投影值都是完整读模型。源事件可以携带完整值，也可以携带领域拥有的操作；单元的确定性 <code>apply</code> 负责回放，checkpoint 加前向 tail replay 会重建出同一状态。</p>
+<h2 id="快照与变更流">快照与变更流</h2>
+<pre><code>/**
+ * One consistent read cut over every registered client-visible unit for one session.
+ * `asOfSeq` is the shared watermark — the seq of the last event every value
+ * reflects (`-1` for an empty log).
+ */
+interface ProjectionSnapshot {
+  /** Seq of the last event the values reflect; -1 for an empty log. */
+  asOfSeq: SessionSeqCursor
+  /** Whole current client value per registered key. */
+  values: Partial&lt;SessionProjectionMap&gt;
+}</code></pre>
+<pre><code>/**
+ * Change-feed listener: one unit&#x27;s raw `view` result changed by `Object.is`
+ * for one session. `value` is the schema-validated output; `seq` is the
+ * unit&#x27;s watermark at emission (the seq of the event that caused the change).
+ */
+type ProjectionChangeListener = (
+  session: Session,
+  key: Extract&lt;keyof SessionProjectionMap, string&gt;,
+  value: unknown,
+  seq: SessionSeq,
+) =&gt; void</code></pre>
+<pre><code>/**
+ * Event-level change-feed listener: one committed event changed the raw `view`
+ * result of at least one client-visible unit by `Object.is` for one session.
+ * `changes` holds one entry per such unit in registration order, each with the
+ * unit&#x27;s `key` and its schema-validated view as `val`; `seq` is the seq of the
+ * causing event.
+ */
+type ProjectionEventChangeListener = (
+  session: Session,
+  changes: readonly { readonly key: Extract&lt;keyof SessionProjectionMap, string&gt;; readonly val: unknown }[],
+  seq: SessionSeq,
+) =&gt; void</code></pre>
+<p><code>snapshot(session)</code> 完全同步：载体在切出页面切片的同一 tick 内读取它，因此 <code>asOfSeq</code> 使两次读取使用同一个序号。它只返回客户端视图，并在返回前通过各单元的 <code>viewSchema</code> 校验。<code>handle.stateOf(session)</code> 可在不计算无关视图的情况下读取一份实时 host 状态；调用方不得修改这一借用引用。state 引用变化时，注册表计算并缓存一次原始 view；只有该结果通过 <code>Object.is</code> 判定为变化时才触发变更流，对象 view 若要在仅内部 state 变化时抑制发布就必须保留引用。一个已提交事件驱动完所有单元后，事件级变更流以该事件改变了视图的全部客户端可见 key 调用每个 <code>onEventChanged</code> 监听器一次；未改变任何客户端视图的事件不产生事件级调用。</p>
+<h2 id="摘要读取">摘要读取</h2>
+<p>Session 摘要包含每个已注册客户端视图，但排除 <code>SessionProjectionMap</code> 条目带 <code>SessionProjectionSummaryExcluded&lt;T&gt;</code> 标记的 key。标记没有运行时表示：它决定客户端视图类型，<code>wire.summary</code> 决定运行时键集合，省略即 <code>true</code>。map 条目带标记的 key 应声明 <code>wire.summary: false</code> 以保持一致；该字段是普通布尔值，类型层不做强制。</p>
+<p><code>summaryKeys()</code> 从实时注册派生该集合，并在注册或注销改变 key 表之前持续返回同一实例。摘要消费方把它传给既有的带 key 读取面 —— 实时 Session 用 <code>snapshot(session, keys)</code>，checkpoint 行用 <code>viewCheckpoint(rows, keys)</code>，两者都直接使用 Set、不做复制 —— 因此不存在摘要专用读取面，集合也只有一处定义。</p>
+<p>列表行携带的是这个摘要投影，绝不是全量投影：它只承诺摘要键集合，不承诺更多。<code>snapshot(session, keys)</code> 只计算它返回的单元。不传 key 子集时，<code>snapshot</code> 计算每个客户端可见单元、不计算 Host 专用单元，<code>viewCheckpoint</code> 返回每个 wire key，因此打开的 Session、其 follow 基线与控制基线携带每个投影值；<code>@</code> 引用只通过同一组带 key 的读取面读取其标签 key。注册表的 <code>cachedSnapshot(session, keys)</code> 已废弃：它只返回其他读取已经算好的值，可能缺少 key。</p>
+<h3 id="摘要词汇">摘要词汇</h3>
+<p>以下声明构成摘要规则。标记、其剥离、被排除键的判定与摘要值类型声明在纯类型出口；两个读取面共同接受的 key 选择声明在服务模块。</p>
+<pre><code>/**
+ * One `SessionProjectionMap` entry excluded from Session summary payloads
+ * (the Session list row and any other summary read). The mark is type-only;
+ * `T` keeps its exact runtime value and wire representation. Wrap only the
+ * excluded contributor&#x27;s own map entry, and place a nullable entry&#x27;s `null`
+ * outside the wrapper (`SessionProjectionSummaryExcluded&lt;Item[]&gt; | null`) so
+ * the required symbol cannot absorb that member.
+ */
+type SessionProjectionSummaryExcluded&lt;T&gt; = T &amp; {
+  readonly [sessionProjectionSummaryExcluded]: true
+}</code></pre>
+<pre><code>/**
+ * One map entry&#x27;s client view value: the summary mark stripped. The
+ * conditional distributes over a nullable entry&#x27;s union, so a `| null` member
+ * written outside the wrapper survives unchanged.
+ */
+type SessionProjectionViewValue&lt;T&gt; =
+  T extends SessionProjectionSummaryExcluded&lt;infer Value&gt; ? Value : T</code></pre>
+<pre><code>/** Every client view value, keyed by projection key, with no summary mark. */
+type SessionProjectionViewValues = {
+  [K in keyof SessionProjectionMap]: SessionProjectionViewValue&lt;SessionProjectionMap[K]&gt;
+}</code></pre>
+<pre><code>/**
+ * Keys a Session summary omits: map entries whose non-nullish value carries
+ * the summary mark. Nullish members are ignored, so a nullable entry is still
+ * recognized when its `null` lives outside the wrapper.
+ */
+type SessionProjectionSummaryExcludedKey = {
+  [K in keyof SessionProjectionMap]:
+  NonNullable&lt;SessionProjectionMap[K]&gt; extends SessionProjectionSummaryExcluded&lt;unknown&gt; ? K : never
+}[keyof SessionProjectionMap]</code></pre>
+<pre><code>/**
+ * The client values a Session summary carries: every client view value except
+ * {@link SessionProjectionSummaryExcludedKey}. A summary read returns these
+ * keys only; an opened Session&#x27;s full snapshot keeps every view value.
+ */
+type SessionProjectionSummaryValues =
+  Omit&lt;SessionProjectionViewValues, SessionProjectionSummaryExcludedKey&gt;</code></pre>
+<pre><code>/**
+ * One read&#x27;s client-visible key selection: an explicit key list, or a derived
+ * set such as {@link SessionProjectionRegistry.summaryKeys}. A set is used as
+ * given; only a list is copied into one.
+ */
+type ProjectionKeySelection =
+  | readonly Extract&lt;keyof SessionProjectionMap, string&gt;[]
+  | ReadonlySet&lt;Extract&lt;keyof SessionProjectionMap, string&gt;&gt;</code></pre>
+<h2 id="注册表：ctx.sessionProjections">注册表：<code>ctx.sessionProjections</code></h2>
+<p><code>SessionProjectionRegistry</code>（<a href="#ctxsessionprojections--sessionprojectionregistry">签名</a>）拥有驱动逻辑：一个 <code>session/event</code> 订阅、对所有已注册单元立即执行的 <code>apply</code>，以及按会话、按单元保存的水位线缓存。缓存单元惰性构建：若单元在事件产生后才注册，或会话早于注册表存在，第一次访问（事件或读取）会从 <code>init</code> 开始折叠内存日志。领域在激活期间等待 <code>register(definition)</code>，并保留返回的 handle（句柄）。注册归调用 fiber 所有：最后一次释放会从全局驱动和快照中移除该 key，检查点仍保留每个会话中它的最后状态，直到该 key 再次注册，已有句柄仍可读取。同 key、同版本的注册者共享一个单元；版本不兼容时注册失败。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsessionprojectioncache--sessionprojectioncache" class="anch"></a></p>
+<h3 id="ctx.sessionProjectionCache-—-SessionProjectionCache"><span id="ctxsessionprojectioncache--sessionprojectioncache" class="anch"></span><code>ctx.sessionProjectionCache</code> — <code>SessionProjectionCache</code></h3>
+<p>The persisted projection cache service. Opens the <code>session_projcache</code> domain at init, checkpoints live sessions on a throttled write-behind (count/interval triggers from Config) plus three mandatory points — session creation, <code>turn/end</code>, and session disposal (the live-to-cold moment) — and serves the cached rows for a session header. Every durable write is fail-soft: failures log a warning and the cache self-heals on the next write.</p>
+<pre><code>/**
+ * The zero-I/O listing read: whole values viewed straight from the stored
+ * rows (version-matching keys only) of the record bound to the caller&#x27;s
+ * lifecycle. The header is the only identity witness a listing holds, so
+ * this face matches the lifecycle identity (`formatVersion`, `createdAt`,
+ * `cwd`, `isSeeded`) and not the inherited cut: within one format
+ * generation the cut is fixed at fork time, so it distinguishes no
+ * lifecycle the other fields do not, and a viewed value never seeds a fold.
+ * The view is as stale as the last durable checkpoint but never wrong and
+ * never from an unrelated log. Its `asOfSeq` is the lowest watermark among
+ * the served rows: the stored record&#x27;s own position, which the header
+ * cannot relate to the log the caller later opens. The Session list
+ * therefore labels the block as cached, and the client lets every value the
+ * connected Session produces supersede it whatever this number says.
+ * @param meta - the listed session&#x27;s header (identity witness; no log read).
+ * @param keys - optional projection keys required by the caller&#x27;s audience.
+ * @returns the viewed block, or `undefined` when no usable row exists for
+ *   this lifecycle at the current Session format.
+ */
+cachedSnapshot( meta: SessionHeader, keys?: ProjectionKeySelection, ): ProjectionSnapshot | undefined
+
+/**
+ * Read only a predecessor checkpoint&#x27;s title as a zero-I/O listing hint.
+ *
+ * The authoritative Session header supplies the lifecycle identity. A cache
+ * checkpoint can lag that log but cannot lead it because writes flush the
+ * log first, so a matching predecessor title is a genuine (possibly stale)
+ * fact from this Session. The registry still requires the current title
+ * projection&#x27;s row version and schema. No other predecessor projection is
+ * exposed: format normalization can change their current meaning, and the
+ * {@link cachedSnapshot} / hydration paths continue to reject them.
+ * @param meta - authoritative listed Session header.
+ * @returns a title-only block at the stored title row&#x27;s watermark, or
+ *   `undefined` when the record is current, newer, unrelated, missing, or
+ *   incompatible with the title unit.
+ */
+cachedPredecessorTitle(meta: SessionHeader): ProjectionSnapshot | undefined
+
+/**
+ * Hydrate projection cells for an already-prepared Session without another
+ * persistence read. The cache seeds matching rows; the supplied exact log
+ * advances every unit to the observation cut. No checkpoint is written
+ * because the logical observation may contain recovery events not yet durable.
+ * @param session - exact unpublished Session retained by persistence.
+ * @param events - exact logical event prefix represented by the observation.
+ * @returns all projection values at the event cut.
+ */
+hydratePrepared( session: Session, events: readonly SessionEvent[], ): ProjectionSnapshot
+
+/**
+ * Durably checkpoint one live session NOW (all mandatory points call
+ * this; tests and carriers may too). The registry cut is snapshotted at
+ * this boundary (states are live references), then the session&#x27;s record is
+ * replaced on the domain&#x27;s write chain. NOT fail-soft — callers on the
+ * fail-soft paths contain it.
+ * @param session - the live session to checkpoint.
+ * @returns resolution after durability and event emission.
+ */
+async write(session: Session): Promise&lt;void&gt;
+
+/**
+ * Cold-read one session&#x27;s projections from its complete log. Each unit is
+ * seeded from the identity-checked cached rows — the registry skips `apply`
+ * for the already-folded prefix (events at or below the row&#x27;s `seq`) — and
+ * the refreshed checkpoint is written back (fail-soft, fire-and-forget), so
+ * the first cold read creates the cache row and later ones seed from it.
+ * The caller supplies the complete log in seq order: this service never
+ * consults the persistence layer.
+ * @param meta - the stored session header (identity witness).
+ * @param inheritedEventCount - exact inherited prefix length for projection initialization and identity.
+ * @param events - the session&#x27;s complete log, in seq order.
+ * @returns the projection cut at the log end.
+ */
+coldSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, events: readonly SessionEvent[], ): ProjectionSnapshot</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection-cache/src/index.ts"><code>packages/session/session-projection-cache/src/index.ts</code></a></p>
+<p><a id="ctxsessionprojections--sessionprojectionregistry" class="anch"></a></p>
+<h3 id="ctx.sessionProjections-—-SessionProjectionRegistry"><span id="ctxsessionprojections--sessionprojectionregistry" class="anch"></span><code>ctx.sessionProjections</code> — <code>SessionProjectionRegistry</code></h3>
+<p><code>ctx.sessionProjections</code>: the projection unit table and its drive. The service subscribes to <code>session/event</code> once; every committed event passes every registered unit's <code>apply</code> (eager drive). A changed state reference computes the next client view; the change feed is notified only when its raw result changes by <code>Object.is</code>. Cells build lazily — a unit registered after events flowed, or a session older than the registry, folds <code>init</code> over the in-memory log on first touch (event or read). Consumers declare <code>sessionProjections</code> as a required injection, await registration during activation, and retain its ready handle. Registrants sharing a key share one unit and are counted. The last release removes the unit from live drives, restores, and client snapshots, while checkpoints keep each Session's last cell of it until the key registers again and the new unit refolds the log; retained handles still fold new events on demand using the original unit.</p>
+<pre><code>/**
+ * Register one domain&#x27;s unit on the calling context&#x27;s fiber. Fiber or handle
+ * disposal releases one reference; the final release removes live participation.
+ * Retained handles remain readable after release.
+ * Callers must await registration before publishing consumers; registration may perform asynchronous work.
+ * @param definition - key, state schema, pure unit functions, and stateVersion.
+ * @returns an awaitable yielding a ready handle; the callable runtime value is deprecated.
+ */
+register&lt;K extends keyof SessionProjectionMap, S&gt;( definition: Omit&lt;ProjectionDefinition&lt;K, S&gt;, &#x27;wire&#x27;&gt; &amp; { wire: NonNullable&lt;ProjectionDefinition&lt;K, S&gt;[&#x27;wire&#x27;]&gt; }, ): Promise&lt;ProjectionHandle&lt;S&gt;&gt;
+
+/**
+ * Register one host-only unit. Its state is omitted from client snapshots
+ * and always checkpointed like every other unit.
+ * Callers must await registration before publishing consumers; registration may perform asynchronous work.
+ * @param definition - key, state schema, pure unit functions, and stateVersion.
+ * @returns an awaitable yielding a ready handle; the callable runtime value is deprecated.
+ */
+register&lt;K extends string, S&gt;( definition: ProjectionDefinition&lt;K, S&gt; &amp; { key: Exclude&lt;K, keyof SessionProjectionMap&gt; }, ): Promise&lt;ProjectionHandle&lt;S&gt;&gt;
+
+/**
+ * Subscribe to the change feed. The registration is an effect on the
+ * calling context&#x27;s fiber.
+ * @param listener - called once per client-visible unit whose raw view changed by `Object.is`, per committed event.
+ * @returns the exact disposer that unsubscribes.
+ */
+onChanged(listener: ProjectionChangeListener): () =&gt; void
+
+/**
+ * Subscribe to the event-level change feed. The registration is an effect on
+ * the calling context&#x27;s fiber. The listener runs synchronously inside the
+ * committed event&#x27;s `session/event` handling, once after every unit has been
+ * driven and after every {@link onChanged} call for that event. If a unit or
+ * an {@link onChanged} listener throws during that drive, the listener still
+ * receives the changes made before the throw.
+ * @param listener - called once per committed event that changed at least one client-visible unit&#x27;s raw view by `Object.is`.
+ * @returns the exact disposer that unsubscribes.
+ */
+onEventChanged(listener: ProjectionEventChangeListener): () =&gt; void
+
+/**
+ * One consistent cut over every registered client-visible unit for one session, read from
+ * the watermark cache (missing cells fold lazily over the in-memory log).
+ * Only the returned units are computed: other units, including Host-only
+ * units without `wire`, are neither folded nor advanced by this read.
+ * Fully synchronous — every value and `asOfSeq` reflect the same log
+ * position. Each value passes its unit&#x27;s `viewSchema` before leaving.
+ * @param session - the session whose projection values are read.
+ * @param keys - optional client-visible outputs; only these units are computed.
+ * @returns the snapshot; `values` is empty when no selected client-visible unit is registered.
+ */
+snapshot( session: Session, keys?: ProjectionKeySelection, ): ProjectionSnapshot
+
+/**
+ * The keys a Session summary carries: every registered client-visible key
+ * whose unit does not declare `summary: false`. The returned set is stable —
+ * the same instance on every call — until a registration or its disposal
+ * changes the key table, so a consumer may hold it across rows. Callers pass
+ * it to a key-taking read face such as `snapshot(session, summaryKeys())`
+ * or `viewCheckpoint(rows, summaryKeys())`; those faces use the set as-is.
+ * @returns the current summary key set; do not mutate it.
+ */
+summaryKeys(): ReadonlySet&lt;Extract&lt;keyof SessionProjectionMap, string&gt;&gt;
+
+/**
+ * State-level checkpoint of every persisted unit for one session, read
+ * from the watermark cache (missing cells fold lazily over the in-memory
+ * log). This is the write side of the persisted projection cache: the
+ * returned rows are the `(key → {ver, seq, val})` part of the durable
+ * `(sessionId, key, ver, seq, val)`
+ * rows. Every `val` is a DETACHED structured clone — never the live
+ * cell reference: the watermark cache is this registry&#x27;s authoritative
+ * mutable state, and a caller reaching the live reference could corrupt
+ * every subsequent snapshot and frame through it (plain JSON by the unit
+ * contract, so the clone is total).
+ * A released unit contributes the Session&#x27;s last cell. The registry no
+ * longer advances that cell, while a retained handle read still advances it
+ * forward, so a writer running after a plugin unloads keeps that unit&#x27;s
+ * latest state; a Session that has no cell of it gets no row. {@link restore}
+ * folds only live units, so its refreshed rows omit released units.
+ * @param session - the session whose unit states are checkpointed.
+ * @returns one row per registered key, plus one per released key with a cell for this Session.
+ */
+checkpoint(session: Session): ProjectionCheckpoint
+
+/**
+ * The stored seq a {@link restore} tail read over `checkpoint` must start
+ * at: one event BELOW the lowest usable watermark (a row is usable when
+ * its `ver` matches the live unit&#x27;s `stateVersion`; an absent or mismatched row
+ * pulls the floor to `0` — that key must refold the full log). The
+ * one-below anchor is load-bearing: the tail then proves how far the
+ * stored log still extends, so {@link restore} can detect a log that
+ * shrank below a row&#x27;s watermark (crash-repair truncation) instead of
+ * serving the stale row as current — an empty tail read from the anchor
+ * yields an end below every watermark and the restore rejects for a full
+ * re-read.
+ * @param checkpoint - persisted rows for one session (possibly stale or empty).
+ * @returns the offset for the stored-log suffix read (`SessionHandle.read`),
+ *   or `undefined` when no live unit is registered (released predecessors do not count; no read needed —
+ *   {@link restore} would serve empty values regardless).
+ */
+restoreFloor(checkpoint: ProjectionCheckpoint): SessionLogOffset | undefined
+
+/**
+ * View a checkpoint&#x27;s rows without any log read: for every registered
+ * client-visible unit whose row&#x27;s `ver` matches, serve the schema-validated
+ * `view` of the schema-validated stored state; mismatched, malformed, or absent rows leave their key
+ * absent (a cold or listing consumer treats it as not-yet-available and a
+ * fuller read path refolds it). The zero-I/O rung of the read ladder —
+ * values are as stale as their rows, never wrong.
+ * @param checkpoint - persisted rows for one session (possibly stale or empty).
+ * @param keys - optional wire keys to view.
+ * @returns whole values per key with a usable row; empty when none.
+ */
+viewCheckpoint( checkpoint: ProjectionCheckpoint, keys?: ProjectionKeySelection, ): Partial&lt;SessionProjectionMap&gt;
+
+/**
+ * Cold read: fold every persisted unit over a stored log suffix, seeding
+ * each from its checkpoint row when usable — the one read recipe (cached
+ * state + forward tail replay + `view`) applied without a live `Session`.
+ * Call with the stored events at or past `restoreFloor(checkpoint)` (a
+ * `SessionHandle.read` slice) and that same floor as
+ * `baseSeq`; the floor&#x27;s one-below anchor makes the supplied end honest,
+ * so a shrunk log is detected here. A row is usable iff its
+ * `ver` matches the live unit&#x27;s `stateVersion`, it does not predate `baseSeq`
+ * (`seq &gt;= baseSeq - 1`), and it does not claim events past the
+ * supplied end (`seq &lt;= endSeq`); an unusable row is discarded
+ * and its key refolds from `init` — which is only sound over the full
+ * log, so a discarded row with `baseSeq &gt; 0` throws (the caller re-reads
+ * from seq 0, e.g. after a crash-repair truncation shrank the log below
+ * a row&#x27;s watermark).
+ * @param checkpoint - persisted rows for one session (possibly stale or empty).
+ * @param events - the stored events with `seq &gt;= baseSeq`, in seq order.
+ * @param baseSeq - the seq `events` starts at (its first event&#x27;s seq when non-empty).
+ * @param header - immutable metadata for the Session being restored.
+ * @param inheritedEventCount - exact fork-inherited prefix length supplied to unit initialization.
+ * @returns the snapshot cut at the supplied log end (`asOfSeq` is the last
+ *   supplied event&#x27;s seq, `baseSeq - 1` for an empty tail) plus the
+ *   refreshed checkpoint rows at that cut, ready for a durable write-back.
+ *   The rows cover live units only: a released unit has no cell for a log
+ *   folded without a live `Session`, so a write-back of them omits it.
+ */
+restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: SessionLogOffset, header: SessionHeader, inheritedEventCount: SessionLogOffset, ): { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }
+
+/**
+ * Restore an exact cut and install its states on the supplied prepared Session.
+ * A later publication reuses these cells; ordinary live reads and event drive
+ * advance any constructor-owned suffix exactly once.
+ * @param session - exact prepared Session that owns the restored log prefix.
+ * @param checkpoint - persisted rows for this Session lifecycle.
+ * @param events - exact events at the observation cut.
+ * @param baseSeq - first supplied event sequence.
+ * @returns all projection values at the supplied cut.
+ */
+hydrate( session: Session, checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: SessionLogOffset, ): ProjectionSnapshot</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/session-projection">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

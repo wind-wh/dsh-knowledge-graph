@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>实践指南：即时配置表单 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#1.-声明即时字段">1. 声明即时字段</a><a class="t2" href="#2.-组合插件">2. 组合插件</a><a class="t2" href="#3.-验证编辑">3. 验证编辑</a><a class="t2" href="#4.-向其他插件的页面贡献内容">4. 向其他插件的页面贡献内容</a><a class="t2" href="#5.-浏览器半侧挂在哪里">5. 浏览器半侧挂在哪里</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 实践指南：即时配置表单</div>
+    <h1>实践指南：即时配置表单</h1>
+    <div class="meta">分组：Cookbook · 本地副本：.ua/docs-local/cookbook/adding-a-settings-card.md</div>
+    <div class="body"><h1 id="实践指南：即时配置表单">实践指南：即时配置表单</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cookbook/adding-a-settings-card.md">English</a> | 中文</p>
+<p>在插件 Config schema 中声明即时字段，并通过产品所属的设置卡片提供编辑入口。导出的 <code>Config</code> 接口描述插件收到的值，包括每个 <code>Volatile&lt;T&gt;</code> 引用。</p>
+<h2 id="1.-声明即时字段">1. 声明即时字段</h2>
+<pre><code>import type { Context, Volatile } from &#x27;@deepseek-ai/cordis&#x27;
+import z from &#x27;@deepseek-ai/schemastery&#x27;
+
+export interface Config {
+  endpoint: Volatile&lt;string | undefined&gt;
+  retries: Volatile&lt;number&gt;
+}
+
+export const Config = z.object({
+  endpoint: z.string().volatile(),
+  retries: z.number().step(1).min(0).default(3).volatile(),
+})
+
+export function apply(ctx: Context, config: Config): void {
+  ctx.on(&#x27;loader/volatile-update&#x27;, () =&gt; {
+    ctx.logger.info(&#x27;Retry limit: %d&#x27;, config.retries.get())
+  })
+}</code></pre>
+<p>在操作开始时读取 <code>.get()</code>。需要一致快照的请求一次性捕获所需值。使用 <code>.check()</code> 进行跨字段 Config 验证；这些检查在持久化前由 Host 执行，不进入序列化的表单 schema。</p>
+<h2 id="2.-组合插件">2. 组合插件</h2>
+<p>为每个实例分配唯一的 profile 条目 id。基础组合包挂载 settings 和 config-editor。自定义 profile 挂载这些服务前，请阅读相应包的 README。</p>
+<p><code>role('secret')</code> 阻止值进入表单响应。对于凭据域管理的值，使用凭据引用。普通字段不进入设置 schema。</p>
+<h2 id="3.-验证编辑">3. 验证编辑</h2>
+<p>在插件页面修改字段并保存。验证 profile patch、消费者下一次操作、插件实例标识不变，以及重启后的恢复。提交无效值，并确认文件和即时值均未改变。</p>
+<p>自定义插件页面从 Plugins 页面所有者接收 <code>form.state</code> 和 <code>form.mutate(operations, expectedRevision)</code>。Host 校验完整 Config，并通过 ConfigEditor 和 volatile HMR 应用修改。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-plugin-manager/README.zh.md">插件页面 README</a> 列出此类页面可注册的 slot，以及 <code>settings.section</code> 条目如何同时出现在那里；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-settings-shell/README.zh.md">ui-settings-shell</a> 是一个现有页面。</p>
+<h2 id="4.-向其他插件的页面贡献内容">4. 向其他插件的页面贡献内容</h2>
+<p>对某个不属于自己的组合包、行或官方插件有话要说的插件，注册进 <code>plugins.detail.actions</code>（页头的控件）、<code>plugins.detail.badge</code>（标题旁的标签）或 <code>plugins.detail.section</code>（页面自身内容之下的区块）。每个条目都以页面的 <code>subject</code> 渲染——<code>{ kind: 'bundle', pkg }</code>、<code>{ kind: 'row', pkg, row }</code> 或 <code>{ kind: 'item', id }</code>——对无话可说的 subject 返回 null：</p>
+<pre><code>ctx.slots.inject(&#x27;plugins.detail.badge&#x27;, () =&gt; ctx.slots.register({
+  name: &#x27;plugins.detail.badge&#x27;,
+  id: &#x27;acme-update&#x27;,
+  locale: &#x27;acmeUpdate&#x27;,
+}, ({ t, subject }) =&gt; subject.kind === &#x27;bundle&#x27; &amp;&amp; hasUpdate(subject.pkg) ? &lt;Tag tone=&quot;info&quot;&gt;{t(&#x27;update&#x27;)}&lt;/Tag&gt; : null))</code></pre>
+<h2 id="5.-浏览器半侧挂在哪里">5. 浏览器半侧挂在哪里</h2>
+<p>浏览器半侧由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules">客户端模块系统</a>送到页面：它扫描已启用的 Loader 条目，找出声明了 <code>dsh.client</code> 的包，送出每个包构建好的 <code>./client</code> 导出——但它只把一个包的半侧挂在说明符恰为裸包名的那一行上。从子路径导出挂载的行永远不带半侧，因此把一个包拆成多行的组合包，其半侧留在根行上，它注册的每个页面都随根行关闭而消失。需要在其他行关闭时仍保留页面的子插件，应作为独立的包发布。</p>
+<p>构建出的 <code>./client</code> 文件必须是客户端模块系统的 lazy-CJS factory 格式：一段脚本，向页面的模块加载器登记包名和一个 <code>factory(require)</code>，见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/README.zh.md">客户端模块系统的 README</a>。生成它的 <code>clientBundle</code> tsdown 预设位于 <code>packages/client/tsdown.client.ts</code>，而不在任何已发布的包里，因此仓库之外的包要自己复刻这一步构建。</p>
+<pre><code>{
+  &quot;exports&quot;: {
+    &quot;.&quot;: { &quot;types&quot;: &quot;./lib/types/index.d.ts&quot;, &quot;default&quot;: &quot;./lib/index.js&quot; },
+    &quot;./client&quot;: { &quot;types&quot;: &quot;./lib/types/client/index.d.ts&quot;, &quot;default&quot;: &quot;./lib/client.js&quot; }
+  },
+  &quot;dsh&quot;: { &quot;client&quot;: { &quot;platform&quot;: &quot;web&quot;, &quot;inject&quot;: [&quot;@deepseek-ai/dsh-client-ui-settings&quot;] } }
+}</code></pre>
+<p>内置命名空间的伴生包就是同样的浏览器半侧放在一个纯客户端包里，宿主 <code>apply</code> 为空，列入 Web 组合的插件花名册（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app/cordis.patch.yml"><code>packages/bundle/web-app/cordis.patch.yml</code></a>），并通过 <code>ctx.configForms.whileServed</code> 注册进 <code>plugins.item</code>，页面因此恰好在 Host 服务该命名空间期间存在。</p></div>
+    <div class="back"><a href="/?focus=reference/cookbook/adding-a-settings-card">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

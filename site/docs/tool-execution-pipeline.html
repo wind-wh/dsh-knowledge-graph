@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工具执行流水线 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><span class="none">无章节</span></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 工具执行流水线</div>
+    <h1>工具执行流水线</h1>
+    <div class="meta">分组：概念 · 本地副本：.ua/docs-local/tool-execution-pipeline.md</div>
+    <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-doc-graphs.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
+<p>     更新时先运行 <code>pnpm run gen-doc-graphs</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/tool-execution-pipeline.md</code> 重新记录配对。 --&gt;</p>
+<h1 id="工具执行流水线">工具执行流水线</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-execution-pipeline.md">English</a> | 中文</p>
+<p>内置执行器负责原始批次解析、调度、取消和 Session 调用／结果日志。此图展示其共享调用流水线如何执行策略、钩子、沙箱、文件系统守卫、结果改写、最终结果观测和 UI 呈现，而无需改动循环。<code>tools/pre-execute</code> 瀑布先执行，然后是单调守卫，再是 <code>tools/execute</code> 和 <code>tools/post-execute</code> 瀑布；三个瀑布可以转换调用。定义拥有的 <code>projectContent</code> 在后置策略之前安装准备好的内容，<code>finalizeContent</code> 和 <code>tools/result</code> 在之后执行。</p>
+<pre><code>flowchart TD
+  model[&quot;Assistant message contains tool-call block&quot;]
+  toolCall[&quot;Session event: &lt;code&gt;tool/call&lt;/code&gt;&lt;br/&gt;logged before execution&quot;]
+  presentCall[&quot;UI pending card&lt;br/&gt;presentCall(args)&quot;]
+  pre[&quot;&lt;code&gt;tools/pre-execute&lt;/code&gt; waterfall&lt;br/&gt;hooks, permission, sandbox&quot;]
+  guards[&quot;Registered monotonic guards&lt;br/&gt;deny or abstain; identity protected&quot;]
+  denied[&quot;denied or approval refused&lt;br/&gt;tool body skipped&quot;]
+  approval[&quot;&lt;code&gt;ctx.approval&lt;/code&gt; one-shot prompt&lt;br/&gt;absent or unanswerable: deny&quot;]
+  around[&quot;&lt;code&gt;tools/execute&lt;/code&gt; waterfall&lt;br/&gt;timeout, retry, metrics (around dispatch)&quot;]
+  toolBody[&quot;Registered tool execute() body&quot;]
+  fsGate[&quot;&lt;code&gt;fs/write-intent&lt;/code&gt; or &lt;code&gt;fs/edit-intent&lt;/code&gt;&lt;br/&gt;tool-fs mutations only&quot;]
+  owned[&quot;Tool-owned session events&lt;br/&gt;&lt;code&gt;todo/write&lt;/code&gt;, &lt;code&gt;fs/observed&lt;/code&gt;, &lt;code&gt;hook/invoked&lt;/code&gt;, &lt;code&gt;hook/result&lt;/code&gt;, &lt;code&gt;tool/ptc-dispatch&lt;/code&gt;&quot;]
+  project[&quot;ToolDefinition.projectContent&lt;br/&gt;execution-prepared text and images&quot;]
+  post[&quot;&lt;code&gt;tools/post-execute&lt;/code&gt; waterfall&lt;br/&gt;accept, block, replace, add context&quot;]
+  normalized[&quot;Invocation pipeline normalization&lt;br/&gt;pipeline/result snapshot throws become isError&quot;]
+  finalize[&quot;ToolDefinition.finalizeContent&lt;br/&gt;last content-only invariant&quot;]
+  final[&quot;&lt;code&gt;tools/result&lt;/code&gt; synchronous notification&lt;br/&gt;frozen authoritative outcome&quot;]
+  context[&quot;Active-batch additionalContexts FIFO&lt;br/&gt;injected user/message after recorded tool results&quot;]
+  toolResult[&quot;Session event: &lt;code&gt;tool/result&lt;/code&gt;&lt;br/&gt;single model-facing outcome&quot;]
+  allResults[&quot;Tool batch settled&lt;br/&gt;recorded tool/result events complete&quot;]
+  presentResult[&quot;UI completed card&lt;br/&gt;presentResult(args, result)&quot;]
+  executor[&quot;Selected ToolExecutor.execute&lt;br/&gt;raw batch, Agent, optional logging step&quot;]
+  model --&gt; executor --&gt; toolCall
+  toolCall --&gt; presentCall
+  toolCall --&gt; pre
+  pre --&gt;|allow| guards
+  guards --&gt;|allow| around
+  guards --&gt;|deny| denied
+  guards -.-&gt;|throw| normalized
+  around --&gt; toolBody
+  pre --&gt;|deny| denied
+  pre --&gt;|ask| approval
+  approval --&gt;|allowed-once| guards
+  approval --&gt;|rejected, cancelled, unavailable| denied
+  approval -.-&gt;|throw| normalized
+  denied --&gt; project
+  pre -.-&gt;|throw| normalized
+  toolBody --&gt; fsGate
+  fsGate --&gt; toolBody
+  toolBody --&gt; owned
+  toolBody --&gt; around
+  around --&gt; project
+  project --&gt; post
+  project -.-&gt;|throw| normalized
+  around -.-&gt;|wrapper throws| normalized
+  post -.-&gt;|throw| normalized
+  post --&gt; finalize
+  normalized --&gt; finalize
+  finalize --&gt; final
+  final --&gt; toolResult
+  toolResult --&gt; presentResult
+  toolResult --&gt; allResults
+  allResults --&gt; context</code></pre>
+<p>文件系统的先读后编辑检查位于 <code>tool-fs</code> 之下，通过 <code>fs/*</code> 事件实现。通用的前置／后置 waterfall 承载钩子与审批策略；<code>ctx.approval</code> 在单调守卫之前处理询问，而不得重新排序的所有者策略仍作为已注册的守卫。超时等环绕分发关注点对 <code>tools/execute</code> 进行包装。注册表会对候选结果进行无损快照；如果快照失败，则会先将失败规范化，之后再由可见定义中已随快照固定的 <code>finalizeContent</code> 回调强制执行其同步且仅限内容的不变式。随后，<code>tools/result</code> 会观察不可变、可由 JSON 无损表示的结果。这样一来，钩子便可跨越不同工具系列，而无需让工具与某个策略服务耦合。PTC mode 会将保留的 <code>run_code</code> 传输及其序列化子调用都送入流水线；子调用携带父级 token、记录 <code>tool/ptc-dispatch</code>、将拒绝呈现为具有约束力的驳回，并省略 <code>additionalContexts</code>，以保持调用与结果相邻。</p>
+<p>维护模式：英文源文件包含人工维护的 Mermaid 流程图，并由生成器写出；本中文文件作为经评审对侧通过双语配对维护。确切的工具 schema 与事件签名位于生成的目录中。</p></div>
+    <div class="back"><a href="/?focus=reference/tool-execution-pipeline">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

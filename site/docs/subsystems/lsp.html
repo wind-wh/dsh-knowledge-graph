@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LSP 导航 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#操作与坐标">操作与坐标</a><a class="t2" href="#请求">请求</a><a class="t2" href="#结果">结果</a><a class="t2" href="#提供方与服务">提供方与服务</a><a class="t2" href="#失败">失败</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.lsp-—-LspService">ctx.lsp — LspService</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / LSP 导航</div>
+    <h1>LSP 导航</h1>
+    <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/lsp.md</div>
+    <div class="body"><h1 id="LSP-导航">LSP 导航</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/lsp.md">English</a> | 中文</p>
+<p>LSP seam 是一个<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/glossary.zh.md">能力 seam</a>：它在单一 <code>ctx.lsp</code> 服务上公开语义代码导航，并拆分到多个包：Service Definition（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp">dsh-lsp</a>，<code>ctx.lsp</code> + 提供方注册表）、通用 Service Provider（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp-stdio">dsh-lsp-stdio</a>，经过配置的 stdio 语言服务器宿主）和 Consumer（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/tool-lsp">dsh-tool-lsp</a>，即 <code>lsp</code> 工具 schema）。LSP 是<strong>一项可选能力</strong>，不属于 agent loop（智能体循环）主干，因此其词汇定义在此而非 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">core.md</a> 中。更换提供方不会改变模型请求导航的方式。</p>
+<p>源文件：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp/src/types.ts"><code>packages/lsp/lsp/src/types.ts</code></a></p>
+<h2 id="操作与坐标">操作与坐标</h2>
+<p>seam 与模型恰好公开 4 项语义查询；该联合是闭合的，因此新增一项查询会通过编译强制要求同步修改 seam、提供方和工具。位置与范围采用从零开始的 UTF-16 坐标，与协议一致；面向模型的工具采用从 1 开始的光标约定，并在输入和输出时进行转换。</p>
+<pre><code>/**
+ * The four semantic queries the seam and model expose. A closed union: adding an operation is a
+ * compile-enforced change across the seam, providers, and the tool. Symbols and call hierarchy are
+ * not operations here; they need different schemas.
+ */
+type LspOperation = &#x27;goToDefinition&#x27; | &#x27;findReferences&#x27; | &#x27;goToImplementation&#x27; | &#x27;hover&#x27;</code></pre>
+<pre><code>/** A zero-based UTF-16 cursor coordinate, matching the LSP wire convention. */
+interface LspPosition {
+  /** Zero-based line. */
+  readonly line: number
+  /** Zero-based UTF-16 code-unit offset within the line. */
+  readonly character: number
+}</code></pre>
+<pre><code>/** A zero-based UTF-16 half-open range `[start, end)`. */
+interface LspRange {
+  readonly start: LspPosition
+  readonly end: LspPosition
+}</code></pre>
+<h2 id="请求">请求</h2>
+<p>每个字段都是必填项：<code>workspaceRoot</code> 由调用方提供，<code>languageId</code> 来自提供方注册而非请求，超时与结果上限由消费方决定。因此没有字段需要由实现提供默认值，也不存在 <code>resolve()</code> 步骤。提供方收到调用方请求和派生的 <code>languageId</code>；后者只用于同步瞬态文档，从不参与选择。</p>
+<pre><code>/**
+ * A caller&#x27;s normalized query. Every field is required: `workspaceRoot` is caller-supplied,
+ * `languageId` comes from the provider registration (not here), and consumers own timeouts and
+ * result limits — so no field needs implementation defaulting and there is no `resolve()` step.
+ */
+interface LspQueryRequest {
+  /** Which semantic query to run. */
+  readonly operation: LspOperation
+  /** The source file to query (relative to `workspaceRoot` or absolute; the provider canonicalizes). */
+  readonly filePath: string
+  /** The zero-based UTF-16 cursor position to query at. */
+  readonly position: LspPosition
+  /** The workspace root the provider resolves against and indexes; required, never defaulted. */
+  readonly workspaceRoot: string
+}</code></pre>
+<pre><code>/**
+ * A request as a provider receives it: the caller&#x27;s {@link LspQueryRequest} plus the `languageId`
+ * the seam derived from the provider&#x27;s extension mapping. The language id only synchronizes the
+ * transient document; it does not participate in selection.
+ */
+interface LspProviderQuery extends LspQueryRequest {
+  /** The LSP language id for `filePath`, from this provider&#x27;s extension mapping. */
+  readonly languageId: string
+}</code></pre>
+<h2 id="结果">结果</h2>
+<p>这是一个闭合的可辨识联合：导航操作规范化为 <code>locations</code>，<code>hover</code> 规范化为内容或 <code>null</code>。消费方使用 <code>switch</code> 对 <code>kind</code> 做穷尽处理，因此新增分支会使编译失败，直到完成处理。<code>findReferences</code> 始终包含声明；提供方在内部强制保证这一点，因此调用方没有对应 flag。<code>locations</code> 变体携带 <code>resolvedWorkspaceUri</code>，即提供方的规范工作区 <code>file:</code> URI。调用方相对化位置 URI 时应使用这一坐标，而不是对可能经过符号链接的请求根目录应用宿主平台路径规则。</p>
+<pre><code>/** One resolved location: a document URI and the range within it. */
+interface LspLocation {
+  /** The target document URI (`file:` or otherwise), verbatim from the server. */
+  readonly uri: string
+  /** The range within the target document. */
+  readonly range: LspRange
+}</code></pre>
+<pre><code>/** Normalized hover content, or `null` for no hover at the position. */
+interface LspHover {
+  /** The normalized hover text (markdown or plaintext, provider-joined). */
+  readonly contents: string
+  /** The range the hover applies to, when the server supplied one. */
+  readonly range?: LspRange
+}</code></pre>
+<pre><code>/**
+ * The closed result union. Navigation operations (`goToDefinition`, `findReferences`,
+ * `goToImplementation`) normalize to `locations`; `hover` normalizes to content or `null`.
+ * Consumers `switch` on `kind` to exhaustiveness so a new arm breaks compilation until handled.
+ *
+ * The `locations` variant carries `resolvedWorkspaceUri`: the provider&#x27;s canonical `file:` URI for
+ * the request&#x27;s workspace root. A caller that relativizes location URIs MUST use this, not parse the
+ * request&#x27;s possibly symlinked process path with host-platform rules; the execution platform may
+ * differ from the caller&#x27;s.
+ */
+type LspQueryResult =
+  | { readonly kind: &#x27;locations&#x27;; readonly locations: readonly LspLocation[]; readonly resolvedWorkspaceUri: string }
+  | { readonly kind: &#x27;hover&#x27;; readonly hover: LspHover | null }</code></pre>
+<h2 id="提供方与服务">提供方与服务</h2>
+<p>每个提供方拥有一个稳定的品牌化 <code>id</code>，以及一份互斥的、小写且以点开头的扩展名映射。<code>registerProvider</code> 会原子预留 id 和每个扩展名：注册无效或冲突时不发布任何内容；其 disposer 会释放所有保留项。每次查询独立选择提供方，且选择与顺序无关；没有匹配项时抛出 <code>LspError</code> <code>LSP_UNAVAILABLE</code>。该 seam 不公开协议类型、进程或文档控制，也不提供通用 JSON-RPC 逃生口。</p>
+<pre><code>/**
+ * A language-server backend registered on `ctx.lsp`. Each provider owns a stable {@link
+ * LspProviderId} and an extension-to-language-id map (lowercase, leading-dot keys).
+ * `findReferences` always includes declarations — the provider enforces this internally; callers
+ * get no flag.
+ */
+interface LspProvider {
+  /** Stable provider identity, reserved atomically with the extension mappings. */
+  readonly id: LspProviderId
+  /** Lowercase leading-dot extension → LSP language id (e.g. `{ &#x27;.ts&#x27;: &#x27;typescript&#x27; }`). */
+  readonly extensionToLanguage: Readonly&lt;Record&lt;string, string&gt;&gt;
+  /**
+   * Run one query. The seam has already selected this provider and derived `languageId`.
+   * @param request - the resolved provider query (caller request + derived language id).
+   * @param signal - optional cancellation; the provider stops its own work when it aborts.
+   * @returns the normalized, closed-union result.
+   */
+  query(request: LspProviderQuery, signal?: AbortSignal): Promise&lt;LspQueryResult&gt;
+}</code></pre>
+<pre><code>/**
+ * The LSP capability seam (`ctx.lsp`). Owns provider registration/selection and normalized query
+ * execution; exposes exactly the four operations and no protocol escape hatch.
+ */
+interface LspService {
+  /**
+   * Register a provider, atomically reserving its id and every normalized extension. Any conflict
+   * or invalid input publishes nothing and throws `LspError`; the returned disposer releases all
+   * reservations. Disposed with the calling fiber.
+   * @param provider - the backend to register.
+   * @returns a synchronous disposer releasing the id and all extension reservations.
+   */
+  registerProvider(provider: LspProvider): () =&gt; void
+  /**
+   * Select a provider by the file&#x27;s extension and run one query. Selection is per-query and
+   * order-independent; no match throws `LspError` `LSP_UNAVAILABLE`.
+   * @param request - the normalized query.
+   * @param signal - optional cancellation forwarded to the selected provider.
+   * @returns the normalized, closed-union result.
+   */
+  query(request: LspQueryRequest, signal?: AbortSignal): Promise&lt;LspQueryResult&gt;
+}</code></pre>
+<p><code>LspProviderId</code> 是该 seam 的品牌化 id（来自 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/brand">dsh-brand</a> 的 <code>Branded&lt;'LspProviderId'&gt;</code>）；<code>LspError</code> 扩展 <code>HarnessError</code>，提供<a href="#failures">失败</a>一节列出的稳定错误码，调用方应按错误码路由，而不是解析 <code>message</code>。</p>
+<p><a id="failures" class="anch"></a></p>
+<h2 id="失败"><span id="failures" class="anch"></span>失败</h2>
+<p><code>lsp</code> 工具调用的每个预期失败都是 <code>HarnessError</code>，工具结果会把它的 <code>name</code> 和 <code>code</code> 保留在 <code>error.info</code> 中。<code>LspError</code> 把 <code>name</code> 设为 <code>LspError</code>；由于提供方和消费方会添加错误码，它的 <code>code</code> 保持开放，消费方须容忍未知错误码。无效的工具参数以 <code>ToolArgsError</code> <code>INVALID_ARGS</code> 失败，调用方取消以 <code>AbortError</code> 失败。工作区与源文件读取保留文件系统提供方的 <code>FsError</code> 错误码，例如 <code>FS_NOT_FOUND</code>、<code>FS_NOT_REGULAR_FILE</code> 或 <code>FS_NOT_TEXT</code>，并在其消息前加上 LSP 操作对象；stdio 提供方对非目录工作区使用 <code>FS_NOT_DIRECTORY</code>，对超过 <code>maxDocumentBytes</code> 的源文件使用 <code>FS_TOO_LARGE</code>。如果带错误码的查询失败后服务器拆除也失败，错误保留查询失败的 <code>name</code> 和 <code>code</code>，并把拆除失败追加到消息中；不带错误码的查询失败（例如取消）与拆除失败一起以 <code>AggregateError</code> 呈现，不带 <code>error.info</code>。</p>
+<table><thead><tr><th>错误码</th><th>抛出方</th><th>含义</th><th>消费方操作</th></tr></thead><tbody><tr><td><code>LSP_INVALID_PROVIDER</code></td><td>Seam</td><td>注册的 id 或语言 id 为空、没有扩展名，或扩展名无效</td><td>修正注册</td></tr><tr><td><code>LSP_CONFLICT</code></td><td>Seam</td><td>提供方 id 或某个扩展名已被注册</td><td>移除重复注册</td></tr><tr><td><code>LSP_UNAVAILABLE</code></td><td>Seam</td><td>没有提供方处理该文件扩展名</td><td>查询受支持的文件，或添加提供方</td></tr><tr><td><code>LSP_WORKSPACE_REQUIRED</code></td><td><code>lsp</code> 工具</td><td>调用没有 Agent Session 工作区</td><td>从 Agent Session 调用该工具</td></tr><tr><td><code>LSP_DISPOSED</code></td><td>提供方</td><td>提供方或其服务器实例已被释放</td><td>在提供方重新挂载后重试</td></tr><tr><td><code>LSP_UNSUPPORTED_OPERATION</code></td><td>提供方</td><td>服务器不支持该操作或临时打开／关闭同步</td><td>选择其他操作或服务器</td></tr><tr><td><code>LSP_MALFORMED_RESPONSE</code></td><td>提供方</td><td>服务器的 <code>initialize</code> 或查询结果违反协议</td><td>报告服务器缺陷</td></tr><tr><td><code>LSP_FILE_OUTSIDE_WORKSPACE</code></td><td>stdio 提供方</td><td>源文件解析到规范工作区之外</td><td>查询工作区内的文件</td></tr><tr><td><code>LSP_UNSUPPORTED_ENCODING</code></td><td>stdio 提供方</td><td>服务器协商了 UTF-16 以外的位置编码</td><td>使用支持 UTF-16 的服务器</td></tr><tr><td><code>LSP_SPAWN_FAILED</code></td><td>stdio 提供方</td><td>子进程提供方未能启动或运行服务器；提供方的 <code>HarnessError</code> 则保留其自身的 <code>name</code> 和 <code>code</code></td><td>修正服务器命令或安装</td></tr><tr><td><code>LSP_SERVER_EXITED</code></td><td>stdio 提供方</td><td>服务器已退出或关闭了 stdin；进程退出时消息携带保留的 stderr 尾部</td><td>稍后重试；反复出现时检查 stderr 尾部</td></tr><tr><td><code>LSP_PROTOCOL_ERROR</code></td><td>stdio 提供方</td><td>服务器输出破坏了基础协议分帧或 JSON</td><td>报告服务器缺陷</td></tr><tr><td><code>LSP_MESSAGE_TOO_LARGE</code></td><td>stdio 提供方</td><td>某条服务器消息超过 <code>maxMessageBytes</code></td><td>缩小查询范围或调大 <code>maxMessageBytes</code></td></tr><tr><td><code>LSP_SERVER_ERROR</code></td><td>stdio 提供方</td><td>服务器以 JSON-RPC 错误应答；消息携带其数字错误码与文本</td><td>按服务器消息处理</td></tr></tbody></table>
+<p>传输失败（<code>LSP_SPAWN_FAILED</code>、<code>LSP_SERVER_EXITED</code>、<code>LSP_PROTOCOL_ERROR</code> 或 <code>LSP_MESSAGE_TOO_LARGE</code>）后，如果失败的进程干净地完成拆除，stdio 提供方会在新进程上把只读查询重试一次。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxlsp--lspservice" class="anch"></a></p>
+<h3 id="ctx.lsp-—-LspService"><span id="ctxlsp--lspservice" class="anch"></span><code>ctx.lsp</code> — <code>LspService</code></h3>
+<p>The LSP capability seam (<code>ctx.lsp</code>). Owns provider registration/selection and normalized query execution; exposes exactly the four operations and no protocol escape hatch.</p>
+<pre><code>/**
+ * Register a provider, atomically reserving its id and every normalized extension. Any conflict
+ * or invalid input publishes nothing and throws `LspError`; the returned disposer releases all
+ * reservations. Disposed with the calling fiber.
+ * @param provider - the backend to register.
+ * @returns a synchronous disposer releasing the id and all extension reservations.
+ */
+registerProvider(provider: LspProvider): () =&gt; void
+
+/**
+ * Select a provider by the file&#x27;s extension and run one query. Selection is per-query and
+ * order-independent; no match throws `LspError` `LSP_UNAVAILABLE`.
+ * @param request - the normalized query.
+ * @param signal - optional cancellation forwarded to the selected provider.
+ * @returns the normalized, closed-union result.
+ */
+query(request: LspQueryRequest, signal?: AbortSignal): Promise&lt;LspQueryResult&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/lsp/src/types.ts"><code>packages/lsp/lsp/src/types.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/lsp">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

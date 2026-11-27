@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>会话持久化 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#SessionHandle——通向已存储会话的一条打开通道">SessionHandle——通向已存储会话的一条打开通道</a><a class="t2" href="#flush-检查点">flush 检查点</a><a class="t2" href="#崩溃恢复保留被中断的轮次">崩溃恢复保留被中断的轮次</a><a class="t2" href="#SessionLocation——每一-Session-的产物元数据">SessionLocation——每一 Session 的产物元数据</a><a class="t2" href="#SessionHeader：日志旁的元数据">SessionHeader：日志旁的元数据</a><a class="t2" href="#格式拒绝：本构建无法可靠读取的日志">格式拒绝：本构建无法可靠读取的日志</a><a class="t2" href="#CreateSessionOptions：seed-与元数据">CreateSessionOptions：seed 与元数据</a><a class="t2" href="#准备与恢复所有权">准备与恢复所有权</a><a class="t2" href="#轻量源修订号">轻量源修订号</a><a class="t2" href="#后端">后端</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.deepseekChatImport-—-DeepseekChatImportService">ctx.deepseekChatImport — DeepseekChatImportService</a><a class="t3" href="#ctx.sessionPersistence-—-SessionPersistence-abstract-seam">ctx.sessionPersistence — SessionPersistence (abstract seam)</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 会话持久化</div>
+    <h1>会话持久化</h1>
+    <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/persistence.md</div>
+    <div class="body"><h1 id="会话持久化">会话持久化</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.md">English</a> | 中文</p>
+<p>事件日志的<strong>持久性 seam</strong>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a> 描述了内存中的 <code>Session</code>：仅追加的 <code>SessionEvent</code> 日志即为真源。本页描述如何使该日志持久化：抽象的 <code>SessionPersistence</code> 服务、它的提供方模型与随产品交付的 JSONL 后端、flush 检查点、崩溃恢复，以及随日志一同存储的元数据头。日志承载的事件词汇在生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/persistence-catalog.zh.md">持久化日志事件目录</a>中逐项列举。</p>
+<p>该 seam 是一个<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>：一个抽象服务（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence">dsh-session-persistence</a>，<code>ctx.sessionPersistence</code>）在现有 <code>SessionEvent</code> 上暴露 <code>create</code>/<code>open</code>/<code>stat</code>/<code>list</code>——<strong>没有平行的持久化事件类型</strong>——其中 <code>create</code> 与 <code>open</code> 返回逐会话的 <code>SessionHandle</code>（<code>read</code>/<code>append</code>/<code>flush</code>/<code>close</code>），它承载全部日志访问与单写者所有权。仓库随产品交付 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a> 作为其 provider；仓库外 provider 可以实现同一服务约定。见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence/README.zh.md">session-persistence reference</a>。</p>
+<h2 id="SessionHandle——通向已存储会话的一条打开通道"><code>SessionHandle</code>——通向已存储会话的一条打开通道</h2>
+<p>每一次日志读写都经由句柄流动，绝不经由按 id 寻址的服务方法：句柄是跨进程写租约把守的唯一入口。读取会返回调用方独占的外层 slice，以及由生产者建立的 event value 别名状态。一种句柄类型同时服务两种访问——在 <code>read</code> 句柄上执行修改是运行时的 <code>SessionReadOnlyError</code>，而非类型层面的拆分——而进程内单写者所有权使得在已有活跃持有者时第二次 <code>open(id, 'write')</code> 以 <code>SessionAlreadyOwnedError</code> 拒绝。</p>
+<pre><code>/** One persistence event slice returned by {@link SessionHandle.read}. */
+interface SessionHandleReadResult {
+  /**
+   * Whether event values are exclusively owned or shared only after deep
+   * freezing. Slicing preserves the producer&#x27;s state even when no events remain.
+   */
+  readonly eventState: SessionSeedEventState
+  /** Event values in a caller-owned outer array. */
+  readonly events: readonly SessionEvent[]
+}</code></pre>
+<pre><code>/**
+ * One open channel onto a stored session. A handle is single-owner state, not
+ * a shared service: `read` never backtracks below what this handle already
+ * observed, a `write` handle reads its own successful appends, and `close()`
+ * is the one teardown (idempotent, uncancellable; `Symbol.asyncDispose`
+ * delegates to it). Every operation on a closed handle rejects with
+ * `SessionHandleClosedError`.
+ *
+ * Freshness across handles: once an `append` or `flush` resolves on a write
+ * handle, every read STARTED afterwards on the same backend instance — on any
+ * handle, or through `stat`/`list` — observes at least that prefix.
+ * Reads concurrent with a mutation carry no ordering promise beyond the valid
+ * contiguous prefix.
+ */
+interface SessionHandle extends AsyncDisposable {
+  /** The stored session this handle addresses. */
+  readonly id: SessionId
+  /** The immutable stored header, fixed at `create`/`open`. */
+  readonly header: SessionHeader
+  /**
+   * Exact fork-inherited prefix length stored with the log; `0` when
+   * `header.isSeeded` is false. Storage metadata paired with the header for
+   * every body read, never part of the replayable event log.
+   */
+  readonly inheritedEventCount: SessionLogOffset
+  /** Whether this handle may mutate the log. */
+  readonly access: SessionAccess
+
+  /**
+   * Read a slice of the valid contiguous logical log. The slice is a legal log
+   * prefix segment: a torn physical tail is never returned, and repeated reads
+   * on this handle never observe an older state than a prior read.
+   * @param offset - first logical event seq to include; defaults to `0`.
+   * @param length - maximum number of events to return; defaults to the rest
+   *   of the log. An offset at or past the end returns an empty list.
+   * @param options - optional cancellation.
+   * @returns the caller-owned outer slice plus the ownership state of its event values.
+   */
+  read(offset?: number, length?: number, options?: SessionHandleReadOptions): Promise&lt;SessionHandleReadResult&gt;
+
+  /**
+   * Append a contiguous batch continuing the current logical end. The first
+   * event&#x27;s `seq` MUST equal the stored next-seq; committed events are never
+   * rewritten. Persistence is best-effort: on resolution the batch is
+   * accepted, ordered, and visible to reads on this backend instance, but
+   * only a resolved {@link flush} promises it survives a crash — a backend
+   * may buffer or batch physical writes behind append. Rejects with
+   * `SessionReadOnlyError` on a read handle and `SessionOwnershipLostError`
+   * when write ownership is gone.
+   * @param events - the contiguous batch, in seq order.
+   * @param options - optional cancellation observed before the write starts.
+   */
+  append(events: readonly SessionEvent[], options?: SessionHandleAppendOptions): Promise&lt;void&gt;
+
+  /**
+   * The durability barrier — the one operation that promises storage: on
+   * resolution every acknowledged append is durable and the session is
+   * materialized for other processes; an empty created session becomes
+   * durably listable here. Callers that must survive a crash flush; a backend
+   * whose `append` already persists on resolution treats this as
+   * materialize-if-needed. Rejects with `SessionReadOnlyError` on a read
+   * handle.
+   * @param options - optional cancellation observed before the barrier starts.
+   */
+  flush(options?: SessionHandleFlushOptions): Promise&lt;void&gt;
+
+  /**
+   * Release the handle: a read handle frees local resources; a write handle
+   * completes pending durability and releases write ownership. Idempotent,
+   * asynchronous, and deliberately not cancellable.
+   */
+  close(): Promise&lt;void&gt;
+}</code></pre>
+<p>已创建的会话自 <code>create</code> 完成之刻起即可在本进程内被观察到，而后端可以把物理实体化（纯粹的优化）推迟到第一次 <code>append</code> 或 <code>flush</code>；其他进程只能看到已实体化的会话，一个在崩溃前从未实体化的会话等于从未存在。</p>
+<h2 id="flush-检查点">flush 检查点</h2>
+<p><code>session/event</code> 是一个*同步*通知；挂载的后端按会话 id 把它路由进活跃写句柄的有界 write-behind 窗口，而不阻塞生产方（后端一次性安装这些监听器，因为持久化已保证每个 id 只有一个活跃写句柄）。第一个待处理事件会开启固定的内部批处理窗口，后续事件会加入但不会重置其截止时间。窗口到期后会通过该会话的写句柄启动一次持久化 <code>append</code>；该次写入期间接纳的事件会获得自己的截止时间，并形成后续批次。<code>session/flush</code> 会取消等待并排空至完全停稳，因此循环仍将其用作在领取下一个普通轮次之前的顺序与错误观察检查点。后台写入被拒绝时会按序保留对应事件、暂停自动路径，并通过 logger 报告；下一次显式 flush 会重试，并向其调用方响亮地拒绝。<code>session/disposed</code> 会执行同样的最终排空并关闭句柄，而 <code>close()</code> 本身会经由仍然打开的存储排空已路由的缓冲，因此后端 teardown 的关闭清扫不丢任何数据。该窗口只限制有意的批处理等待，不限制事件循环调度或后端完成持久化的延迟。</p>
+<h2 id="崩溃恢复保留被中断的轮次">崩溃恢复保留被中断的轮次</h2>
+<p>一个在轮次中途崩溃的日志以打开的 <code>turn/start</code> 而无 <code>turn/end</code> 结束。持久化<strong>不会</strong>截断或修复它：在长周期任务中，单个轮次可能非常庞大（许多步骤、大量工具输出），而这些事件在崩溃前已被持久追加。它返回物理上有效的连续日志；只有撕裂物理尾部——属于一次从未完成的 append——中不完整的碎片会被丢弃：从中恢复的完整记录（JSONL 后端会部分解码撕裂的 Zstandard 帧）由写路径在句柄的第一次新 append 之前持久重写。修复是读方的职责：resume（agent-loop）通过其写句柄读取已存储的日志，计算 <code>interruptedTurnClosers</code>——缺失的工具错误、任何未闭合的 <code>step/end</code>，以及一个合成的 <code>turn/end { reason: { kind: 'interrupted' } }</code>——并在发布 Session 之前把它们作为普通批次通过同一句柄追加。<code>interrupted</code> 是唯一一个不由循环发出的 <code>TurnEndReason</code>（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a>）。</p>
+<p>因此修复只在写所有权之下写入：活跃会话的写句柄由其生命周期所有者持有，故并发的 <code>open(id, 'write')</code> 会以 <code>SessionAlreadyOwnedError</code> 拒绝，而不是让修复与活跃轮次竞速。只读观察方（session-query）仅在内存中用同样的闭合事件配平被中断的冷日志，不回写任何内容。</p>
+<p>只读观察即 <code>open(id, 'read')</code>：句柄提供经过验证的连续前缀切片，绝不返回撕裂尾部，且同一句柄上的重复读取绝不会观察到比先前读取更旧的状态。持久化侧不存在已准备 Session 缓存：session-query 拥有自己的冷读缓存，按 <code>stat().revision</code> 变更令牌为每个 id 缓存一个已配平的冷 Session，仅在令牌变化时重新读取。该生命周期由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>定义；已归档的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/architecture/2026-08-05-session-preparation.md">Session 准备阶段记录</a>记载了发布边界 <code>SessionPreparation</code> 最初的决策。</p>
+<h2 id="SessionLocation——每一-Session-的产物元数据"><code>SessionLocation</code>——每一 Session 的产物元数据</h2>
+<p><code>SessionLocation</code> 用于诊断与导出的观察元数据；日志访问仍走会话句柄的 <code>read</code>。已物化的持久化快照携带选中产物路径，<code>SessionFormatUnsupportedError</code> 也能指出本构建拒绝解读的原始日志。JSONL 提供其项目/会话目录内 transcript（文本记录）的绝对路径；没有逐会话工件的后端则不提供。</p>
+<pre><code>/**
+ * A backend-resolved, per-Session local artifact path used by observational
+ * snapshots and refusal diagnostics. It names a backend target for the Session
+ * and does not authorize reads; log access still goes through a session
+ * handle&#x27;s `read`. It is not persisted Session content.
+ */
+interface SessionLocation {
+  /** Backend-specific artifact kind, for example `jsonl`. */
+  readonly kind: string
+  /** Absolute path to this session&#x27;s backend-owned artifact. */
+  readonly path: string
+}</code></pre>
+<p><a id="sessionheader--metadata-beside-the-log" class="anch"></a></p>
+<h2 id="SessionHeader：日志旁的元数据"><span id="sessionheader--metadata-beside-the-log" class="anch"></span><code>SessionHeader</code>：日志旁的元数据</h2>
+<p>每个会话的元数据与事件日志<strong>分开</strong>存储：header 携带格式版本、cwd 与 <code>isSeeded</code> 谱系 bit，含正文的存储值则在其旁边单独携带精确 inherited cut。二者都不进入 <code>SessionEventMap</code>，也不会到达 <code>deriveMessages()</code>。logical header 通过 <code>session.header</code> 附加，Session 则以 <code>inheritedEventCount</code> 暴露其 cut。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/types.ts"><code>packages/core/session/src/types.ts</code></a></p>
+<pre><code>/**
+ * Immutable validated storage metadata, kept outside the conversation event log.
+ */
+interface SessionHeader {
+  /**
+   * Current logical format version, stamped from {@link SESSION_FORMAT_VERSION}.
+   * Historical physical headers are translated before entering this interface.
+   */
+  readonly version: typeof SESSION_FORMAT_VERSION
+  /** The session&#x27;s id (mirrors the {@link Session}&#x27;s id). */
+  readonly id: SessionId
+  /** Non-negative safe-integer Unix epoch milliseconds when the session was created. */
+  readonly createdAt: number
+  /**
+   * Canonical absolute working directory the session was created in (if any). Producers resolve the
+   * requested directory through the execution-world filesystem before recording it, so the later
+   * canonical directory records of the working-directory service compare with it lexically.
+   */
+  readonly cwd?: string
+  /**
+   * Direct creator of a subagent Session. Ordinary forks omit this field;
+   * historical ordinary forks may retain their source id here. Presence alone
+   * does not classify a Session as a subagent; use `origin` for that distinction.
+   */
+  readonly parentSession?: SessionId
+  /**
+   * Whether this Session contains a fork-inherited event prefix. The exact prefix
+   * length is Session state rather than ordinary header metadata.
+   */
+  readonly isSeeded: boolean
+  /**
+   * Coarse product classification for a session created as a subagent child.
+   * This is presentation metadata, not proof that the child is continuable.
+   */
+  readonly origin?: &#x27;subagent&#x27;
+  /**
+   * Delegation depth: absent (zero) for a top-level session, parent depth + 1
+   * for a subagent child. Persisted so a recursion budget survives restart and
+   * resume — a runtime-only depth would reset a resumed child to top-level.
+   */
+  readonly delegationDepth?: number
+  /**
+   * Id of the agent preset this session&#x27;s agent was composed from, when the
+   * deployment composes per session. Durable because the preset decides the
+   * session&#x27;s tools and prompt: a resume that restored a different composition
+   * would replay history the model can no longer act on.
+   */
+  readonly agentPreset?: string
+}</code></pre>
+<h2 id="格式拒绝：本构建无法可靠读取的日志">格式拒绝：本构建无法可靠读取的日志</h2>
+<p>后端用 <code>SessionFormatUnsupportedError</code> 拒绝无法可靠解读的日志，它与 <code>SessionPersistenceCorruptionError</code> 区分，因为数据没有损坏。<code>stat</code> 与 <code>list</code> 会对最高规范 generation 分类，并在不读取或改变正文的前提下转换受支持的历史 header。历史 <code>open</code> 会共享每个 Session 唯一的一次 migration preparation，再返回当前逻辑值，并保持每个源路径、字节与 inode 不变。JSONL provider 直接从该内存结果返回读句柄而不发布；写 open 则在持有单写者 claim 与文件 lease 时复用 preparation、排他发布最终 current generation，随后才返回可写句柄。即使仍有较旧的可读 generation，最高的未来 generation 仍会导致拒绝。当前格式恢复会保留已安装扩展和带 <code>ignorable: true</code> 的未知事件；历史 v0/v1/v2 迁移则会拒绝未知类型，即使它带有 ignorable 标记。后端为每个会话保留独立文件时，消息附上选定的原始日志路径。仓库外后端必须在自己的物理格式入口提供等价的仅当前句柄值与方向感知拒绝。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md">已发布格式迁移决策</a>负责迁移链与不可变发布规则。</p>
+<h2 id="CreateSessionOptions：seed-与元数据"><code>CreateSessionOptions</code>：seed 与元数据</h2>
+<p>通过 store 创建 <code>Session</code> 时会接收 <code>seed</code>（初始回放或 fork 历史）、可选的精确 <code>inheritedEventCount</code> 与 <code>meta</code>（store 整合进 <code>SessionHeader</code> 的存储层字段）。store 填充 <code>version</code>/<code>id</code> 并为 <code>createdAt</code> 提供默认值；调用方可以提供已校验的绝对 <code>cwd</code>、<code>parentSession</code> 谱系、<code>isSeeded</code> 谱系标记、可选的粗粒度 <code>origin</code>、<code>delegationDepth</code>、用于组装该 agent（智能体）的 <code>agentPreset</code> 以及已有的 <code>createdAt</code>。seeded 创建必须显式提供与 inherited prefix 完全相等的 seed 和精确 cut；constructor 会先在该 cut 追加 child-owned tagged end-seed marker，setup 再添加 child-owned event。<code>origin: 'subagent'</code> 让产品导航能够隐藏重复的 child 行；它不证明描述符有效，也不证明 child 可以恢复。</p>
+<pre><code>/**
+ * Options for creating a {@link Session} via the store. `seed` replays/forks
+ * an existing event log; `meta` carries the caller-supplied storage fields the
+ * store folds into a {@link SessionHeader}.
+ */
+interface CreateSessionOptions {
+  /** Initial replay or fork history supplied at construction. */
+  readonly seed?: readonly SessionEvent[]
+  /**
+   * Exact fork-inherited prefix length when `meta.isSeeded` is true. The
+   * constructor appends the child-owned tagged marker at the cut unless
+   * the seed already includes it followed by child-owned fork closers.
+   */
+  readonly inheritedEventCount?: SessionLogOffset
+  /**
+   * Storage metadata read once before publication. `isSeeded` marks fork
+   * lineage; supplying replay history alone does not make it inherited.
+   */
+  readonly meta?: SessionHeaderMeta
+}</code></pre>
+<p><code>SessionHeaderMeta</code> 列出这些由调用方提供的字段；<code>buildSessionHeader</code> 把同样的字段折叠进新 Session 的头部。</p>
+<pre><code>/**
+ * Caller-supplied storage fields that `buildSessionHeader` folds into a new {@link SessionHeader}.
+ * `isSeeded` marks fork lineage; supplying replay history alone does not make it inherited.
+ */
+interface SessionHeaderMeta {
+  readonly cwd?: string
+  readonly parentSession?: SessionId
+  readonly createdAt?: number
+  readonly isSeeded?: boolean
+  readonly origin?: &#x27;subagent&#x27;
+  readonly delegationDepth?: number
+  readonly agentPreset?: string
+}</code></pre>
+<p>直接回放使用 <code>ctx.agents.create({ sessionId, seed, meta })</code>。fork 则提供 <code>parentSource: { sessionId, endSeq, events }</code>、<code>inheritedEventCount</code> 和 <code>meta.isSeeded: true</code>：父来源指定父会话、不包含末端位置的前缀长度，以及从该长度继续的子会话事件。工厂在子会话存储之前加载并持久保存父前缀；<code>SessionPersistence.create()</code> 存储该前缀和子会话后缀后才返回写句柄。只有经 agent-loop 发布的 Session 才遵循实时持久化路径。将持久化 Session 恢复为实时 Agent 使用 <code>ctx.agents.resume({ resumeSessionId })</code>。</p>
+<h2 id="准备与恢复所有权">准备与恢复所有权</h2>
+<p><code>SessionStore.prepare()</code> 接收普通创建选项，或通过 <code>RestoredSessionOptions</code> 接收可直接接管的 seed。它的 <code>eventState</code> 表明 event value 是独占对象，还是只有深度冻结后的共享对象；生产者负责建立该状态，slice 不会根据结果长度推断其他状态。恢复流程会校验并直接接管这些值，不再复制或冻结。<code>SessionPreparation</code> 随后持有该精确的未发布 Session，直至发布或回滚；dispose 是同步且幂等的。agent-loop 的 resume 通过该会话的写句柄读取这份结果，并在准备之前追加独占的 <code>interruptedTurnClosers</code>。</p>
+<pre><code>/**
+ * Aliasing state of an adoptable Session seed. `shared-frozen` permits deeply
+ * frozen aliases plus independently owned unfrozen values in the same seed.
+ */
+type SessionSeedEventState = &#x27;detached&#x27; | &#x27;shared-frozen&#x27;</code></pre>
+<pre><code>/**
+ * Adoptable storage values transferred to {@link SessionStore.prepare}
+ * without another copy or freeze pass.
+ */
+interface RestoredSessionOptions {
+  /** Events that are independently owned or already deeply frozen. */
+  readonly seed: SessionEvent[]
+  /** Independently owned storage metadata to validate and freeze in place. */
+  readonly meta: SessionHeader
+  /** Exact number of fork-inherited leading events decoded from storage. */
+  readonly inheritedEventCount: SessionLogOffset
+  /** Aliasing state carried from the operation that produced the seed. */
+  readonly eventState: SessionSeedEventState
+}</code></pre>
+<pre><code>/** Inputs accepted while constructing an unpublished Session. */
+type PrepareSessionOptions =
+  | (CreateSessionOptions &amp; { readonly eventState?: undefined })
+  | RestoredSessionOptions</code></pre>
+<pre><code>/** Options for a preparation whose provider retains unpublished state. */
+interface SessionPreparationOptions {
+  /** Release provider-owned state when the Session was not published. */
+  readonly release?: () =&gt; void
+}</code></pre>
+<pre><code>/**
+ * One exact unpublished Session and the provider state that keeps it usable.
+ * Disposal is synchronous and idempotent. Providers decide whether release
+ * returns the Session to a cache or discards it; publication may consume that
+ * state before disposal, making the callback a no-op.
+ */
+declare class SessionPreparation implements Disposable {
+  /** The exact Session to use for setup and publication. */
+  readonly session: Session;
+  /**
+   * Wrap an unpublished Session in one preparation lifetime.
+   * @param session - exact unpublished Session.
+   * @param options - optional provider release behavior.
+   * @returns a preparation disposed after publication or rollback.
+   */
+  static create(session: Session, options?: SessionPreparationOptions): SessionPreparation;
+  /** Release provider state once when this preparation leaves its caller. */
+  [Symbol.dispose](): void;
+}</code></pre>
+<h2 id="轻量源修订号">轻量源修订号</h2>
+<p>派生读取模型的消费方会在加载完整事件日志之前比较一个低开销的不透明修订号。该修订号是来自 <code>stat</code>/<code>list</code> 的逐后端实例变更令牌：修订号相等可视为日志未变；不相等则不作任何承诺，且写所有权的变动绝不会改变修订号。session-query 以它为键管理冷读缓存；该令牌在 open、read 或 resume 中不起任何作用。</p>
+<pre><code>/**
+ * Backend-owned token that identifies both one storage source and one revision
+ * of a persisted session log.
+ */
+type SessionPersistenceRevision = Branded&lt;&#x27;SessionPersistenceRevision&#x27;&gt;</code></pre>
+<pre><code>/**
+ * Lightweight stored-session observation returned by {@link SessionPersistence.stat}
+ * and {@link SessionPersistence.list} without reading the full event log.
+ */
+interface SessionPersistenceSnapshot {
+  /** Detached metadata for one stored session. */
+  readonly header: SessionHeader
+  /** Header-only format classification; absent without versioned artifact metadata. */
+  readonly formatStatus?: &#x27;current&#x27; | &#x27;migration-required&#x27;
+  /** Opaque change token; see {@link SessionPersistence.stat}. */
+  readonly revision: SessionPersistenceRevision
+  /** Logical event count, when the backend can provide it cheaply from metadata; otherwise absent. */
+  readonly eventCount?: number
+  /** Physical artifact byte size, when the backend can provide it cheaply (JSONL); otherwise absent. */
+  readonly sizeBytes?: number
+  /**
+   * Backend-resolved location of the selected materialized per-Session
+   * artifact, for diagnostics and export. Absent when the backend has no
+   * materialized per-Session file, including an unmaterialized pending Session.
+   */
+  readonly location?: SessionLocation
+}</code></pre>
+<p>可选的 <code>eventCount</code>/<code>sizeBytes</code> 字段仍是供明确需要它们的 consumer 使用的低成本 backend observation。Session 列表不借助这两个字段打开冷日志，只读取 header 与经过 identity 校验的 projection cache hint，因此 cache 或 Session format 升级不会把启动变成 body scan。</p>
+<h2 id="后端">后端</h2>
+<p>随产品交付的多个 provider 实现抽象 <code>SessionPersistence</code> 约定（<code>create</code>/<code>open</code>/<code>stat</code>/<code>list</code>，逐会话 <code>SessionHandle</code> 承载 <code>read</code>/<code>append</code>/<code>flush</code>/<code>close</code>，全程可选支持取消），并通过共享的持久化契约套件：</p>
+<ul>
+<li><strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a></strong>——逐会话仅追加的逻辑 JSONL 日志，默认存储为带 checksum 的连续 Zstandard frame，也可配置为原始行；具备崩溃安全的原子实体化、逐批 <code>fsync</code> 的 append，以及在第一次新 append 之前截断撕裂尾部。<code>stat</code>/<code>list</code> 携带 <code>sizeBytes</code> 与尽力而为的、由 <code>fs.stat</code> 派生的修订号。</li>
+<li><strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-sqlite">dsh-session-persistence-sqlite</a></strong>——带索引元数据及前驱关联 Segment 的逻辑 JSON 事件存储，每次写入存为一帧 JSON 行，默认以 Zstandard 压缩。此可选提供者在首次打开时导入现有 JSONL，并协调并发读者及每个 Session 的唯一写者；<code>stat</code>/<code>list</code> 不导入历史。</li>
+</ul>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxdeepseekchatimport--deepseekchatimportservice" class="anch"></a></p>
+<h3 id="ctx.deepseekChatImport-—-DeepseekChatImportService"><span id="ctxdeepseekchatimport--deepseekchatimportservice" class="anch"></span><code>ctx.deepseekChatImport</code> — <code>DeepseekChatImportService</code></h3>
+<p>Serves the owner-only export upload route and the limits the browser checks first.</p>
+<pre><code>/**
+ * Report the limits the browser checks before uploading. Only the owner may
+ * import, so every other principal is refused.
+ * @param signal - Client cancellation or Remote withdrawal.
+ * @returns the largest accepted archive size.
+ * @throws {RemoteError} `deepseekChatImport/owner-only` for a caller that is not the owner.
+ */
+@Remote limits(signal: AbortSignal): DeepseekChatImportLimits</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/deepseek-chat-import/src/index.ts"><code>packages/experimental/deepseek-chat-import/src/index.ts</code></a></p>
+<p><a id="ctxsessionpersistence--sessionpersistence-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.sessionPersistence-—-SessionPersistence-abstract-seam"><span id="ctxsessionpersistence--sessionpersistence-abstract-seam" class="anch"></span><code>ctx.sessionPersistence</code> — <code>SessionPersistence</code> (abstract seam)</h3>
+<p>Durable append-only session storage addressed through per-session handles.</p>
+<p>Storage semantics shared by every backend: events are contiguous from seq 0 and never rewritten; a torn physical tail is never returned to a reader and is truncated by the write path before its first append; reads validate current-format records only and refuse unknown vocabulary fail-closed. <code>append</code> persists best-effort; <code>flush</code> — per handle or service-wide — is the durability barrier.</p>
+<p>Visibility: a created session is observable through <code>stat</code>/<code>list</code>/<code>open</code> in this process from the moment <code>create</code> resolves, even while a backend defers physical materialization (a pure optimization); other processes see the session only once it materializes, and a session that never materialized before a crash never existed. <code>SessionHandle.flush</code> forces materialization.</p>
+<p>Freshness: once an <code>append</code> or <code>flush</code> resolves, reads started afterwards on this backend instance observe at least that prefix.</p>
+<pre><code>/**
+ * Create a new stored session and take its write ownership.
+ * With `parentSource`, store the complete fork history before resolving; a
+ * backend may share the parent&#x27;s stored prefix or copy it. A failed creation
+ * releases acquired write ownership; already committed history remains stored.
+ * @param header - the immutable header (id, version, cwd, lineage) to store.
+ * @param options - cancellation, inherited-prefix count, and optional fork source.
+ * @returns a `write` handle owned by the caller; close it to release ownership.
+ * @throws {SessionAlreadyExistsError} when the id already exists.
+ * @throws {SessionPersistenceNotFoundError} when a sharing backend cannot find the fork parent.
+ * @throws {HarnessError} with `SESSION_FORK_PREFIX_NOT_PERSISTED` when a sharing backend finds the parent prefix not durable.
+ */
+abstract create(header: SessionHeader, options?: SessionPersistenceCreateOptions): Promise&lt;SessionHandle&gt;
+
+/**
+ * Open an existing stored session.
+ *
+ * Returned `read` handles retain no write ownership and work while another
+ * handle (or process) holds write ownership. A first legacy read open may
+ * acquire ownership temporarily to import history into the selected backend.
+ * `write` atomically claims single-writer ownership;
+ * an existing active owner rejects.
+ * @param id - the stored session to open.
+ * @param access - `read` or `write`.
+ * @param options - optional cancellation.
+ * @returns the open handle.
+ * @throws {SessionPersistenceNotFoundError} when the session does not exist.
+ * @throws {SessionAlreadyOwnedError} for `write` when ownership is taken.
+ */
+abstract open(id: SessionId, access: SessionAccess, options?: SessionPersistenceOpenOptions): Promise&lt;SessionHandle&gt;
+
+/**
+ * Flush every active write handle owned by this service instance in one
+ * durability barrier: each handle&#x27;s routed live events drain durably and
+ * its session materializes, exactly as that handle&#x27;s own
+ * `SessionHandle.flush` would. Read handles buffer nothing and are
+ * untouched. A handle closed concurrently counts as flushed — close itself
+ * drains durably.
+ * @returns resolution once every write handle active at the call has flushed.
+ * @throws {AggregateError} naming each session whose flush failed; the
+ *   remaining handles still flush.
+ */
+abstract flush(): Promise&lt;void&gt;
+
+/**
+ * Observe one stored session without reading its event log or taking
+ * ownership.
+ *
+ * The snapshot&#x27;s `revision` is an opaque change token comparable only
+ * against revisions from the same service instance and session id: equal
+ * revisions may be treated as an unchanged log; unequal revisions promise
+ * nothing. Write-ownership churn does not change a revision. It exists for
+ * derived read-model caches keyed off `stat`/`list`; it plays no part in
+ * open, read, or resume.
+ * @param id - the stored session to observe.
+ * @param options - optional cancellation.
+ * @returns the snapshot, or `undefined` when the session does not exist.
+ */
+abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise&lt;SessionPersistenceSnapshot | undefined&gt;
+
+/**
+ * List every stored session visible to this process, in no promised order.
+ * @param options - optional cancellation.
+ * @returns one snapshot per stored session.
+ */
+abstract list(options?: SessionPersistenceListOptions): Promise&lt;readonly SessionPersistenceSnapshot[]&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence/src/index.ts"><code>packages/session/session-persistence/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/persistence">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

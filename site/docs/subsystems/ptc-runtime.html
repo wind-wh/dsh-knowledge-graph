@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PTC 运行时 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#运行：请求进，结果出">运行：请求进，结果出</a><a class="t2" href="#绑定：宿主函数作为程序全局变量">绑定：宿主函数作为程序全局变量</a><a class="t2" href="#捕获的输出与失败分类体系">捕获的输出与失败分类体系</a><a class="t2" href="#服务">服务</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.ptcRuntime-—-PtcRuntime-abstract-seam">ctx.ptcRuntime — PtcRuntime (abstract seam)</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / PTC 运行时</div>
+    <h1>PTC 运行时</h1>
+    <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/ptc-runtime.md</div>
+    <div class="body"><h1 id="PTC-运行时">PTC 运行时</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/ptc-runtime.md">English</a> | 中文</p>
+<p>PTC 执行<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>通过 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime">dsh-ptc-runtime</a> 提供 <code>ctx.ptcRuntime</code>。它针对 Host 绑定运行一个程序，报告输出、失败与适用的沙箱事实。PTC 执行是可选能力，不属于<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">智能体循环主干</a>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/feature/2026-06-15-ptc.zh.md">PTC 基础</a>负责注册表呈现，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/feature/2026-07-20-ptc-typed-tool-returns.zh.md">类型化返回约定</a>负责绑定值，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.zh.md">沙箱 Node 决策</a>负责已发布的执行提供方。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime/src/types.ts"><code>packages/ptc-runtime/ptc-runtime/src/types.ts</code></a></p>
+<h2 id="运行：请求进，结果出">运行：请求进，结果出</h2>
+<p><code>PtcRunRequest</code> 包含程序、绑定、取消和可选执行选择。提供方的 <code>resolve</code> 验证支持的选择并应用部署默认值；<code>run</code> 接收目录与截止选择明确的 <code>PtcRunSpec</code>。省略 timeout 使用提供方默认值，数值请求封顶的经过时间预算，<code>null</code> 请求不设经过时间截止。提供方在执行前拒绝不支持的选择：</p>
+<pre><code>/**
+ * Caller inputs for one program. The provider&#x27;s resolve method validates supported
+ * options and supplies directory, deadline, and authority before execution.
+ */
+interface PtcRunRequest {
+  /**
+   * The program source, in the runtime&#x27;s {@link ../index.ts | language}. It
+   * follows the provider&#x27;s programFormat: an async function body supports
+   * top-level `await` and `return`; REPL (`repl`, `scoped-repl`) and Script programs support top-level
+   * declarations, `await`, and a final expression, but not top-level `return`.
+   * The Script provider lowers top-level await; its executionInstructions and
+   * documentation define retained-binding semantics. The completion value
+   * becomes {@link PtcRunResult.value}.
+   */
+  program: string
+  /** Discard the completion without JSON validation when true; omission preserves the completion value. */
+  discardCompletion?: boolean
+  /**
+   * Object-identity owner for optional in-memory state. Omission requests a fresh
+   * environment. Consumers must await runtime.release(owner) when the owner ends.
+   * Stateless providers ignore this field; retained state is never durable.
+   */
+  stateOwner?: object
+  /** Host functions exposed to the program, one global object per namespace. */
+  bindings: PtcBindingNamespace[]
+  /** Working directory in the mounted filesystem and subprocess execution world. */
+  cwd?: string
+  /**
+   * Elapsed execution budget in milliseconds. Omission uses provider defaults;
+   * null requests no deadline. Providers validate and cap numeric budgets or reject unsupported choices.
+   */
+  timeoutMs?: number | null
+  /** Resolved authority for this execution. Providers without confinement reject an explicit policy. */
+  sandboxPolicy?: SandboxExecutionPolicy
+  /**
+   * Abort the run: the runtime stops the program (hard, even mid-loop) and
+   * resolves with a {@link PtcRunFailure} of kind `&#x27;abort&#x27;`. In-flight
+   * binding calls are the CALLER&#x27;s to settle — the runtime only stops asking.
+   */
+  signal?: AbortSignal
+}</code></pre>
+<pre><code>/** Fully resolved execution inputs; run never supplies a missing directory or deadline choice. */
+interface PtcRunSpec extends PtcRunRequest {
+  /** Absolute directory in the provider&#x27;s execution world. */
+  cwd: string
+  /** Positive finite elapsed budget in milliseconds after provider capping, or null for no deadline. */
+  timeoutMs: number | null
+}</code></pre>
+<pre><code>/** File confinement applied to a program, independently of its terminal outcome. */
+interface PtcRunSandbox {
+  /** File-effect mode used for this execution. */
+  mode: SandboxMode
+  /** Program failure text matched backend diagnostics; not enforcement proof or an exhaustive denial record. */
+  denied: boolean
+  /** Completeness reported by the selected confining backend; absent for full access. */
+  enforcement?: SandboxEnforcement
+}</code></pre>
+<p>程序失败通过 <code>PtcRunResult.error</code> 返回；无效调用输入可能在执行前拒绝。沙箱模式、观察到的拒绝与强制完整性是独立事实，因此程序成功本身不能证明每项请求限制均已强制执行：</p>
+<pre><code>/**
+ * The outcome of one run. An error is a FIELD on a resolved result, never a
+ * rejection of `run()` — reporting a failed program is the caller&#x27;s job, not
+ * an exception path.
+ */
+interface PtcRunResult {
+  /** Applied file policy and observed denial, when the provider enforces file policy. */
+  sandbox?: PtcRunSandbox
+  /**
+   * The program&#x27;s completion value (a return or final REPL/Script expression), when it ran to
+   * completion and the value crossed the runtime&#x27;s lossless-JSON boundary.
+   * Invalid or over-limit completions fail the run instead of substituting a
+   * rendered string; a failed or value-less run leaves this absent.
+   */
+  value?: PtcJsonValue
+  /**
+   * Captured text fragments retain their emitted line breaks. Concatenate adjacent text without separators.
+   * Each source channel preserves emission order; interleaving
+   * across independent channels is backend-dependent. Bounded only as part of
+   * the outer result.
+   */
+  output: PtcOutput[]
+  /** Captured output or diagnostic text was truncated; execution still follows its normal completion, timeout and cancellation rules. */
+  outputTruncated?: boolean
+  /** Present iff the run failed; see {@link PtcRunFailure} for the taxonomy. */
+  error?: PtcRunFailure
+}</code></pre>
+<pre><code>/** Source evaluation form, independent of retained program state. */
+type PtcProgramFormat = &#x27;function-body&#x27; | &#x27;repl&#x27; | &#x27;script&#x27; | &#x27;scoped-repl&#x27;</code></pre>
+<p><code>programFormat</code> 区分异步函数体、REPL 语句、scoped REPL 语句与脚本。REPL、scoped REPL 与 Script 程序接受顶层 <code>await</code>、声明和末尾表达式，不支持顶层 <code>return</code>。保留状态的 REPL 各次调用共用一个作用域；scoped REPL 每次调用开始时拿到之前调用留下的顶层绑定的拷贝，因此可以再次声明这些名字，而不改变之前的代码。Node Script 提供方转换顶层 await 并等待完成值；其<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime-node/README.zh.md">声明限制</a>适用于转换后的程序。<code>retainsState</code> 独立于源码语法报告是否保留内存。<code>stateOwner</code> 是标识可选保留内存的进程内对象身份；不同对象相互隔离。消费者在所有者结束时等待 <code>release(owner)</code>；清理失败时该调用拒绝。省略所有者时仅执行一次，无状态提供方忽略所有权。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime-node/README.zh.md">持久 Node 提供方</a>定义重置和恢复行为；保留对象不会进入持久 Session 格式。</p>
+<h2 id="绑定：宿主函数作为程序全局变量">绑定：宿主函数作为程序全局变量</h2>
+<p>每个 <code>PtcBindingNamespace</code> 成为一个异步可调用函数的全局对象；PTC 传入 <code>tools</code>。参数与返回值必须是无损 JSON，宿主签发的 <code>PtcImage</code> 和 <code>PtcInspectableValue</code> 描述符由提供方适配。提供方强制各自的传输上限；seam 不设统一的绑定字节上限。可选错误类描述符创建程序可见的类型化拒绝，无需在运行时内点名消费方。绑定名是自有属性，因此 <code>__proto__</code> 不能遍历原型：</p>
+<pre><code>/**
+ * Program-visible typed rejection for one binding namespace. The runtime
+ * injects a real error constructor under `name`; rejected member calls become
+ * its instances and expose the exact member name through
+ * `memberNameProperty`. Both strings are runtime data rather than knowledge
+ * of a particular consumer such as PTC mode.
+ */
+interface PtcBindingErrorClass {
+  /** Constructor global and resulting `Error.name`; same identifier rule as {@link PtcBindingNamespace.global}. */
+  name: string
+  /**
+   * Non-empty own property for the member name, excluding `name`, `message`,
+   * and `stack` (`RESERVED_ERROR_MEMBERS`). Other property names are accepted.
+   */
+  memberNameProperty: string
+}</code></pre>
+<pre><code>/**
+ * A named group of {@link PtcBindingFunction}s the runtime exposes to the
+ * program as one global object (e.g. `tools`). Function names are arbitrary
+ * strings — a runtime must treat names like `__proto__` or `constructor` as
+ * ordinary own properties (null-prototype construction), never as prototype
+ * collisions.
+ */
+interface PtcBindingNamespace {
+  /**
+   * The global identifier the program sees. Must match `[A-Za-z_$][A-Za-z0-9_$]*`
+   * and exclude ECMAScript keywords and strict-mode names (`RESERVED_BINDING_WORDS`).
+   * Runtime output globals (`console`, `inspect`, `Image` in `RESERVED_BINDING_GLOBALS`)
+   * are also refused.
+   */
+  global: string
+  /** The callable members, keyed by the exact name the program calls. */
+  functions: Record&lt;string, PtcBindingFunction&gt;
+  /** Optional program-visible typed rejection contract for this namespace. */
+  errorClass?: PtcBindingErrorClass
+}</code></pre>
+<pre><code>/** A lossless JSON value transferable through the dependency-light Service Definition. */
+type PtcJsonValue = null | boolean | number | string | PtcJsonValue[] | { [key: string]: PtcJsonValue }</code></pre>
+<pre><code>/**
+ * One host-side function exposed to the program as an async callable. The
+ * runtime bridges calls to it (possibly across a serialization boundary), so
+ * `args` must be lossless JSON; resolutions also support host-issued PtcImage and
+ * PtcInspectableValue values. An inspectable resolution delivers its JSON object
+ * or array to the program and uses its text only when that unchanged value is
+ * inspected directly. A runtime rejects a lossy or non-cloneable value with a
+ * descriptive error rather than corrupting the run. No seam-level byte cap
+ * applies to a binding resolution. A rejection of this function surfaces inside
+ * the program as a rejection of the corresponding call.
+ */
+type PtcBindingFunction = (args: unknown) =&gt; Promise&lt;PtcJsonValue&gt;</code></pre>
+<p><code>@deepseek-ai/dsh-ptc-runtime</code> 导出的 <code>PtcInspectableValue</code> 通过 <code>new PtcInspectableValue(value, text)</code>，为无损 JSON 对象或数组关联宿主提供的文本。提供方向程序交付数据本身，不暴露描述符，也不添加程序可见属性。只有直接 <code>inspect</code> 原结果，且其数据仍与初始快照一致时，才使用附带文本；空文本不产生输出。拷贝、字段选择、修改后的结果和嵌套值使用普通格式。该关联由 Node 进程拥有，不序列化到 Session 日志，复制程序值也不会传递该关联。参见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime/src/inspectable-value.ts"><code>src/inspectable-value.ts</code></a>。</p>
+<p>数据中可以包含宿主提供的 <code>PtcImage</code> 描述符。提供方在展示快照中保留对应程序 <code>Image</code> 的身份。直接展示未修改的容器时输出附带文本；展示 Image 字段时输出该图片。</p>
+<pre><code>/** A binding result whose unchanged object or array displays the supplied text when inspected directly. */
+declare class PtcInspectableValue {
+  readonly [key: string]: PtcJsonValue;
+  /** The JSON object or array delivered unchanged to the program. */
+  readonly value: PtcJsonValue[] | { [key: string]: PtcJsonValue };
+  /** Text shown by a direct inspection of the unchanged value; empty text emits nothing. */
+  readonly text: string;
+  /**
+   * Associate an object or array with its host-authored inspection text.
+   * @param value - Lossless JSON data retained for programmatic access.
+   * @param text - Text to display instead of generic object formatting.
+   */
+  constructor(value: PtcJsonValue[] | { [key: string]: PtcJsonValue }, text: string);
+}</code></pre>
+<h2 id="捕获的输出与失败分类体系">捕获的输出与失败分类体系</h2>
+<p><code>output</code> 按发出顺序保存文本和图片条目：文本使用 <code>{ type: 'text', text }</code>，图片使用 <code>{ type: 'image', attachment }</code>。文本条目保留实际输出的换行，相邻文本直接拼接，不额外插入分隔符。每个来源通道都保留发出顺序；独立通道之间的交错顺序由后端决定。宿主绑定返回 <code>PtcImage</code> 描述符，包含附件引用和可在执行环境读取的 <code>path</code>；程序收到带有该路径和存储像素尺寸的 <code>Image</code>。Node 提供方对序列化文本、图片描述符、完成值或诊断一起计量；捕获输出截断通过 <code>outputTruncated</code> 独立报告，要求返回的完成值保持无损。预算优先级与执行语义见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime-node/README.zh.md">Node 提供方</a>。</p>
+<pre><code>/** A stored image readable from the program&#x27;s execution environment. */
+declare class PtcImage {
+  readonly [key: string]: PtcJsonValue;
+  /** Absolute attachment file path readable in the execution world. */
+  readonly path: string;
+  /** Stored image selected when the program inspects this value. */
+  readonly attachment: Readonly&lt;ImageAttachmentRef&gt;;
+  /**
+   * Describe one immutable image file in the execution world.
+   * @param path - Absolute path to the stored image.
+   * @param attachment - Reference to the immutable stored image.
+   */
+  constructor(path: string, attachment: ImageAttachmentRef);
+}</code></pre>
+<pre><code>/** Raw text fragments and inspected images in emission order; concatenate adjacent text without separators. */
+type PtcOutput = { type: &#x27;text&#x27;; text: string } | { type: &#x27;image&#x27;; attachment: ImageAttachmentRef }</code></pre>
+<p>失败类型是<strong>正交的结果，独立报告</strong>（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/defensive-patterns/general.zh.md">defensive-patterns</a>）：预算耗尽不是异常，中止不是超时，基底崩溃（如 OOM）也不是二者中的任何一个：</p>
+<pre><code>/**
+ * Why a run failed. The kinds are orthogonal outcomes reported independently
+ * (per docs/defensive-patterns/general.md): a budget expiry is not an exception, an
+ * abort is not a timeout, and a substrate death is neither.
+ *
+ * - `&#x27;exception&#x27;` — the program threw or failed to parse/transform.
+ * - `&#x27;timeout&#x27;` — an implementation-owned budget expired; the message says which.
+ * - `&#x27;abort&#x27;` — {@link PtcRunRequest.signal} fired.
+ * - `&#x27;worker-exit&#x27;` — the execution substrate died without settling (e.g. OOM).
+ * - `&#x27;invalid-output&#x27;` — the completion value was not lossless JSON.
+ * - `&#x27;output-limit&#x27;` — the required completion value exceeded the configured cap.
+ * - `&#x27;protocol&#x27;` — the program sent invalid or over-budget control traffic.
+ * - `&#x27;sandbox-unavailable&#x27;` — required confinement could not be established.
+ */
+interface PtcRunFailure {
+  /** The failure class (see the interface doc for each kind&#x27;s meaning). */
+  kind: &#x27;exception&#x27; | &#x27;timeout&#x27; | &#x27;abort&#x27; | &#x27;worker-exit&#x27; | &#x27;invalid-output&#x27; | &#x27;output-limit&#x27; | &#x27;protocol&#x27; | &#x27;sandbox-unavailable&#x27;
+  /** Human-readable detail, suitable for feeding back to a model to self-correct. */
+  message: string
+}</code></pre>
+<h2 id="服务">服务</h2>
+<p><code>PtcRuntime</code> 定义于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime/src/index.ts"><code>src/index.ts</code></a>。<code>resolve(request)</code> 返回完整执行输入，<code>run(spec)</code> 执行它们。<code>executionInstructions</code> 提供由运行时拥有的使用说明，供消费方呈现。支持逐次覆盖时，<code>timeout</code> 报告配置的经过时间默认值和上限；每次请求仍由 <code>resolve</code> 验证并截断。<code>language</code> 标识源码语言，供消费方检查自身要求（参见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tool-executor-ptc/README.zh.md">PTC 执行器</a>）；<code>isolation</code> 描述执行基底，不作安全声明。<code>sandboxMode</code> 声明文件策略支持，不提供约束的提供方返回 <code>undefined</code>。每个实现将各次运行的程序状态分离，并在资源释放期间终止且等待活跃执行。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxptcruntime--ptcruntime-abstract-seam" class="anch"></a></p>
+<h3 id="ctx.ptcRuntime-—-PtcRuntime-abstract-seam"><span id="ctxptcruntime--ptcruntime-abstract-seam" class="anch"></span><code>ctx.ptcRuntime</code> — <code>PtcRuntime</code> (abstract seam)</h3>
+<p>Registers one <code>ctx.ptcRuntime</code> implementation. Program, budget, abort, and substrate failures resolve in PtcRunResult; only Service Definition contract misuse rejects, with PtcRuntimeError. Implementations bridge structured-cloneable bindings, materialize each declared namespace rejection class, treat programs as hostile peers, isolate distinct state owners, and terminate and await in-flight runs during disposal.</p>
+<pre><code>/**
+ * Release an owner&#x27;s retained environment and await its execution resources.
+ * Stateless providers have no retained resources to release.
+ * @param owner - The exact object supplied as the request&#x27;s state owner.
+ * @returns Completion after all owned execution resources have been released.
+ * @throws When managed resource cleanup fails.
+ */
+release(owner: object): Promise&lt;void&gt;
+
+/**
+ * Register source evaluated once when each execution environment is created.
+ * Registration must precede the first run admission; only one initializer may
+ * be registered. Current bindings are installed before initialization. Its
+ * completion is discarded; logs, timeout, cancellation and output bounds share
+ * the first run. Initialization failure discards the environment without
+ * executing the user program or rolling back external effects.
+ * @param program - Initialization source in the provider&#x27;s language and format.
+ * @returns An idempotent async disposer that stops admission, cancels and drains
+ * admitted runs, and releases environments. Failed cleanup blocks execution
+ * until the disposer succeeds on retry. The caller owns this disposer.
+ * @throws When unsupported, registered twice, registered after admission, or invalid.
+ */
+registerEnvironmentInitializer(program: string): () =&gt; Promise&lt;void&gt;
+
+/**
+ * Resolve supported options and provider defaults before execution.
+ * @param request - Program, bindings, cancellation and optional execution choices.
+ * @returns Complete directory, deadline and supported authority for run.
+ * @throws When an explicit choice is invalid or unsupported by this provider; contract misuse throws {@link PtcRuntimeError}.
+ */
+abstract resolve(request: PtcRunRequest): PtcRunSpec
+
+/**
+ * Execute resolved inputs; program outcomes resolve as result fields.
+ * @param spec - directory, deadline, program, bindings, cancellation and supported policy.
+ * @returns Captured output and the execution outcome.
+ */
+abstract run(spec: PtcRunSpec): Promise&lt;PtcRunResult&gt;</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ptc-runtime/ptc-runtime/src/index.ts"><code>packages/ptc-runtime/ptc-runtime/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/ptc-runtime">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>宿主级 Schedule · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#持久任务">持久任务</a><a class="t2" href="#存储版本">存储版本</a><a class="t2" href="#重复规则">重复规则</a><a class="t2" href="#绝对时间输入">绝对时间输入</a><a class="t2" href="#每日与每周输入">每日与每周输入</a><a class="t2" href="#固定频率输入与追赶">固定频率输入与追赶</a><a class="t2" href="#Cron-输入">Cron 输入</a><a class="t2" href="#RRULE-输入">RRULE 输入</a><a class="t2" href="#投递目标">投递目标</a><a class="t2" href="#任务管理">任务管理</a><a class="t2" href="#时间编辑">时间编辑</a><a class="t2" href="#已保存投递记录">已保存投递记录</a><a class="t2" href="#宿主投递">宿主投递</a><a class="t2" href="#历史-Session-变更">历史 Session 变更</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.schedule-—-ScheduleService">ctx.schedule — ScheduleService</a><a class="t3" href="#schedule/-events">schedule/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 宿主级 Schedule</div>
+    <h1>宿主级 Schedule</h1>
+    <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/schedule.md</div>
+    <div class="body"><h1 id="宿主级-Schedule">宿主级 Schedule</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/schedule.md">English</a> | 中文</p>
+<p>Schedule 独立于 Session 的激活状态存储宿主任务。同一管理 API 按 id 操作任务，同一求值器处理七种权威时间类型：<code>after</code>、<code>at</code>、<code>every</code>、<code>daily</code>、<code>weekly</code>、<code>cron</code> 和 <code>rrule</code>。目标可以复用已有 Session、创建一个 Session 后复用，或每次投递创建 Session。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/README.zh.md">包 README</a> 负责组合与提醒格式；完整值类型和请求类型以 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/src/types.ts"><code>types.ts</code></a> 为准。</p>
+<p><a id="durable-tasks" class="anch"></a></p>
+<h2 id="持久任务"><span id="durable-tasks" class="anch"></span>持久任务</h2>
+<p>插件 README 拥有当前 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/README.zh.md">v2 任务 schema、v1 默认值与持久 JSON 示例</a>。领域保留名称、路由和整单元布局。七种时间类型均保持权威性；规范化保留已提交发生时点，不将 Cron 转为 RRULE。</p>
+<p>损坏的存储、无效行、与任务身份不一致的键及不支持的版本在任务激活前拒绝。打开失败不改变介质。文件不存在时从空域开始。目标 Session 缺失的任务仍在管理界面中可见；读取任务从不激活其 Session。</p>
+<p><a id="storage-versioning" class="anch"></a></p>
+<h2 id="存储版本"><span id="storage-versioning" class="anch"></span>存储版本</h2>
+<p>README 定义<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/README.zh.md">任务何时升级</a>、SQLite 不变的物理 schema、修改成本以及未来兼容 v3。<code>compatibleVersions</code> 允许旧单元版本戳进入当前解码；正常编辑与投递持久化当前行。读取保持存储不变。共享的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/storage.zh.md">领域版本策略</a>同时适用于 JSON 和 SQLite。</p>
+<p><a id="recurrence-rules" class="anch"></a></p>
+<h2 id="重复规则"><span id="recurrence-rules" class="anch"></span>重复规则</h2>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/time/README.zh.md"><code>dsh-util-time</code></a> 负责可复用的 <code>Cron</code>、<code>RRule</code> 解析及有界发生时点计算。两种解析值均暴露其权威表达式、时区、<code>next(after)</code> 和 <code>resolve(scheduledAt, acceptedAt)</code>。解析器返回接受值或拒绝原因；Schedule 将原因映射为自身输入错误，并负责记录验证、准入限制、持久化与投递。</p>
+<p>每个已存 <code>scheduledAt</code> 都是带毫秒精度、年份为 0001 至 9999 的规范 RFC 3339 UTC 时刻。解码不会根据当前时区数据重新计算它。只追赶最新一次的策略保留该已提交下界，投递最新到期时点一次，再提交第一个未来时点。规则耗尽后任务以 <code>ended</code> 状态保留。</p>
+<table><thead><tr><th>类型</th><th>权威时间字段</th></tr></thead><tbody><tr><td><code>after</code></td><td>正整数 <code>afterSeconds</code> 和已提交的一次性 UTC 目标。</td></tr><tr><td><code>at</code></td><td>已提交的一次性 UTC 目标。输入接受显式偏移时刻，或本地日期、时间与显式时区。</td></tr><tr><td><code>every</code></td><td>不小于 60 的整数 <code>everySeconds</code>；发生时点始终对齐已提交的间隔锚点。</td></tr><tr><td><code>daily</code></td><td><code>HH:mm:ss.SSS</code> 形式的本地 <code>time</code> 与显式 <code>timeZone</code>。</td></tr><tr><td><code>weekly</code></td><td>Daily 字段加非空、唯一、升序的 ISO <code>weekdays</code> 集合，周一为 1、周日为 7。</td></tr><tr><td><code>cron</code></td><td>规范五字段 <code>expression</code> 与显式 <code>timeZone</code>。</td></tr><tr><td><code>rrule</code></td><td><code>rrule</code> 中一条规范 <code>DTSTART</code> 和一条 <code>RRULE</code> 行；<code>DTSTART</code> 提供锚点与时区。</td></tr></tbody></table>
+<p>本地日历规则跳过不存在的墙钟时间，并在重叠时选择较早的时刻。固定间隔保留经过时间的含义。一次性延迟可短于一分钟；首次投递之后仍适用单任务最小投递间隔。</p>
+<p><a id="absolute-time-input" class="anch"></a></p>
+<h2 id="绝对时间输入"><span id="absolute-time-input" class="anch"></span>绝对时间输入</h2>
+<p><code>at</code> 选择器接受带显式 <code>Z</code> 或数字偏移的 RFC 3339 时刻，或 <code>{ date, time, time_zone }</code>。本地日期使用 <code>YYYY-MM-DD</code>；本地时间使用 <code>HH:mm:ss</code>，可带一至三位小数秒。歧义或不存在的日历值通过共享时间工具验证。新的绝对目标必须严格位于未来且可表示。</p>
+<p><a id="daily-wall-clock-input" class="anch"></a></p>
+<h2 id="每日与每周输入"><span id="daily-wall-clock-input" class="anch"></span>每日与每周输入</h2>
+<p>Daily 输入提供 <code>{ time, time_zone }</code>；Weekly 另加显式 <code>weekdays</code>。创建时选择第一个严格位于未来的实际发生时点。追赶选择最新实际到期时点，并推进到之后匹配的本地日期。等价编辑保留已存 IANA 别名和固定 UTC 目标，包括毫秒。</p>
+<p><a id="fixed-rate-input-and-catch-up" class="anch"></a></p>
+<h2 id="固定频率输入与追赶"><span id="fixed-rate-input-and-catch-up" class="anch"></span>固定频率输入与追赶</h2>
+<p>Every 输入提供 <code>every_seconds</code>。新间隔从接受时间开始；修改间隔会在编辑被接受时建立新锚点。不变的间隔或名称／指令编辑保留原锚点。停机后合并错过的间隔，而非逐次重放。</p>
+<p><a id="cron-wall-clock-input" class="anch"></a></p>
+<h2 id="Cron-输入"><span id="cron-wall-clock-input" class="anch"></span>Cron 输入</h2>
+<p>Cron 输入提供 <code>{ expression, time_zone }</code>。五个数字字段依次为分钟、小时、月内日期、月份和星期。支持的原子形式为 <code>*</code>、单值、闭区间、星号或区间步长，以及逗号分隔列表。周日接受 0 或 7，规范为 0。拒绝名称、宏、秒字段和单值后跟步长的形式。</p>
+<p>Cron 保留 Vixie 的日期匹配方式：两个日期字段都受限时，月内日期<strong>或</strong>星期任意一个匹配即可；任一字段以 <code>*</code> 开头（包括带步长的星号）时，两组匹配值均须匹配。规范化保留此差异。搜索受一个 400 年公历周期和四位 UTC 年份范围约束。启用时拒绝没有可表示未来时点的规则。</p>
+<p>Cron 记录从不转换为 RRULE。读取、描述性编辑、重新指定目标和重启均保留其已存表达式与时区作为权威来源。自定义编辑器接受五字段 Cron 表达式，并显示显式时区选择器。</p>
+<p><a id="rrule-input" class="anch"></a></p>
+<h2 id="RRULE-输入"><span id="rrule-input" class="anch"></span>RRULE 输入</h2>
+<p>RRULE 接受有界的 RFC 5545 子集，以共享的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/time/src/rrule.ts"><code>rrule.ts</code> 解析器</a>为准。输入恰好包含两条非空内容行：先 <code>DTSTART</code>，再 <code>RRULE</code>。开始时间为真实的 <code>YYYYMMDDTHHMMSS</code> 日期时间，使用 UTC <code>Z</code> 或显式 IANA <code>TZID</code>；拒绝浮动本地时间、数字偏移、仅日期值及额外内容行。引擎使用 <code>rrule</code> 2.8.1，支持 <code>MINUTELY</code>、<code>HOURLY</code>、<code>DAILY</code>、<code>WEEKLY</code>、<code>MONTHLY</code> 和 <code>YEARLY</code>。一次性投递使用 <code>COUNT=1</code>。</p>
+<p>只接受 <code>FREQ</code>、<code>INTERVAL</code>、<code>COUNT</code>、<code>UNTIL</code>、<code>WKST</code>、<code>BYSECOND</code>、<code>BYMINUTE</code>、<code>BYHOUR</code>、<code>BYDAY</code>、<code>BYMONTHDAY</code>、<code>BYYEARDAY</code>、<code>BYWEEKNO</code>、<code>BYMONTH</code> 和 <code>BYSETPOS</code>；字段名和列表值必须唯一。<code>INTERVAL</code> 为正安全整数。<code>WKST</code> 为 <code>MO</code> 至 <code>SU</code> 中的星期，默认 <code>MO</code>。数字列表须在解析器规定的范围内。分钟／小时规则不接受 <code>BY</code> 部分。<code>BYMONTHDAY</code> 和带序数的 <code>BYDAY</code> 仅用于每月或每年；<code>BYYEARDAY</code> 和 <code>BYWEEKNO</code> 仅用于每年。带序数的 <code>BYDAY</code> 不能与 <code>BYWEEKNO</code> 组合，<code>BYSETPOS</code> 必须搭配另一项 <code>BY</code>。</p>
+<p>验证发生在枚举之前。拒绝 <code>SECONDLY</code>、多个 <code>BYSECOND</code> 值及一个频率周期中超过 10,080 个可能候选时点的规则。<code>COUNT</code> 为 1 至 1,000，不能与 <code>UNTIL</code> 共存；<code>UNTIL</code> 为以 <code>Z</code> 结尾的绝对 UTC 日期时间。开始与截止年份为 0100 至 9999。集合位置至多 31 个，每个位置为 −366 至 −1 或 1 至 366，且必须在有界周期内。较严格的新规则编写检查还会在周期至多有一个候选时点时拒绝 <code>BYSETPOS</code>；解码和恢复未改变的受支持规则仍使用正常求值器。</p>
+<p>不存在的本地 <code>DTSTART</code> 会被拒绝。后续不存在的本地发生时点会跳过，且不消耗 <code>COUNT</code>；重叠时间选择较早时刻。即使正负集合位置选中同一时点，<code>COUNT</code> 也仅计数一次。</p>
+<p>自定义 RRULE 文本保留其 <code>DTSTART</code> 时区。面向模型的工具继续指导并接受 RRULE；共享管理 API 则显式接受每种时间类型。</p>
+<p><a id="delivery-targets" class="anch"></a></p>
+<h2 id="投递目标"><span id="delivery-targets" class="anch"></span>投递目标</h2>
+<table><thead><tr><th>目标</th><th>投递行为</th></tr></thead><tbody><tr><td><code>session</code></td><td>投递到一个已有 Session。启用时在管理 FIFO 内检查其存在、未归档且不属于委托子 Agent。投递时再次检查归档状态。</td></tr><tr><td><code>new_once</code></td><td>首次投递前预留 Session id，需要时创建该 Session，然后保存为 <code>session</code> 并复用。重试和重启保留该预留标识。</td></tr><tr><td><code>new</code></td><td>每次投递创建 Session。创建前持久化 <code>pendingDelivery.targetSessionId</code>，使失败尝试重用同一 Session。</td></tr></tbody></table>
+<p>创建时省略目标则默认 <code>new_once</code>。新增或替换 <code>new</code>、<code>new_once</code> 目标需要嵌入环境提供 Session 创建能力。SDK 组合缺少该能力时，在保存前以 <code>invalid_rule</code> 拒绝这些请求；已有 <code>session</code> 目标仍可使用。创建值 <code>cwd</code> 和 <code>agentPreset</code> 可省略，使用 Host 默认值。创建的 Session 会加入其目录已注册的 Workspace（如有），且尚无标题时使用任务标题；<code>new</code> 另加该规则时区中的创建分钟。加入或重命名失败会记录日志，但不阻断投递。</p>
+<p><a id="task-management" class="anch"></a></p>
+<h2 id="任务管理"><span id="task-management" class="anch"></span>任务管理</h2>
+<p>所有调用方使用相同的 <code>ScheduleCreateRequest</code>、<code>ScheduleCatalogEntry</code>、<code>ScheduleTiming</code> 和 <code>ScheduleEditRequest</code>。浏览器安全类型来自 <code>@deepseek-ai/dsh-schedule/client</code>。不存在 Session 绑定的管理入口或第二套类型别名。</p>
+<table><thead><tr><th>操作</th><th>行为</th></tr></thead><tbody><tr><td><code>create(request, actorSessionId?, signal?)</code></td><td>分配 id 并保存标题、指令、带类型的 <code>timing</code> 及可选目标。</td></tr><tr><td><code>list(request?)</code></td><td>分页读取；默认 100、最多 500，可选 <code>active</code> 过滤及非负 <code>offset</code>。</td></tr><tr><td><code>catalog()</code> / <code>view({ id })</code></td><td>无分页上限读取所有任务，或读取一个任务。</td></tr><tr><td><code>history({ id, limit, before? })</code></td><td>不激活 Session 地读取已保存投递；limit 为 1 至 100。</td></tr><tr><td><code>edit(request, actorSessionId?, signal?)</code></td><td>按 id 原子应用 <code>update</code> patch 或 <code>delete</code>。</td></tr><tr><td><code>deleteInactive()</code></td><td>一次批量写入仅删除 <code>ended</code> 任务，保留活动和暂停任务，返回 <code>{ deleted }</code>。空集合不写入。</td></tr><tr><td><code>run({ id }, signal?)</code></td><td>经正常准入立即投递，不改变已计划发生时点或生命周期。</td></tr><tr><td><code>deliveryLimits()</code></td><td>读取 <code>new</code> 目标的配置最小间隔。</td></tr></tbody></table>
+<p>Remote 路由提供 <code>create</code>、<code>list</code>、<code>catalog</code>、<code>view</code>、<code>history</code>、<code>edit</code>、<code>deleteInactive</code>、<code>run</code> 和 <code>deliveryLimits</code>；传输包装器委托给相同管理方法。Remote 验证失败使用带 Schedule 输入码的 <code>schedule/input-invalid</code>。原生调用方收到 <code>ScheduleInputError</code>。</p>
+<p>非空的 <code>deleteInactive</code> 批量写入成功后发出 <code>schedule/changed</code>，供读取方刷新；不向 Agent 排入通知。批量写入被拒绝时也发出该事件，让读取方丢弃旧状态。正常失败保留全部行；<code>unknown-state</code> 失败可能已移除行，并隔离领域直到重新打开。失败调用以拒绝结束，不返回删除数量。</p>
+<p>更新可以替换标题、指令、带类型时间、目标或活动状态。省略字段保留原值。规则改变或显式恢复时，在 FIFO 接受时刻计算未来时点；等价时间及描述性编辑保留已提交目标。已投递的一次性任务需要新的未来时间才能恢复。重新指定目标不要求转换时间类型。</p>
+<p><code>expectedUpdatedAt</code> 是可选的乐观比较。字符串与已存修订比较；显式 <code>null</code> 与缺失的修订比较。不一致时返回 <code>schedule_conflict</code>。编辑没有修订的行会创建修订；即使时钟回拨，后续修订仍单调递增。开始写入前检查取消，已经开始的持久写入不回滚。</p>
+<p><a id="timing-edits" class="anch"></a></p>
+<h2 id="时间编辑"><span id="timing-edits" class="anch"></span>时间编辑</h2>
+<p><code>timing</code> 判别字段只选择其匹配的载荷，例如 <code>{ kind: "cron", cron: { expression: "0 9 * * 1-5", time_zone: "Asia/Shanghai" } }</code> 或 <code>{ kind: "rrule", rrule: "DTSTART:20990101T090000Z\nRRULE:FREQ=DAILY" }</code>。其他选择器使用 <code>after_seconds</code>、<code>at</code>、<code>every_seconds</code>、<code>daily</code> 或 <code>weekly</code>。持久化前拒绝无效组合。UI 经相同 API 保存带类型的 Cron/RRULE 输入，并保留未修改的时间规则。</p>
+<p><a id="saved-delivery-records" class="anch"></a></p>
+<h2 id="已保存投递记录"><span id="saved-delivery-records" class="anch"></span>已保存投递记录</h2>
+<p>回执记录 <code>scheduledAt</code>、<code>deliveredAt</code>、<code>messageId</code> 和 <code>targetSessionId</code>；它确认持久 Session 收件箱写入，而非模型完成。已保存记录还可含不可变的已发送 <code>prompt</code>。旧回执缺少目标 id 时，在任何重新指定目标的编辑之前使用已解析的可复用目标，因此后续目标不会重写其历史。 回执既没有显式目的地也没有已知复用目标时，拒绝解码；新默认预留不能证明历史目的地。</p>
+<p>新任务从已知的空历史开始。旧行没有 <code>deliveryHistory</code> 时，暴露其最新回执（如有），并设置 <code>earlierRecordsUnavailable: true</code>；不会编造丢失的历史或指令快照。省略的 <code>earlierRecordsPruned</code> 读为 false。消息 id 重复，或最新保存记录与 <code>lastDelivery</code> 不一致，均拒绝解码。</p>
+<p>历史按追加顺序排列，不受时钟回拨影响。确认在同一任务提交中追加并裁剪，默认保留最多 200 条、30 天，同时保留最新回执。查询页从新到旧，使用不含游标自身的消息 id 游标。硬删除移除任务及历史，不移除已入队的 Session 消息。</p>
+<p><a id="host-delivery" class="anch"></a></p>
+<h2 id="宿主投递"><span id="host-delivery" class="anch"></span>宿主投递</h2>
+<p>一个 Host 定时器驱动活动任务。运行时与管理写入共用一个 FIFO。已有和预留 Session 通过 <code>schedule/resolve-agent</code> 解析，由嵌入环境拥有激活，已注入的 Web 控制器作为后备。复用 Session 的任务占用执行槽，直到目标 Agent 空闲；期间发生的时点会合并。<code>new</code> 目标允许多个执行并行。到期且投向相同已有 Session 的重复记录共享一条消息；<code>after</code> 和 <code>at</code> 单独投递。</p>
+<p>定时与手动投递均遵守单任务 60 秒最小间隔。<code>newSessionIntervalSeconds</code> 可为 <code>new</code> 目标提高间隔，最多一周。已存后继时点保持间隔时，下界从上次发生时点计算；否则从上次确认计算，因此投递延迟不会移动规则锚点。读取仅在适用时暴露 <code>executionActive</code> 和 <code>deliveryFloorEndsAt</code>。</p>
+<p>Session 收件箱持久化先于任务回执写入，因此两份存储之间崩溃可能重复投递。Host 必须运行。指向某 Session 的活动任务会参与其归档准入；归档停止操作会删除这些活动任务。</p>
+<p>管理变更提交后，Schedule 向除操作者之外的每个已加载相关 Agent 排队发送尽力而为的通知。通知加入下一模型步骤，不开启新轮次；其 Session I/O 不占用管理／投递队列。每次投递新建的 Session 不会累积到相关元数据中。</p>
+<p><a id="historical-session-changes" class="anch"></a></p>
+<h2 id="历史-Session-变更"><span id="historical-session-changes" class="anch"></span>历史 Session 变更</h2>
+<p>历史版本 1 的 <code>schedule/change</code> 事件保留冻结的 <code>LegacyScheduleRecord</code> 类型：<code>after</code>、<code>at</code>、<code>every</code>，包括原来的可选标题。它们仍是已保存的 Session 数据，Schedule 不为其保留解释器、警告钩子、导入器或定时器。<code>schedule.json</code> 中已有的 Host 任务仍使用正常的解码器与求值器。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxschedule--scheduleservice" class="anch"></a></p>
+<h3 id="ctx.schedule-—-ScheduleService"><span id="ctxschedule--scheduleservice" class="anch"></span><code>ctx.schedule</code> — <code>ScheduleService</code></h3>
+<p>Shared management service; reads and management writes never activate a Session, and only delivery creates or resumes one.</p>
+<p><code>sessionPersistence</code> supplies header-only target validation and the <code>session/flush</code> listener that acknowledges durable inbox delivery through <code>ctx.sessions.flush()</code>.</p>
+<pre><code>/** Read effective delivery limits without loading or activating a task.
+ * @returns The configured minimum spacing between deliveries that each create a Session, in seconds.
+ */
+@Remote(&#x27;deliveryLimits&#x27;) deliveryLimits(): { readonly newSessionIntervalSeconds: number }
+
+/**
+ * Create one task with a Host-generated identity for a human Remote caller.
+ * @param request - Title, prompt, recurrence, and delivery destination.
+ * @param signal - Cancellation checked before the durable write begins, including after FIFO waits.
+ * @returns The stored task. Cancellation does not roll back an in-flight write.
+ */
+@Remote(&#x27;create&#x27;) async remoteCreate(request: ScheduleCreateRequest, signal?: AbortSignal): Promise&lt;ScheduleCatalogEntry&gt;
+
+/**
+ * Create one task and record the acting Agent&#x27;s Session as involved; the Remote form omits that Session.
+ *
+ * The record is built from the clock reading taken before the request joins the serialized queue. A `session`
+ * target must exist and must not belong to a delegated child; a `new_once` target reserves its Session identity.
+ * @param request - Title, prompt, recurrence, and delivery destination.
+ * @param actorSessionId - Session of the acting Agent, or undefined for a human caller.
+ * @param signal - Cancellation checked before the durable write begins, including after FIFO waits.
+ * @returns The stored task. Cancellation does not roll back an in-flight write.
+ */
+async create( request: ScheduleCreateRequest, actorSessionId?: SessionId, signal?: AbortSignal, ): Promise&lt;ScheduleCatalogEntry&gt;
+
+/**
+ * Read one page of Host tasks without activating target Sessions.
+ * @param request - Optional activity filter, page size, and offset.
+ * @returns The requested page and total matching task count.
+ */
+async list(request: ScheduleListRequest = {}): Promise&lt;ScheduleListResult&gt;
+
+/**
+ * Remote form of the shared Host-wide list.
+ * @param request - Optional activity filter, page size, and offset.
+ * @returns The requested page and total matching task count.
+ */
+@Remote(&#x27;list&#x27;) async remoteList(request: ScheduleListRequest): Promise&lt;ScheduleListResult&gt;
+
+/**
+ * Read every Host task without a page bound or Session activation.
+ * @returns All tasks, active first, with target and execution metadata.
+ */
+@Remote(&#x27;catalog&#x27;) async catalog(): Promise&lt;ScheduleCatalogEntry[]&gt;
+
+/**
+ * Read one task without activating its target Sessions.
+ * @param request - Task identity.
+ * @returns The task, or a non-mutating miss.
+ */
+@Remote(&#x27;view&#x27;) async view(request: ScheduleViewRequest): Promise&lt;ScheduleViewResult&gt;
+
+/**
+ * Read one page of saved deliveries without activating or reading a target Session.
+ * @param request - Task identity, explicit page size, and optional exclusive cursor.
+ * @returns Newest-first saved deliveries, or a task/cursor lookup failure.
+ */
+async history(request: ScheduleDeliveryHistoryRequest): Promise&lt;ScheduleDeliveryHistoryResult&gt;
+
+/**
+ * Remote form of the target-based {@link ScheduleService.history}; an invalid limit rejects with
+ * `schedule/input-invalid`.
+ * @param request - Task identity, explicit limit, and optional exclusive message cursor.
+ * @returns Newest-first deliveries in append order, or a task/cursor lookup failure.
+ */
+@Remote(&#x27;history&#x27;) async remoteHistory(request: ScheduleDeliveryHistoryRequest): Promise&lt;ScheduleDeliveryHistoryResult&gt;
+
+/**
+ * Deliver one task now without consuming or moving its scheduled occurrence; an archived destination Session rejects
+ * with `schedule/target-archived`.
+ * @param request - Task identity.
+ * @param signal - Cancellation checked after entering the delivery transaction and before delivery.
+ * @returns Task state after Session persistence acknowledged the delivery, `schedule_execution_pending` while
+ * another execution of the task is queued, running, or inside its delivery floor, or a non-mutating miss.
+ */
+@Remote(&#x27;run&#x27;) async run(request: ScheduleRunRequest, signal?: AbortSignal): Promise&lt;ScheduleRunResult&gt;
+
+/**
+ * Delete every ended Host task, leaving active tasks armed.
+ *
+ * Ended tasks never schedule another delivery, so the removal changes no pending
+ * target and no timer is recomputed. Rows are enumerated and removed in one FIFO
+ * slot, so a delivery ordered behind this call ends its task after the
+ * enumeration rather than during it. The batch is one domain write: a normal
+ * failure rejects with every listed row still stored, while a backend
+ * `unknown-state` failure may have removed rows and quarantines the Host
+ * domain, so later schedule operations reject until the domain is reopened.
+ * A successful nonempty batch emits `schedule/changed` without Agent notices.
+ * A rejected batch announces `schedule/changed` because it does not establish
+ * which rows landed, and clients then re-read the catalog.
+ * @returns Count of removed rows; zero when the Host held no ended task.
+ */
+@Remote(&#x27;deleteInactive&#x27;) async deleteInactive(): Promise&lt;ScheduleDeleteInactiveResult&gt;
+
+/**
+ * Update or delete one task for a human Remote caller; an invalid patch rejects with `schedule/input-invalid`.
+ * @param request - Task identity and one update or delete operation.
+ * @param signal - Cancellation checked before the durable write begins, including after FIFO waits.
+ * @returns The updated task, the deletion outcome, or a non-mutating miss or conflict.
+ */
+@Remote(&#x27;edit&#x27;) async remoteEdit(request: ScheduleEditRequest, signal?: AbortSignal): Promise&lt;ScheduleEditResult&gt;
+
+/**
+ * Update or delete one task and record the acting Agent&#x27;s Session as involved; the Remote form omits that Session.
+ *
+ * An update applies every patch field in one write and recomputes the next occurrence when the rule changes or
+ * the task resumes. A supplied `expectedUpdatedAt` that differs from the stored value returns `schedule_conflict`.
+ * @param request - Task identity and one update or delete operation.
+ * @param actorSessionId - Session of the acting Agent, or undefined for a human caller.
+ * @param signal - Cancellation checked before the durable write begins, including after FIFO waits.
+ * @returns The updated task, the deletion outcome, or a non-mutating miss or conflict.
+ */
+async edit( request: ScheduleEditRequest, actorSessionId?: SessionId, signal?: AbortSignal, ): Promise&lt;ScheduleEditResult&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/src/index.ts"><code>packages/schedule/schedule/src/index.ts</code></a></p>
+<p><a id="schedule-events" class="anch"></a></p>
+<h3 id="schedule/-events"><span id="schedule-events" class="anch"></span><code>schedule/*</code> events</h3>
+<p><a id="schedulechanged--emit" class="anch"></a></p>
+<h4 id="schedule/changed-—-emit"><code>schedule/changed</code> — emit</h4>
+<p>Durable task set changed; clients refetch global task and Session-active catalogs.</p>
+<pre><code>/** Durable task set changed; clients refetch global task and Session-active catalogs.
+ * @mode emit
+ */
+&#x27;schedule/changed&#x27;(): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/src/types.ts"><code>packages/schedule/schedule/src/types.ts</code></a></p>
+<p><a id="scheduleresolve-agent--waterfall" class="anch"></a></p>
+<h4 id="schedule/resolve-agent-—-waterfall"><code>schedule/resolve-agent</code> — waterfall</h4>
+<p>Restore a reminder's Session through its embedding's owning controller. Call next() to use the Web Session controller.</p>
+<pre><code>/**
+ * Restore a reminder&#x27;s Session through its embedding&#x27;s owning controller.
+ * Call next() to use the Web Session controller.
+ * @param sessionId - Original Session receiving the reminder.
+ * @mode waterfall
+ */
+&#x27;schedule/resolve-agent&#x27;(sessionId: SessionId, next: () =&gt; Promise&lt;Agent&gt;): Promise&lt;Agent&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/src/index.ts"><code>packages/schedule/schedule/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/schedule">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Client 架构 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#分层与所有权">分层与所有权</a><a class="t2" href="#浏览器启动">浏览器启动</a><a class="t2" href="#Remote-通信">Remote 通信</a><a class="t2" href="#Client-models">Client models</a><a class="t3" href="#Sessions">Sessions</a><a class="t3" href="#Workspaces">Workspaces</a><a class="t2" href="#Conversation-与-presentation">Conversation 与 presentation</a><a class="t2" href="#数据通路">数据通路</a><a class="t2" href="#重连">重连</a><a class="t2" href="#阅读提醒">阅读提醒</a><a class="t3" href="#SessionReadState">SessionReadState</a><a class="t3" href="#SessionReadAction">SessionReadAction</a><a class="t3" href="#SessionReadFrame">SessionReadFrame</a><a class="t2" href="#包边界">包边界</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.sessionStatus-—-SessionStatusService">ctx.sessionStatus — SessionStatusService</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / Web Client 架构</div>
+    <h1>Web Client 架构</h1>
+    <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/web-client.md</div>
+    <div class="body"><h1 id="Web-Client-架构">Web Client 架构</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/web-client.md">English</a> | 中文</p>
+<p>Web Client 是由独立加载插件组装而成的浏览器侧 Cordis 应用。它有四个可复用底座：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/client-modules.zh.md">Client Modules</a> 加载插件图，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md">API Gateway</a> 提供类型化 Host 通信，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/slots.zh.md">Slots</a> 组合 React UI，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/conversation.zh.md">Conversation</a> 把 Session 历史窗口变成各 target 自有的视图。本文串联这些系统，并规定 Client model 与功能包各自所在的位置。</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/shortcuts/README.zh.md">快捷键</a>负责窗口内命令注册和物理键分发；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-shortcuts/README.zh.md">快捷键速查</a>展示可用命令及局部输入操作。命令 owner 声明各运行端／平台的默认键位，并与鼠标控件共用既有操作。共用模态组件裁决顶层 Esc 并恢复焦点。</p>
+<h2 id="分层与所有权">分层与所有权</h2>
+<table><thead><tr><th>层</th><th>主要 owner</th><th>职责</th></tr></thead><tbody><tr><td>Host 应用</td><td>业务 service 与 <code>packages/api/*-controller</code> Host entry</td><td>拥有权威状态、持久化、mutation 顺序、访问策略与 stream 生产。</td></tr><tr><td>传输与 API assembly</td><td><code>client/connection</code>、<code>api/gateway</code>、<code>api/remotes</code></td><td>建立 Client generation，公开生成的 <code>ctx.remote</code> method 与 stream，转发选定的 Cordis event，并承载取消和结果。</td></tr><tr><td>Client model</td><td><code>api/session-controller/client</code>、<code>api/workspace-controller/client</code></td><td>维护不依赖 React 的 Host 状态镜像，处理 stream/unary 竞态，拥有对象 identity 与订阅，并公开收窄的 command service。</td></tr><tr><td>UI adapter</td><td><code>client/ui-session</code>、<code>client/ui-workspace</code></td><td>把 model observable 转换为 root 或 Provider 绑定的 Session Slot source，并拥有视图级导航与状态策略。</td></tr><tr><td>Conversation 数据</td><td><code>client/ui-conversation</code>、<code>ui-chat</code> 与 <code>ui-trajectory</code> 等 target package</td><td>把标准 event 与紧凑的 Assistant 历史批次组装成相互独立的 target snapshot，并拥有共享的 Conversation shell 与输入流程。</td></tr><tr><td>组合与渲染</td><td><code>client/ui-slots</code>、<code>client/ui-renderer</code>、<code>client/ui-layout</code>、各 UI 功能包</td><td>声明扩展位置、推导组件 props、把 observable 绑定成 React hook，并挂载最终组件树。</td></tr></tbody></table>
+<p>依赖方向是 Host 状态 → Remote 传输 → Client model → UI adapter → Conversation 或 presentation → Slots → React。用户操作通过 callback 反向进入注入的 Client service 或生成的 Remote namespace。Presentation component 绝不接收 Cordis <code>ctx</code>、transport object 或其他功能插件的实现。</p>
+<h2 id="浏览器启动">浏览器启动</h2>
+<p>Host 把组合后的 <code>WebBootGraph</code> 写入 <code>window.__DSH_BOOT__</code>，并在 parser-preloaded script 执行前安装浏览器 module-loader facade。模块系统是一张 lazy CommonJS 表：加载 bundle 只注册 factory；materialize entry 时才以同步 <code>require</code> 运行 factory，并解析 platform module 和已声明的动态依赖。</p>
+<p>Web boot kernel 创建模块系统、预取 <code>immediately</code> entry、挂载 vendored Cordis Loader，再创建图中的每个 entry。Cordis service injection 决定激活顺序；module graph 顺序只决定同步 import 能否被 materialize。完整 roster 到达 settled 状态且启动审计通过后（浏览器必需名单中的 entry 未激活会拒绝启动；其他未激活 entry 输出一条控制台警告），<code>ui-renderer</code> hydrate 不依赖框架的 boot DOM，并调用唯一一次 context 级 <code>renderSlot('root')</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/client-modules.zh.md">Client Modules</a>负责 graph、bundle route、cache revision 与 loader 细节。</p>
+<p>模块构造时将启动载体原有的脚本加载器绑定为自身 Main 环境；可选 Realm 提供方不会增加启动阶段。Modules 保存可选的元信息生产函数并发布模块记录变化；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-renderer/README.zh.md">UI Renderer</a> 求值样式描述并持有其主文档安装。资源生命周期是模块级，而不是 Slot 或组件挂载协议。</p>
+<h2 id="Remote-通信">Remote 通信</h2>
+<p>Host 业务 service 使用 Typert Remote decorator 标记可调用 method。Host generation 产出严格 descriptor、runtime codec、declaration merge 与 source map。Client 侧 <code>api-remotes</code> assembly 选择这些生成贡献，并把具体 method 挂到 <code>ctx.remote.&lt;namespace&gt;</code> 与 Session scope 的 <code>agentCtx.remote.&lt;namespace&gt;</code>。功能包依赖生成的 service face，而不依赖 Gateway 实现或 Host 包的运行时 entry。</p>
+<p>Connection 拥有请求 URL 解析、request correlation、<code>/api</code> carrier、trust check、精确 Fetch 路由与 connection generation。API Gateway 拥有 Remote dispatch、取消、logical stream 与选定 Host event 的转发。Controller 操作应进入生成的 Remote method 或显式 Remote stream；功能自有的下载则注册精确 Fetch 路由。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md">API Gateway 参考</a>定义 generation 与调用，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/README.zh.md">Connection README</a>定义物理 carrier 与信任策略。</p>
+<p>内部 <code>$events</code> logical stream 是 Connection generation source。它的 opening <code>ready</code> frame 携带用于路径显示的 Host home，并在 Host listener 已挂载、任何 controller 开始 baseline read 之前建立 generation。<code>ctx.remote.$on()</code> 把 allowlist 内的普通 event 交付给 root Client Context，并把 scoped waterfall event 交付给已解析的 Session Context；waterfall listener 可以返回结果、调用 <code>next()</code> 或拒绝。</p>
+<h2 id="Client-models">Client models</h2>
+<p>每个 API controller 包都拥有配对的 Host face 与 Client face。Host 侧拥有权威 mutation 与 stream 生产；Client 侧基于相同的生成 wire type 维护 identity 稳定、与 React 无关的 model，并公开 observable snapshot 与 command。UI 包消费这些 Client service，不在 component store 中复制 transport state。</p>
+<h3 id="Sessions"><span id="ctxsessionstatus--sessionstatusservice" class="anch"></span>Sessions</h3>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/README.zh.md"><code>api/session-controller</code></a>公开 Session list、search、creation、prompt、queue、cancellation、pagination 及 follow/control stream 等 Host command。其 Client 侧按 <code>ClientSessions → SessionManager → Session</code> 组织：</p>
+<ul>
+<li><code>ClientSessions</code> 提供 <code>ctx.sessions</code>，拥有 reference、source count、Session scope 与稳定的 <code>SessionBinding</code> object，并投影不含全局 current Session 选择的 catalog state。</li>
+<li><code>SessionManager</code> 拥有 list baseline、实时 list/control update、惰性 Session instance、projection store、subagent catalog，以及 pull 与后到 update 之间的冲突顺序。</li>
+<li>每个 <code>Session</code> 拥有一段由 <code>SessionEventLikeEntry</code> value 表示的连续逻辑 event window、pagination、follow、prompt/control state 与供 adapter 消费的 observable snapshot。</li>
+</ul>
+<p>持久 event 路径打开 <code>follow()</code>，其首帧包含当前 header、tail page、cursor 与完整 projection baseline。历史 record 带有显式 <code>event</code> 或 <code>chunks</code> 判别字段和字段对齐的内部 <code>event</code>；journal 先校验每条 record 的逻辑 seq 闭区间，Client 再直接把这些 record 保留为 <code>SessionEventLikeEntry</code>，无需逐 record 转换。每个物理 generation 都根据该 snapshot 原子替换保留窗口，随后按 seq append 标准实时 event。<code>page()</code> 只用于更早历史与 gap repair。瞬态 control stream 每代以完整 baseline 开始，随后应用 projection update。</p>
+<h3 id="Workspaces">Workspaces</h3>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/workspace-controller/README.zh.md"><code>api/workspace-controller</code></a>把 Workspace 变更策略与权威 follow feed 留在 Host。<code>ClientWorkspaceModel</code> 拥有浏览器行、Workspace 顺序、归档与置顶 Session id 数组、命令回显，以及流与一元调用的竞态合并。每代 stream 先给出完整 baseline，再给出 <code>upsert</code>、<code>remove</code>、<code>order</code>、<code>archived</code> 和 <code>pinned</code> increment；重连时以新 baseline 替换 model。<code>WorkspaceController</code> 把该 model 作为 <code>ctx.workspaces</code> 公开，<code>ui-workspace</code> 则提供 <code>useWorkspaces</code> 与导航回调。侧边栏的 <code>ArchivedFilter</code> 控制列表与搜索中的默认隐藏、显示已归档或仅显示已归档。归档行保留排序位置、置灰展示，必须通过行菜单或搜索结果的取消归档操作恢复后才能打开。恢复调用 <code>workspace.unarchiveSession</code>，完整归档集合通过一元响应及 <code>archived</code> increment 到达 Client。Session 显示顺序保存在浏览器本地，包含隐藏归档项；置顶在该完整顺序内移动 Session，取消置顶不恢复先前位置。</p>
+<p>这种配对不会产生第二份业务真相。Host controller 决定持久状态与 mutation outcome；Client model 维护最新可用的本地 projection，在有利于渲染时保持 object identity，并明确 delayed response 与 replacement baseline 的合并规则。</p>
+<h2 id="Conversation-与-presentation">Conversation 与 presentation</h2>
+<p>Web 和桌面端共享<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-settings/README.zh.md">代码工作工具偏好</a>。它控制诊断 View、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-agent-preset/README.zh.md">可用的预设选项</a>、改动文件卡片和内置 HTML 预览策略，不改变 Session 记录。</p>
+<p><code>ui-session</code> 安装 Session scope adapter，并在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access/README.zh.md">remote-access</a> Client 服务之上提供 <code>useSessions</code>、<code>useSessionRetainInfo</code>、<code>useSessionAccess</code>、<code>useSession</code>、<code>sessionId</code>、<code>useProjection</code> 和会话作用域的 <code>useAccess</code>。<code>SessionProvider</code> 可以继承外围 binding，也可以绑定显式 <code>SessionReference</code>，因此并存子树可以指向不同 Session。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-status/README.zh.md"><code>ui-session-status</code></a> 从 <code>ctx.uiSession.sessionStatus</code> 状态表提供 <code>useSessionStatus</code>，该表汇总运行状态、生效的待交互请求，以及其宿主面为同一宿主各前端保存的阅读提醒。领域 adapter 可以继续添加标准 source，但不会把 React hook 放进 model object。</p>
+<p><code>ui-conversation</code> 对每个 <code>SessionBinding.eventSource</code> 只绑定一次。它的 event registry 把持久 Session event 与 Client-only <code>assistant/live-chunk</code> update 关联成稳定的业务 Context，view registry 则 materialize target snapshot。Chat Assistant、Trajectory Assistant 与 Turn Tail 同时解释 live chunk 和持久 settlement 中嵌入的紧凑 stream，因此重连与分页历史无需持久 token 行即可复现相同 Assistant 状态。<code>ui-chat</code> 与 <code>ui-trajectory</code> 分别注册自己的 Definition 和 builder：它们可以解释同一 event family，但不会导入或共享彼此的最终 display model。Shell 选择一个已注册 view，再通过标准 hook 与 Slot 交付其 snapshot。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/conversation.zh.md">Conversation</a>定义 Context identity、replay、Location data、target builder 与 keyed renderer。</p>
+<p><code>ui-slots</code> 提供类型化 registry 与 lifecycle ledger；<code>ui-renderer</code> 是唯一通过 <code>useSyncExternalStore</code> 绑定裸 observable、拥有 React context 并渲染 root tree 的包。功能 component 通过推导出的 props 接收 framework hook、owner prop、store action 与显式 injection。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/slots.zh.md">Web Client Slots</a>列出这些输入、扩展 API 与当前 Slot 层级。</p>
+<h2 id="数据通路">数据通路</h2>
+<table><thead><tr><th>路径</th><th>顺序</th></tr></thead><tbody><tr><td>持久 Session 展示</td><td>Host Session log → packed Remote <code>follow</code>/<code>page</code> 历史 → Client <code>SessionEventLikeEntry</code> window → Conversation Context → target snapshot（<code>chat</code>、<code>trajectory</code> 或其他已注册 target）→ Slot view → React</td></tr><tr><td>瞬态 Session control</td><td>Host control baseline → Remote snapshot stream → <code>SessionManager</code> projection store → Session 与 list snapshot → 标准 hook → component</td></tr><tr><td>后台任务</td><td>Host job 注册表 → <code>job.list</code> / <code>job.follow</code> → <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/job-controller/README.zh.md"><code>ClientJobs</code></a> 名册与输出视图 → 任务列表和面板</td></tr><tr><td>Workspace 状态</td><td>Host Workspace baseline 与 increment → <code>ClientWorkspaceModel</code> → <code>ctx.workspaces.list</code> → <code>useWorkspaces</code> → sidebar、hero 与 navigation entry</td></tr><tr><td>scoped interaction</td><td>Host Cordis waterfall → API Remotes <code>$events</code> → Session Context 上的 <code>ctx.remote.$on()</code> → 所属 UI 包 → result 或 <code>next()</code></td></tr><tr><td>用户 command</td><td>component callback → 注册项 inject face 或 Slot owner → <code>ctx.sessions</code>、<code>ctx.workspaces</code> 或生成的 scoped Remote → Host Controller → 权威 update → stream 或 event projection 回到 Client</td></tr></tbody></table>
+<h2 id="重连">重连</h2>
+<p>物理恢复与逻辑恢复彼此独立。Gateway mux 恢复物理 WebSocket；Connection 发布可用 generation 后，每个 <code>RemoteStream</code> 分别重开自己的 logical source。Carrier failure 可以重试；business error、非法 opening item 或 protocol violation 会令所属 logical stream 终止。</p>
+<p>恢复方式由数据语义决定：</p>
+<ul>
+<li>持久 Session journal 校验逻辑 seq range，并根据每个 generation 的 opening snapshot 替换窗口；<code>page()</code> 提供更早历史并修复后续 range gap。</li>
+<li>Session control 与 Workspace stream 在断开期间保留最后一次发布的值，再用新的 opening baseline 原子替换。</li>
+<li>普通 forwarded notification 不会 replay。需要可靠恢复的 stateful domain 必须提供 baseline、cursor 或显式 query；scoped waterfall 保留自身的 request lifetime。</li>
+</ul>
+<p>架构中没有统一的 Client <code>Runtime</code>、<code>HostFrame</code>、<code>events.mux</code>、<code>events.host</code> 或通用 <code>resync()</code> API。Connection 公开 generation state，Gateway 管理 logical stream，Client model 则按自身数据定义 replacement 或 resume 语义。</p>
+<h2 id="阅读提醒">阅读提醒</h2>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-status/README.zh.md">会话状态</a>在宿主内存中保存使用者的阅读确认和手动未读标记。其宿主 Remote 服务发送重连快照和已保存的更新；其前端插件把这些记录汇入 <code>ctx.uiSession.sessionStatus</code> 状态表，并在可见且聚焦的主视图中确认已加载的完成内容。阅读状态不改变模型历史。</p>
+<h3 id="SessionReadState">SessionReadState</h3>
+<p>完整阅读记录包含 <code>sessionId</code>、最近结束的 <code>completedTurn</code>、该轮是否以本宿主观察到的执行错误结束的 <code>failed</code>、已确认的 <code>readTurn</code> 和 <code>manualUnread</code> 标记。设置了手动标记，或最近结束的轮次大于已确认轮次时，会话为未读。</p>
+<p><code>mark(sessionId, action)</code> 按宿主处理顺序更新会话。前端只通过有序订阅流更新记录。该服务自己记录 <code>turn/end</code> 事件，包括该轮是否失败。</p>
+<h3 id="SessionReadAction">SessionReadAction</h3>
+<p><code>unread</code> 操作设置手动标记。<code>read</code> 操作清除标记，并将阅读位置推进至它的 <code>throughTurn</code>；<code>acknowledge</code> 操作只推进位置，不改变标记。位置不会回退，也不越过宿主最近完成的轮次。修改回复仅表示成功或失败，不回传记录。</p>
+<h3 id="SessionReadFrame">SessionReadFrame</h3>
+<p>每次同步先发送 <code>type: 'baseline'</code>，在 <code>items</code> 中包含所有可访问的记录。后续每个 <code>type: 'changed'</code> 都携带一条已保存的完整 <code>state</code>。重连会替换上一代同步流的记录。</p>
+<h2 id="包边界">包边界</h2>
+<p>功能插件包可以通过 <code>import type</code> 共享声明；不得运行时导入或转发另一个功能插件的值。跨包行为使用注入的 Cordis service，跨包 UI 使用 Slots。特定 target 的 Conversation Definition、projection helper 与最终 view data 留在所属 target 包中，即使 Chat 和 Trajectory 有意实现平行逻辑。</p>
+<p>共享运行时值需要一个职责收窄、没有功能生命周期的静态 owner，例如 <code>client/store</code>、<code>ui-primitives</code> 或浏览器安全的 util 包。Transport 与生成 API assembly 可以导入运行时 contribution，因为组装同一个 protocol 正是它们的显式职责。功能包可以通过 <code>dsh.client.external</code> 请求 <code>packages/api/</code> 下某一行的运行时值，但不能请求另一个功能插件的行。</p>
+<p>根据所添加的扩展查阅四篇详细参考：</p>
+<ul>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/client-modules.zh.md">Client Modules</a>：package discovery、loading、共享 module identity 与 boot order。</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md">API Gateway</a>：Host method、生成的 Remote contribution、stream 与 forwarded event。</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/slots.zh.md">Web Client Slots</a>：component、hook、store、injection 与 placement。</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/conversation.zh.md">Conversation</a>：持久 event correlation、target snapshot，以及 Chat 或 Trajectory view contribution。</li>
+</ul>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxsessionstatus--sessionstatusservice" class="anch"></a></p>
+<h3 id="ctx.sessionStatus-—-SessionStatusService"><span id="ctxsessionstatus--sessionstatusservice" class="anch"></span><code>ctx.sessionStatus</code> — <code>SessionStatusService</code></h3>
+<p>Shared owner reading records; no reading operation changes model history.</p>
+<pre><code>/**
+ * Update one Session; read positions advance only through Client-observed completions.
+ * @param sessionId - Session identity.
+ * @param action - Explicit reminder change or automatic read-position acknowledgement.
+ * @throws RemoteError when closing, the Session is missing, or its metadata cannot be read.
+ */
+@Remote async mark(sessionId: SessionId, action: SessionReadAction): Promise&lt;void&gt;
+
+/**
+ * Follow accessible reading records; every connection starts with a complete baseline.
+ * @param signal - generation cancellation.
+ * @returns the baseline and whole-record changes, filtered by Session access.
+ * @throws RemoteError when the service is closing.
+ */
+@Remote({ mode: &#x27;stream&#x27; }) async *follow(signal: AbortSignal): AsyncIterable&lt;SessionReadFrame&gt;</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-status/src/index.ts"><code>packages/client/ui-session-status/src/index.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/web-client">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>权限预设 · DSH 知识图谱文档站</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head><body>
+<header class="top">
+  <a class="brand" href="/">DSH 知识图谱</a>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="side-h">本页目录</div>
+    <nav class="toc"><a class="t2" href="#预设表">预设表</a><a class="t2" href="#固定的当前会话-Auto-注册">固定的当前会话 Auto 注册</a><a class="t2" href="#当前预设与派生的-custom">当前预设与派生的 custom</a><a class="t2" href="#切换与-permission/preset-事件">切换与 permission/preset 事件</a><a class="t2" href="#Cordis-API">Cordis API</a><a class="t3" href="#ctx.permissionPresets-—-PermissionPresetService">ctx.permissionPresets — PermissionPresetService</a><a class="t3" href="#permission-presets/-events">permission-presets/ events</a></nav>
+  </aside>
+  <main class="doc">
+    <div class="crumb"><a href="/docs/">文档站</a> / 权限预设</div>
+    <h1>权限预设</h1>
+    <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/permission-presets.md</div>
+    <div class="body"><h1 id="权限预设">权限预设</h1>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/permission-presets.md">English</a> | 中文</p>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets">dsh-permission-presets</a> 的权限预设层（<code>ctx.permissionPresets</code>，<code>PermissionPresetService</code>）把两个相互独立的强制执行 knob，即<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md">沙箱模式</a>（<code>sandbox/mode</code>）与<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/approval.zh.md">审批策略</a>（<code>approval/policy</code>），捆绑成具名预设，供客户端作为单个 Permissions 选择器提供。配置表拥有未来会话默认值，而固定的 <code>registerAuto(admit)</code> 钩子让 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/auto-review/README.zh.md">Auto review</a> integration 在一个 effect 生命周期内发布仅限当前会话的选项。该层是可选能力，且不拥有执行策略：提示词叙述与回放仍读取各自 knob 的折叠结果，额外强制执行由 Auto review 拥有。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets/README.zh.md">包 README</a>负责组合状态与限制；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/feature/2026-07-06-sandbox.md">历史沙箱切换设计</a>负责原始旋钮依据。</p>
+<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets/src/index.ts"><code>packages/interaction/permission-presets/src/index.ts</code></a></p>
+<h2 id="预设表">预设表</h2>
+<p>预设把一个稳定 key 映射到一组沙箱／审批组合，外加可选的客户端展示信息。默认配置表自带 <code>workspace-write</code>（<code>workspace-write</code> + <code>ask</code>）和 <code>danger-full-access</code>（<code>danger-full-access</code> + <code>never</code>）；<code>custom</code> 与 <code>auto</code> 是保留名称，不能配置。</p>
+<pre><code>/** One preset&#x27;s sandbox/approval bundle and optional client presentation. */
+interface PresetSpec {
+  /** The `sandbox/mode` value the preset writes through. */
+  sandbox: SandboxMode
+  /** The `approval/policy` value the preset writes through. */
+  approval: ApprovalPolicy
+  /** The display label a client shows for this preset; the raw table key when omitted. */
+  name?: string
+  /** One user-facing sentence on what the preset means; omitted when not configured. */
+  description?: string
+}</code></pre>
+<pre><code>/** The {@link PermissionPresetService} config: preset table and composition default. */
+interface Config {
+  /**
+   * The preset table: name → knob bundle. Defaults to `workspace-write`
+   * (workspace-write + ask) and `danger-full-access` (danger-full-access +
+   * never). The names `custom` and `auto` are reserved for derived state and
+   * the Auto review integration respectively.
+   */
+  presets: Record&lt;string, PresetSpec&gt;
+  /**
+   * Default for new sessions. When omitted, the preset matching the composed
+   * sandbox and approval defaults is used.
+   */
+  defaultPreset: Volatile&lt;string | undefined&gt;
+}</code></pre>
+<p>该服务要求一个施加隔离的 <code>ctx.shell</code> 执行器和 <code>ctx.approval</code>，配置错误在插件加载时即失败：名为 <code>custom</code> 或 <code>auto</code> 的配置条目会抛出异常；在不施加隔离的 bash 执行器（没有 <code>sandboxMode</code> 能力事实）之上组合同样抛出异常，因为预设捆绑了一个沙箱模式。</p>
+<h2 id="固定的当前会话-Auto-注册">固定的当前会话 Auto 注册</h2>
+<p>Auto integration 会在自身 effect 生命周期内调用 <code>registerAuto(admit)</code>。本服务固定 <code>auto</code> 身份以及 <code>danger-full-access</code> 加 <code>ask</code> 的组合，已记录的 Auto 选择也匹配委派子会话固定的 <code>never</code> 策略；shipped 客户端的 locale 字典拥有 Auto 的 label 与 description，而配置预设的展示信息仍归 Host 所有。调用方不能通过通用 contribution API 发布其他预设。Auto 排列在配置预设之后，绝不会进入 <code>permission.defaultPreset</code> 设置 schema，并在 effect dispose 时消失。同步 <code>admit</code> 回调会在 Auto 选择修改 Session 前，以及存储的 Auto Session 发布前运行，因此 integration 缺失或正在关闭时不会改写持久身份。</p>
+<p>注册或移除 Auto 会发出无 payload 的 <code>permission-presets/catalog-changed</code> 通知。进程级消费方先订阅，再调用 <code>catalog()</code>；每次收到通知后重新读取完整的可选目录。<code>permissions</code> Session 投影只包含 <code>currentValue</code>，因此目录变化不会追加 Session 事件、发布 Session 投影帧或改变 Session 序列。</p>
+<h2 id="当前预设与派生的-custom">当前预设与派生的 <code>custom</code></h2>
+<p><code>current(session)</code> 从必需的 <code>permissions</code> 投影派生实际生效的预设。该单元折叠会话的沙箱模式、审批策略和已记录选择；状态内部的缺失值回退到执行器配置的模式与审批服务配置，最后回退到 <code>ask</code>。投影 key 缺失时会显式失败。服务优先取仍然匹配的选择（包括 <code>never</code> 审批策略下已记录的 Auto 选择），其次取第一个匹配的配置条目，否则返回 <code>CUSTOM_PRESET</code>（<code>'custom'</code>）。<code>custom</code> 只是派生值：客户端可以把它显示为当前值，但它绝不是切换目标，也绝不出现在事件 payload 中。</p>
+<p><code>names</code> 先按声明顺序列出配置预设，再在 Auto integration 存活时列出 Auto。<code>catalog()</code> 把这些可选条目作为一份进程级快照返回。<code>optionOf(name)</code> 为可用条目（label 回退为该 key）或派生的 <code>custom</code> 展示构建选项，传入其他任何名称都会抛出异常。客户端把目录与 Session 投影合并；<code>custom</code> 可以标记当前值，但绝不会成为目录条目。</p>
+<pre><code>/** Presentation for an available preset or the derived `custom` current value. */
+interface PresetOption {
+  /** Stable option value: a configured preset key, live `auto`, or derived `custom`. */
+  value: string
+  /** The display label. */
+  name: string
+  /** One user-facing sentence on what the value means; omitted when not configured. */
+  description?: string
+}</code></pre>
+<h2 id="切换与-permission/preset-事件">切换与 <code>permission/preset</code> 事件</h2>
+<p><code>set(session, name)</code> 解析预设（未知名称抛出异常），在适用时运行 Auto 准入，在 <code>name</code> 尚不是生效预设时追加一条仅记日志的 <code>permission/preset</code> 事件，然后通过各旋钮自己的 setter（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy">dsh-sandbox-policy</a> 的 <code>setSandboxMode</code> 与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval">dsh-user-approval</a> 的 <code>setApprovalPolicy</code>）写入，且仅当该 knob 的生效值发生变化时才写。同一轮次内，选择事件先于旋钮事件出现；重新选择当前生效的预设则什么都不追加。</p>
+<p><code>permissionPresets/set</code> Remote（<code>setPreset</code>）是这条写入路径的 Remote 面：它通过 <code>set</code> 切换一个 live Session，并把该 Session 声明为 Gateway 要判定的 <code>session</code> 资源，因此访问控制在解析任何预设之前就已执行。</p>
+<p><code>permission/preset</code> 是持久、仅记日志的用户意图：它不进入模型 transcript（文本记录），模型可见的后果由 knob 事件经各自消费方承担；它存在是为了在两个预设共享同一个旋钮组合时，让 <code>current()</code> 仍能保住用户选择的究竟是哪一个预设。<code>permissions</code> 投影把该选择与两个 knob 事件一同折叠，并保留用于区分空恢复 seed 与新会话的 <code>session/end-seed</code> 边界；回放不需要任何追赶状态或原始日志重扫。恢复的 <code>auto</code> 选择在 agent 发布前必须存在 live Auto 注册。完整事件声明见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/persistence-catalog.zh.md">持久化日志事件目录</a>；方法签名见生成的<a href="#ctxpermissionpresets--permissionpresetservice">服务目录</a>。</p>
+<p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
+<p><a id="cordis-surface" class="anch"></a></p>
+<h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p><a id="ctxpermissionpresets--permissionpresetservice" class="anch"></a></p>
+<h3 id="ctx.permissionPresets-—-PermissionPresetService"><span id="ctxpermissionpresets--permissionpresetservice" class="anch"></span><code>ctx.permissionPresets</code> — <code>PermissionPresetService</code></h3>
+<p>Owns the deployment's configured permission presets, the fixed Auto integration hook, and their write path. Requires a confining <code>ctx.shell</code> executor and <code>ctx.approval</code>; unmatched knob values are reported as CUSTOM_PRESET, not an error.</p>
+<pre><code>/**
+ * Read the complete process-level catalog exposed to current-session UI.
+ * @returns every currently selectable preset in contribution order.
+ */
+@Remote(&#x27;catalog&#x27;) catalog(): PermissionCatalog
+
+/**
+ * Switch one live Session to another preset, opened as a Remote call so a
+ * caller&#x27;s Session access is decided before any preset is resolved or any
+ * knob is written. The call&#x27;s `session` resource is the Session named by
+ * `request.sessionId`, per {@link PermissionPresetSetRequest}; the session
+ * controller&#x27;s resolver names it.
+ *
+ * The switch appends `permission/preset` and the changed knob events to the
+ * Session log, so persisted-only Sessions are refused: they have no live log
+ * to append to.
+ * @param request - live target Session and the preset name to switch to.
+ * @returns the Session&#x27;s current selection after the switch, read the way
+ * the client reads it: the recorded preset while its bundle still matches,
+ * otherwise the first preset whose bundle matches, otherwise `custom`.
+ * @throws {RemoteError} `gateway/bad-request` for an unknown preset name or a
+ * Session this process does not hold live; neither call writes.
+ */
+@Remote({ name: &#x27;set&#x27; }) setPreset(request: PermissionPresetSetRequest): PermissionSelection
+
+/**
+ * Publish the fixed current-session Auto preset for the calling
+ * integration&#x27;s effect lifetime.
+ * @param admit - synchronous gate run before live Auto selection or restore.
+ * @returns the async effect disposer that removes Auto.
+ */
+registerAuto(admit: () =&gt; void): () =&gt; Promise&lt;void&gt;
+
+/**
+ * Resolve the preset matching the effective knob values. A still-matching
+ * last selection wins shared-bundle ties, and a still-selected Auto also
+ * matches the `never` approval policy; otherwise the first configured
+ * match wins. Returns
+ * {@link CUSTOM_PRESET} when no available preset matches.
+ * @param session - the session whose knob state is read.
+ * @returns the effective preset name, or `custom` when nothing matches.
+ */
+current(session: Session): string
+
+/**
+ * Resolve an available preset&#x27;s knob bundle.
+ * @param name - the preset name to resolve.
+ * @returns the configured bundle.
+ * @throws when `name` is neither configured nor the currently live Auto preset.
+ */
+resolve(name: string): PresetSpec
+
+/**
+ * Build the client option for an available preset or {@link CUSTOM_PRESET}.
+ * A missing label falls back to the preset key.
+ * @param name - a configured preset key, live `auto`, or `custom`.
+ * @returns the option a client renders.
+ * @throws when `name` is neither a configured preset, live `auto`, nor `custom`.
+ */
+optionOf(name: string): PresetOption
+
+/**
+ * Record a changed preset, then update each changed knob through its own
+ * setter. Selecting the effective preset again appends nothing.
+ * @param session - the session the switch belongs to.
+ * @param name - the preset to switch to; unknown names throw.
+ */
+set(session: Session, name: string): void</code></pre>
+<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets/src/index.ts"><code>packages/interaction/permission-presets/src/index.ts</code></a></p>
+<p><a id="permission-presets-events" class="anch"></a></p>
+<h3 id="permission-presets/-events"><span id="permission-presets-events" class="anch"></span><code>permission-presets/*</code> events</h3>
+<p><a id="permission-presetscatalog-changed--emit" class="anch"></a></p>
+<h4 id="permission-presets/catalog-changed-—-emit"><code>permission-presets/catalog-changed</code> — emit</h4>
+<p>The selectable process catalog changed. Payload-free by design: consumers subscribe first, then re-read the complete catalog.</p>
+<pre><code>/**
+ * The selectable process catalog changed. Payload-free by design:
+ * consumers subscribe first, then re-read the complete catalog.
+ * @mode emit
+ */
+&#x27;permission-presets/catalog-changed&#x27;(): void</code></pre>
+<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/permission-presets/src/types.ts"><code>packages/interaction/permission-presets/src/types.ts</code></a></p>
+<p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
+    <div class="back"><a href="/?focus=reference/subsystems/permission-presets">← 返回图谱并聚焦该文档</a></div>
+  </main>
+</div>
+<script>
+// 锚点：用原生 id 定位；哈希变化时补一次滚动，兼容静态托管
+function jump(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  let el = document.getElementById(id);
+  if(!el){
+    const cands = [...document.querySelectorAll('[id]')];
+    el = cands.find(x => x.id.toLowerCase() === id.toLowerCase());
+  }
+  if(el) requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));
+}
+addEventListener('hashchange', jump); addEventListener('load', jump);
+</script>
+</body></html>
