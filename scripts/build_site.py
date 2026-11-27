@@ -296,6 +296,20 @@ small{color:#7d8590;font-weight:400;font-size:12px}
     dash = dash.replace("</head>", nav_css + "</head>")
     dash = dash.replace("<main>", '<main><div class="kg-nav"><a href="/deepseek-harness/reference/">文档站</a>'
                         '<a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></div>')
+
+    # 性能优化：把 docs 全文（~1.8MB，仅悬浮卡片用）拆成独立 JSON 按需加载，
+    # 首屏 DATA 只保留图谱结构（nodes/edges/layers/tour），体积从 4.3MB 降到 ~2.5MB。
+    import re as _re, json as _json
+    m = _re.search(r'(const DATA = )(\{.*?\})(;\n)', dash, _re.S)
+    if m:
+        data = _json.loads(m.group(2))
+        docs = data.pop("docs", {})
+        dd = SITE / "data"
+        dd.mkdir(parents=True, exist_ok=True)
+        (dd / "docs.json").write_text(
+            _json.dumps(docs, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        dash = dash[:m.start(2)] + _json.dumps(data, ensure_ascii=False, separators=(",", ":")) + dash[m.end(2):]
+        print(f"  docs split -> data/docs.json ({(dd / 'docs.json').stat().st_size/1048576:.2f} MB)")
     (SITE / "index.html").write_text(dash, encoding="utf-8")
 
     print(f"site -> {SITE}")

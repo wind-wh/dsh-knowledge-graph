@@ -460,17 +460,32 @@ qEl.addEventListener('input', ()=>{
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ================= 官方文档悬浮展开 =================
+// docs 全文拆到 data/docs.json 按需加载，避免阻塞首屏（原内嵌 1.8MB）
 const DOC = DATA.docs || {};
+let docsPromise = null;
+function loadDocs(){
+  if(Object.keys(DOC).length) return Promise.resolve();
+  if(!docsPromise){
+    docsPromise = fetch('data/docs.json')
+      .then(r => r.json())
+      .then(d => { Object.assign(DOC, d); return d; })
+      .catch(e => { console.warn('docs load failed', e); docsPromise = null; });
+  }
+  return docsPromise;
+}
 const SITE_BASE = 'https://deepseek-harness.github.io/deepseek-harness/';
 function docKeyFromUrl(u){
   if(!u) return null;
-  if(u.startsWith(SITE_BASE)){
-    let r = u.slice(SITE_BASE.length).split(/[?#]/)[0].replace(/\/$/, '');
+  // 站点链接：兼容官网绝对 URL 与本站 /deepseek-harness/ 路径
+  let r = u;
+  if(r.startsWith(SITE_BASE)) r = r.slice(SITE_BASE.length);
+  r = r.replace(/^\/deepseek-harness\//, '').split(/[?#]/)[0].replace(/\/$/, '');
+  if(r.startsWith('reference') || r.startsWith('guide') || r.startsWith('develop')){
     if(r === 'reference') r = 'reference/index';
     return DOC[r] ? r : null;
   }
   // 非站点链接：按 URL 末段在 payload 中做后缀匹配（如 GitHub 源码页）
-  const tail = u.split(/[?#]/)[0].replace(/\.zh?\.md$/, '').split('/').slice(-2).join('/');
+  const tail = r.replace(/\.zh?\.md$/, '').split('/').slice(-2).join('/');
   const hit = Object.keys(DOC).find(k => k === 'reference/' + tail || k.endsWith('/' + tail));
   return hit || null;
 }
@@ -549,13 +564,15 @@ function hideDoc(){
   docHideTimer = setTimeout(()=>{ docpop.classList.remove('on'); docCurKey = null; }, 140);
 }
 function keepDoc(){ clearTimeout(docHideTimer); }
-function showDoc(url, anchor){
+async function showDoc(url, anchor){
+  await loadDocs();
   const key = docKeyFromUrl(url);
   if(!key){ return; }
   keepDoc();
   if(key !== docCurKey){
     docCurKey = key;
     const d = DOC[key];
+    if(!d) return;
     // 大文档只渲染前 60k 字符，悬浮体验优先；完整版可从本地文件 / 原网页查看
     const full = d.md.length > 60000;
     const body = mdRender(full ? d.md.slice(0, 60000) + '\n\n> …（内容较长，已截断；完整正文见本地文件或原网页）' : d.md, d.url);
@@ -608,3 +625,6 @@ document.getElementById('s-canvas').textContent =
   `画布渲染 ${nodes.length.toLocaleString()} 个文件级节点 · ${edges.length.toLocaleString()} 条关系`;
 renderTour();
 requestAnimationFrame(()=>requestAnimationFrame(resize));
+// 首屏渲染完成后，空闲时后台预取 docs，用户首次悬浮时已就绪
+if(window.requestIdleCallback) requestIdleCallback(()=>loadDocs(), {timeout:3000});
+else setTimeout(loadDocs, 1200);

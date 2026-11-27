@@ -60,6 +60,15 @@ def main():
             total += n
     print(f"localized {changed} html files, {total} replacements")
 
+    # docs.json（懒加载的文档数据）同样需要本地化
+    docs_json = SITE / "data" / "docs.json"
+    if docs_json.exists():
+        raw = docs_json.read_text(encoding="utf-8")
+        new, n = localize(raw)
+        if new != raw:
+            docs_json.write_text(new, encoding="utf-8")
+            print(f"localized data/docs.json ({n} replacements)")
+
     # 验证：统计剩余外链
     remain = {}
     for p in SITE.rglob("*.html"):
