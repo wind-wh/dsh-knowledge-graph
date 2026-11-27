@@ -1,4 +1,21 @@
 window.addEventListener('error', ev => { document.title = 'ERR ' + ev.message; });
+// ================= 加载进度 =================
+function setProgress(p, label){
+  const fill = document.getElementById('ldfill');
+  if(fill) fill.style.width = p + '%';
+  const pct = document.getElementById('ldpct');
+  if(pct) pct.textContent = Math.round(p) + '%';
+  const st = document.getElementById('ldstage');
+  if(st && label) st.textContent = label;
+}
+let loaderDone = false;
+function finishLoader(){
+  if(loaderDone) return;
+  loaderDone = true;
+  setProgress(100, '就绪');
+  const l = document.getElementById('loader');
+  if(l){ l.classList.add('off'); setTimeout(()=>l.remove(), 400); }
+}
 // ================= 视图与绘制 =================
 let inited = false;
 function resize(){
@@ -12,6 +29,7 @@ function resize(){
   if(!inited){
     inited = true;
     fitTo([...Array(nodes.length).keys()], false);   // 首帧直接就位，避免从原点放大
+    finishLoader();                                   // 首帧绘制完成，收起进度条
   } else {
     draw();
   }
@@ -669,6 +687,7 @@ document.addEventListener('click', ev=>{
 });
 
 // ================= 启动 =================
+setProgress(18, '解析图谱数据…');
 const meta = DATA.meta || {};
 document.getElementById('s-n').textContent = (meta.allNodes || nodes.length).toLocaleString();
 document.getElementById('s-e').textContent = (meta.allEdges || edges.length).toLocaleString();
@@ -676,8 +695,12 @@ document.getElementById('s-l').textContent = layers.length;
 document.getElementById('s-t').textContent = tour.length;
 document.getElementById('s-canvas').textContent =
   `画布渲染 ${nodes.length.toLocaleString()} 个文件级节点 · ${edges.length.toLocaleString()} 条关系`;
+setProgress(48, '构建导览与图层…');
 renderTour();
+setProgress(72, '绘制图谱…');
 requestAnimationFrame(()=>requestAnimationFrame(resize));
+// 兜底：容器尺寸异常导致 resize 提前 return 时，仍要收起进度条
+setTimeout(finishLoader, 4000);
 // 首屏渲染完成后，空闲时后台预取 docs，用户首次悬浮时已就绪
 if(window.requestIdleCallback) requestIdleCallback(()=>loadDocs(), {timeout:3000});
 else setTimeout(loadDocs, 1200);

@@ -190,9 +190,26 @@
   .docpop .dpfoot .dplocal{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .docpop .dpfoot .dpmore{margin-left:auto;color:#7fb3e0;white-space:nowrap}
   .docpop .dploading{padding:20px;color:var(--fg3);text-align:center}
+  /* ---------- 加载进度 ---------- */
+  .loader{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .35s ease}
+  .loader.off{opacity:0;pointer-events:none}
+  .ld-box{width:min(420px,80vw)}
+  .ld-title{font-size:18px;font-weight:600;letter-spacing:.3px}
+  .ld-sub{color:var(--fg2);font-size:12px;margin-top:4px}
+  .ld-track{height:4px;background:#212c3a;border-radius:2px;margin-top:20px;overflow:hidden}
+  .ld-fill{height:100%;width:0;background:var(--accent);border-radius:2px;transition:width .25s ease}
+  .ld-meta{display:flex;justify-content:space-between;color:var(--fg3);font-size:11px;margin-top:8px}
 </style>
 </head>
 <body>
+<div id="loader" class="loader">
+  <div class="ld-box">
+    <div class="ld-title">DeepSeek Harness</div>
+    <div class="ld-sub">知识图谱 · 正在加载</div>
+    <div class="ld-track"><div class="ld-fill" id="ldfill"></div></div>
+    <div class="ld-meta"><span id="ldstage">连接中…</span><span id="ldpct">0%</span></div>
+  </div>
+</div>
 <aside>
   <div class="head">
     <h1>DeepSeek Harness</h1>
