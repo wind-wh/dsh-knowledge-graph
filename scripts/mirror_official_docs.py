@@ -133,6 +133,40 @@ def main():
         chunk_ok = sum(f.result() for f in as_completed(results))
     print(f"chunks downloaded: {chunk_ok}/{len(page_chunks)}")
 
+    # 关键：VitePress 客户端点击跳转加载「非 lean」chunk（xxx.md.<hash>.js），
+    # 而首屏 HTML 加载的是 lean 版（xxx.md.<hash>.lean.js）。两者都必须镜像，
+    # 否则点击导航会 404（刷新正常、点击 404 的根因）。
+    hash_map_url = f"{BASE}{PREFIX}/assets/hashmap.json"
+    # 从首页 HTML 内联的 __VP_HASH_MAP__ 提取全部 key.hash
+    sample_html = MIRROR / "reference/index.html"
+    full_chunks = set()
+    if sample_html.exists():
+        import json as _json
+        ht = sample_html.read_text(encoding="utf-8", errors="replace")
+        k = ht.find('window.__VP_HASH_MAP__=JSON.parse("')
+        if k >= 0:
+            start = k + len('window.__VP_HASH_MAP__=JSON.parse("')
+            j = start
+            esc = False
+            while j < len(ht):
+                ch = ht[j]
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    break
+                j += 1
+            hm = _json.loads(_json.loads('"' + ht[start:j] + '"'))
+            for key, hashv in hm.items():
+                full_chunks.add(f"{PREFIX}/assets/{key}.{hashv}.js")
+    print(f"full chunks (non-lean): {len(full_chunks)}")
+    with ThreadPoolExecutor(8) as ex:
+        results = [ex.submit(fetch, BASE + c, MIRROR / c[len(PREFIX):].lstrip("/"))
+                   for c in full_chunks]
+        full_ok = sum(f.result() for f in as_completed(results))
+    print(f"full chunks downloaded: {full_ok}/{len(full_chunks)}")
+
     # 2b) 改写 CSS 里的字体 URL：/assets/xxx → /deepseek-harness/assets/xxx
     css_path = MIRROR / "assets/style.6heebdof.css"
     if css_path.exists():
