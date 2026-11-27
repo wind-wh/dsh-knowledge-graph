@@ -382,6 +382,12 @@ function visible(i){
   return true;
 }
 
+// 性能：可见性矩阵每帧只算一次，边与节点共用（原来每帧约 1.9 万次 Set 查询）
+const visBuf = new Uint8Array(nodes.length);
+function computeVisibility(){
+  for(let i=0;i<nodes.length;i++) visBuf[i] = visible(i) ? 1 : 0;
+}
+
 function draw(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = '#0d1117';
@@ -389,21 +395,38 @@ function draw(){
 
   const k = view.k;
   const selSet = selected !== null ? new Set([selected, ...adj[selected]]) : null;
+  computeVisibility();
 
   // ---- 边 ----
+  // 性能：普通边攒到一条 path 一次 stroke（原每条边一次 beginPath+stroke）
   ctx.lineWidth = Math.max(0.3, 0.5*Math.min(k*1.6,1.2));
+  ctx.strokeStyle = 'rgba(94,112,132,.26)';
+  ctx.beginPath();
+  let hotEdges = null;
   for(let i=0;i<edges.length;i++){
     const e = edges[i];
-    if(!visible(e.s) || !visible(e.t)) continue;
+    if(!visBuf[e.s] || !visBuf[e.t]) continue;
     const a = nodes[e.s], b = nodes[e.t];
     const [x1,y1] = toScreen(a.x,a.y), [x2,y2] = toScreen(b.x,b.y);
     if((x1<-40&&x2<-40)||(x1>W+40&&x2>W+40)) continue;
     if((y1<-40&&y2<-40)||(y1>H+40&&y2>H+40)) continue;
     const hot = selSet && (selSet.has(e.s) && selSet.has(e.t) &&
                 (e.s===selected || e.t===selected));
-    if(hot){ ctx.strokeStyle = 'rgba(88,166,255,.55)'; ctx.lineWidth = 1.15; }
-    else   { ctx.strokeStyle = 'rgba(94,112,132,.26)'; ctx.lineWidth = 0.5; }
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if(hot){
+      if(!hotEdges) hotEdges = [];
+      hotEdges.push(x1,y1,x2,y2);
+    } else {
+      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    }
+  }
+  ctx.stroke();
+  if(hotEdges){
+    ctx.strokeStyle = 'rgba(88,166,255,.55)'; ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    for(let j=0;j<hotEdges.length;j+=4){
+      ctx.moveTo(hotEdges[j],hotEdges[j+1]); ctx.lineTo(hotEdges[j+2],hotEdges[j+3]);
+    }
+    ctx.stroke();
   }
 
   // ---- 簇（包）标签 ----
@@ -437,64 +460,94 @@ function draw(){
   }
 
   // ---- 节点 ----
+  // 性能：普通节点按 (颜色,alpha) 分桶，每桶一次 beginPath+fill；特殊节点（选中/聚焦/带标签）单独画
   const showLabel = k > 1.02;
   const labelMinDeg = k > 1.35 ? 7 : k > 1.1 ? 10 : 14;
+  const buckets = new Map();       // key -> {col, alpha, pts:[x,y,r,...]}
+  const specials = [];             // 需要独立描边/标签的节点
+  const rScale = Math.min(Math.max(k*1.35, 0.55), 1.45);
+
   for(let oi=0; oi<drawOrder.length; oi++){
     const i = drawOrder[oi];
-    if(!visible(i)) continue;
+    if(!visBuf[i]) continue;
     const n = nodes[i];
     const [x,y] = toScreen(n.x,n.y);
     if(x < -30 || x > W+30 || y < -30 || y > H+30) continue;
     const isDoc = n.l === 'layer:reference-docs';
-    const r = Math.min(3.4 + 2.4*Math.sqrt(n.d), 12) * Math.min(Math.max(k*1.35, 0.55), 1.45)
-              * (isDoc ? 0.82 : 1);
+    const r = Math.min(3.4 + 2.4*Math.sqrt(n.d), 12) * rScale * (isDoc ? 0.82 : 1);
     const col = layerColor[n.l] || '#8b949e';
     const inStep = stepSet ? stepSet.has(i) : false;
+    const dim = (selSet && !selSet.has(i)) || (searchActive && !matchSet.has(i));
+    const sdim = stepSet && !inStep;
+    const alpha = dim ? 0.30 : (sdim ? 0.34 : (isDoc ? 0.48 : 1));
 
+    // 标签：度数高的节点 + 缩放足够时；导览聚焦节点始终显示
+    const labelOk = isDoc ? (k > 1.5) : showLabel;
+    const needLabel = (labelOk || inStep) &&
+      (n.d >= labelMinDeg || inStep || (selSet && selSet.has(i)) || (searchActive && matchSet.has(i)));
+
+    if(selected === i || inStep || needLabel){
+      specials.push({i, n, x, y, r, col, inStep, dim, sdim, needLabel, isDoc});
+      if(selected !== i){  // 选中节点的底色由独立绘制负责，避免重复
+        const bk = col + '|' + alpha;
+        let b = buckets.get(bk);
+        if(!b){ b = {col, alpha, pts:[]}; buckets.set(bk, b); }
+        b.pts.push(x,y,r);
+      }
+    } else {
+      const bk = col + '|' + alpha;
+      let b = buckets.get(bk);
+      if(!b){ b = {col, alpha, pts:[]}; buckets.set(bk, b); }
+      b.pts.push(x,y,r);
+    }
+  }
+
+  // 批量填充：同类节点一次 path（arc 之间用 moveTo 断开，避免连线）
+  for(const b of buckets.values()){
+    ctx.globalAlpha = b.alpha;
+    ctx.fillStyle = b.col;
+    ctx.beginPath();
+    for(let j=0;j<b.pts.length;j+=3){
+      const x=b.pts[j], y=b.pts[j+1], r=b.pts[j+2];
+      ctx.moveTo(x+r, y); ctx.arc(x,y,r,0,6.2832);
+    }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // 特殊节点：选中态 / 导览聚焦 / 标签
+  for(const s of specials){
+    const {i, n, x, y, r, col, inStep, dim, sdim, needLabel} = s;
     if(selected === i){
       ctx.beginPath(); ctx.arc(x,y,r+5,0,6.2832);
       ctx.fillStyle = 'rgba(88,166,255,.18)'; ctx.fill();
       ctx.beginPath(); ctx.arc(x,y,r,0,6.2832);
       ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.stroke();
+    } else if(inStep){
+      ctx.beginPath(); ctx.arc(x,y,r*0.72,0,6.2832);
+      ctx.fillStyle = 'rgba(255,232,200,.55)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(x,y,r+2.2,0,6.2832);
+      ctx.strokeStyle = 'rgba(255,186,104,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if(!needLabel) continue;
+    ctx.globalAlpha = dim ? 0.35 : (sdim ? 0.32 : 0.95);
+    ctx.textAlign = 'left';
+    if(inStep){
+      ctx.font = '600 12px -apple-system,"Noto Sans SC","Microsoft YaHei",sans-serif';
+      const lw = ctx.measureText(n.name).width;
+      ctx.fillStyle = 'rgba(18,14,10,.86)';
+      ctx.fillRect(x + r + 4, y - 9, lw + 10, 17);
+      ctx.strokeStyle = 'rgba(255,186,104,.45)'; ctx.lineWidth = 1;
+      ctx.strokeRect(x + r + 4, y - 9, lw + 10, 17);
+      ctx.fillStyle = '#ffd9b1';
+      ctx.fillText(n.name, x + r + 9, y + 3.6);
     } else {
-      const dim = (selSet && !selSet.has(i)) || (searchActive && !matchSet.has(i));
-      const sdim = stepSet && !inStep;
-      ctx.globalAlpha = dim ? 0.30 : (sdim ? 0.34 : (isDoc ? 0.48 : 1));
-      ctx.beginPath(); ctx.arc(x,y,r,0,6.2832);
-      ctx.fillStyle = col; ctx.fill();
-      ctx.globalAlpha = 1;
-      if(inStep){   // 聚焦节点：加亮核 + 暖色描边
-        ctx.beginPath(); ctx.arc(x,y,r*0.72,0,6.2832);
-        ctx.fillStyle = 'rgba(255,232,200,.55)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(x,y,r+2.2,0,6.2832);
-        ctx.strokeStyle = 'rgba(255,186,104,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
-      }
+      ctx.font = '10.5px -apple-system,"Noto Sans SC","Microsoft YaHei",sans-serif';
+      ctx.fillStyle = '#c9d5e1';
+      ctx.fillText(n.name, x + r + 3, y + 3.2);
     }
-
-    // 标签：度数高的节点 + 缩放足够时；导览聚焦节点始终显示
-    const labelOk = isDoc ? (k > 1.5) : showLabel;
-    if((labelOk || inStep) && (n.d >= labelMinDeg || inStep || (selSet && selSet.has(i)) || (searchActive && matchSet.has(i)))){
-      const dim = (selSet && !selSet.has(i)) || (searchActive && !matchSet.has(i));
-      const sdim = stepSet && !inStep;
-      ctx.globalAlpha = dim ? 0.35 : (sdim ? 0.32 : 0.95);
-      ctx.textAlign = 'left';
-      if(inStep){
-        ctx.font = '600 12px -apple-system,"Noto Sans SC","Microsoft YaHei",sans-serif';
-        const lw = ctx.measureText(n.name).width;
-        ctx.fillStyle = 'rgba(18,14,10,.86)';
-        ctx.fillRect(x + r + 4, y - 9, lw + 10, 17);
-        ctx.strokeStyle = 'rgba(255,186,104,.45)'; ctx.lineWidth = 1;
-        ctx.strokeRect(x + r + 4, y - 9, lw + 10, 17);
-        ctx.fillStyle = '#ffd9b1';
-        ctx.fillText(n.name, x + r + 9, y + 3.6);
-      } else {
-        ctx.font = '10.5px -apple-system,"Noto Sans SC","Microsoft YaHei",sans-serif';
-        ctx.fillStyle = '#c9d5e1';
-        ctx.fillText(n.name, x + r + 3, y + 3.2);
-      }
-      ctx.globalAlpha = 1;
-    }
+    ctx.globalAlpha = 1;
   }
 }
 
