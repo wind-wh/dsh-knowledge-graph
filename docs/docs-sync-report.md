@@ -115,7 +115,18 @@
 - 镜像规模：180 页 HTML（176 可达 + 4 未发布兜底）、176 chunk、50 资源，共 34.8 MB。
 - 验证：`/en/reference/`、`/en/guide/quickstart`、`/en/develop/basic/index`、`/en/reference/persistence-catalog` 全部 200 且标题为英文；语言切换链接双向正确。
 
-## 十二、仍未处理
+## 十二、源码仓库（第九轮）
+
+按用户要求建新仓库存放网站源码：
+
+- 仓库：`https://github.com/wind-wh/dsh-knowledge-graph`（public，默认分支 main）
+- 服务器 Git 凭据：SSH key（`git@github.com:wind-wh`，已在服务器 `~/.ssh/id_ed25519`），GitHub 账户 `wind-wh`；API token 由用户提供用于创建仓库。
+- 仓库结构：`scripts/`（构建脚本 + 面板前端源码）、`data/doc-payload.json`、`docs/docs-sync-report.md`、`site/`（可直接部署的静态站点）、`README.md`、`.gitignore`。
+- 首次提交：`90c16af Initial commit DSH KG site`，493 个文件，39,914 行插入；远程 HEAD 与本地一致。
+- 本地源码目录：`D:\work\DSH\dsh-knowledge-graph`；服务器源码目录：`C:\wwwroot\kg-src`。
+- 本地代理：`D:\work\DSH\socks_proxy.py`（SOCKS5 127.0.0.1:1080，经服务器 SSH 转发），用于本地无法直连 GitHub 时访问；实际推送走服务器 SSH 直连。
+
+## 十三、仍未处理
 
 - UI 层源码（`packages/client`、`apps/web`、`apps/desktop`）不在源码分析范围（`project.scope` 已声明）；reference 站点中描述这些子系统的页面本身已全部入图。
 - 悬浮卡片正文仍截断至 60k 字符（性能取舍）；完整正文可在文档站查看。
