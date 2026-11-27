@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>进程沙箱</h1>
     <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/sandbox.md</div>
     <div class="body"><h1 id="进程沙箱">进程沙箱</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox">dsh-sandbox</a> 的进程沙箱 seam 将与配套子进程提供方共享执行环境的子进程 argv 包装在文件效果策略中，而不将消费方耦合到特定平台运行器。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local">dsh-sandbox-local</a> 提供 Linux bwrap/Landlock、macOS Seatbelt 与 Windows ACL 受限令牌后端；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox">dsh-bash-sandbox</a> 和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/pwsh-sandbox">dsh-pwsh-sandbox</a> 是其消费方。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/ssh/sandbox-ssh/README.zh.md">dsh-sandbox-ssh</a> 通过与 SSH 文件系统及子进程提供方配套的远端后端执行同一策略。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
+<p><a href="/src/docs/subsystems/sandbox.md">English</a> | 中文</p>
+<p><a href="/src/packages/sandbox/sandbox">dsh-sandbox</a> 的进程沙箱 seam 将与配套子进程提供方共享执行环境的子进程 argv 包装在文件效果策略中，而不将消费方耦合到特定平台运行器。<a href="/src/packages/sandbox/sandbox-local">dsh-sandbox-local</a> 提供 Linux bwrap/Landlock、macOS Seatbelt 与 Windows ACL 受限令牌后端；<a href="/src/packages/shell/bash-sandbox">dsh-bash-sandbox</a> 和 <a href="/src/packages/shell/pwsh-sandbox">dsh-pwsh-sandbox</a> 是其消费方。<a href="/src/packages/ssh/sandbox-ssh/README.zh.md">dsh-sandbox-ssh</a> 通过与 SSH 文件系统及子进程提供方配套的远端后端执行同一策略。</p>
+<p>源码：<a href="/src/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
 <h2 id="模式与强制执行">模式与强制执行</h2>
 <p><code>SandboxMode</code> 仅管控文件系统效果。<code>read-only</code> 要求后端拒绝写入——POSIX runner 还会授予其 shell 所需的 <code>/dev/null</code> 接收器，而 Windows ACL runner 不授予任何显式可写根目录，并因环境 ACL 缺口报告部分强制执行；<code>workspace-write</code> 允许在工作区根目录、受支持的额外目录及后端承诺的临时区域下写入；<code>danger-full-access</code> 绕过隔离。Windows 子进程忽略额外目录授权；Harness 文件工具独立执行这些授权。网络与进程可见性不在此处的定义范围内。</p>
 <pre><code>/**
@@ -136,14 +136,14 @@ interface ConfinedArgv {
    */
   runnerFailureRules: readonly RunnerFailureRule[]
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>拥有运维配置，并将其 runner 方言映射到这些规则。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/bash-sandbox/README.zh.md">沙箱化 bash 消费方</a>拥有 spawn 与结果归因。</p>
+<p><a href="/src/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>拥有运维配置，并将其 runner 方言映射到这些规则。<a href="/src/packages/shell/bash-sandbox/README.zh.md">沙箱化 bash 消费方</a>拥有 spawn 与结果归因。</p>
 <h2 id="提供方与-fail-closed-错误">提供方与 fail-closed 错误</h2>
 <p><code>await ctx.sandbox.confine(argv, policy, signal)</code> 在执行环境中解析策略路径并返回 <code>ConfinedArgv</code>，没有可用后端时以 <code>SandboxUnavailableError</code>（错误码 <code>SANDBOX_UNAVAILABLE</code>）拒绝，提供方无法为该模式准备主机状态时以 <code>SandboxPreparationError</code>（<code>SANDBOX_PREPARATION_FAILED</code>、<code>SANDBOX_INVALID_TEMP_ROOT</code>）拒绝。可选信号可在启动前取消解析。消费方也可以在 spawn 或观察所返回的 argv 时对失败进行分类；该归因属于消费方约定。对于受限策略，静默的无隔离透传永远不合法。</p>
-<p>提供方选择、探测、缓存和后端特定的强制执行报告归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>所有。</p>
+<p>提供方选择、探测、缓存和后端特定的强制执行报告归<a href="/src/packages/sandbox/sandbox-local/README.zh.md">本地提供方</a>所有。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsandbox--sandboxprovider-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.sandbox-—-SandboxProvider-abstract-seam"><span id="ctxsandbox--sandboxprovider-abstract-seam" class="anch"></span><code>ctx.sandbox</code> — <code>SandboxProvider</code> (abstract seam)</h3>
 <p>Abstract process-sandbox service. confine must return enforcing argv or fail closed at wrap or runner-execution time; silent unconfined passthrough is forbidden. Functional probes arbitrate multi-runner chains and may be skipped for a sole candidate, whose own refusal remains the fail-closed end.</p>
@@ -160,7 +160,7 @@ interface ConfinedArgv {
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise&lt;ConfinedArgv&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/sandbox/sandbox/src/index.ts"><code>packages/sandbox/sandbox/src/index.ts</code></a></p>
 <p><a id="ctxsandboxpolicy--sandboxpolicyservice" class="anch"></a></p>
 <h3 id="ctx.sandboxPolicy-—-SandboxPolicyService"><span id="ctxsandboxpolicy--sandboxpolicyservice" class="anch"></span><code>ctx.sandboxPolicy</code> — <code>SandboxPolicyService</code></h3>
 <p>The sandbox-policy service (<code>ctx.sandboxPolicy</code>). Owns the deployment default mode, fallback workspace root, session-scoped directory grants, and request-time policy section. Tool layers call resolve for each execution so a session's mode log and immutable cwd travel together to every enforcing capability.</p>
@@ -200,8 +200,8 @@ registerWritableRoot(session: Session, directory: string): () =&gt; void
  * @returns the last logged mode, or `undefined` without one.
  */
 overrideOf(session: Session): SandboxMode | undefined</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/src/index.ts"><code>packages/sandbox/sandbox-policy/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/sandbox/sandbox-policy/src/index.ts"><code>packages/sandbox/sandbox-policy/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/sandbox">← 返回图谱并聚焦该文档</a></div>
   </main>

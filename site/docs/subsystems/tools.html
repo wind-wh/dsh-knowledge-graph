@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>工具</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/tools.md</div>
     <div class="body"><h1 id="工具">工具</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools">dsh-tools</a> 的工具流水线。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">core.md</a> 介绍了核心包共用、用于编写流水线的类型 <code>ToolDefinition</code>；面向模型的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md"><code>ToolSchema</code></a> 协议类型与模型请求一起声明。本页记录 <code>ToolDefinition</code> 的每个字段、用于构建它的类型化 schema DSL、带守卫的执行类型和 UI 展示类型。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/index.ts"><code>packages/core/tools/src/index.ts</code></a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/schema.ts"><code>packages/core/tools/src/schema.ts</code></a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/presentation.ts"><code>packages/core/tools/src/presentation.ts</code></a></p>
+<p><a href="/src/docs/subsystems/tools.md">English</a> | 中文</p>
+<p><a href="/src/packages/core/tools">dsh-tools</a> 的工具流水线。<a href="/src/docs/subsystems/core.zh.md">core.md</a> 介绍了核心包共用、用于编写流水线的类型 <code>ToolDefinition</code>；面向模型的 <a href="/src/docs/subsystems/llm-streaming.zh.md"><code>ToolSchema</code></a> 协议类型与模型请求一起声明。本页记录 <code>ToolDefinition</code> 的每个字段、用于构建它的类型化 schema DSL、带守卫的执行类型和 UI 展示类型。</p>
+<p>源码：<a href="/src/packages/core/tools/src/index.ts"><code>packages/core/tools/src/index.ts</code></a> · <a href="/src/packages/core/tools/src/schema.ts"><code>packages/core/tools/src/schema.ts</code></a> · <a href="/src/packages/core/tools/src/presentation.ts"><code>packages/core/tools/src/presentation.ts</code></a></p>
 <h2 id="ToolDefinition-—-一个已注册的工具"><code>ToolDefinition</code> — 一个已注册的工具</h2>
 <p>由一个 <code>ToolSchema</code>（面向模型的字段）、必需的规范输出声明、<code>execute</code> 函数、仅供宿主使用的调度器元数据、可选的最终内容回调和可选 UI 展示函数组成。注册表持有这些定义，循环通过它们分派调用。注册表的 <code>schemas()</code> 通过显式允许列表构建面向模型的 <code>ToolSchema[]</code>；<code>output</code>/<code>execute</code>/<code>projectContent</code>/<code>finalizeContent</code>/<code>timeoutMs</code>/<code>isConcurrencySafe</code>/<code>presentCall</code>/<code>presentResult</code> 绝不能泄漏到模型请求中。</p>
 <pre><code>/** Tool-owned canonical output contract used after the body returns a JSON value. */
@@ -113,7 +113,7 @@ interface ToolDefinition extends ToolSchema {
 <p><code>execute</code> 接收 <code>args: unknown</code>——原始的 <code>ToolDefinition</code> 自行校验输入。第一方工具不需要手写校验；它们使用 <code>defineTool</code>，由后者代为校验并收窄参数类型、根据 <code>output.schema</code> 推导函数体返回类型，并为两个输出投影器提供类型约束。<code>finalizeContent</code> 特意接收不可变的执行对象而非类型化参数，因为无效输入和外层流水线失败也会到达该回调；它可以施加工具自有的内容限制，同时保留 <code>isError</code>、规范值、结构化错误身份、延迟上下文与展示元数据。</p>
 <h2 id="统一的-JSON-值-schema-DSL">统一的 JSON 值 schema DSL</h2>
 <p>插件作者使用同一套词汇描述类型化参数和类型化输出值。<code>ValueSchemaSpec</code> 支持 <code>string</code>、<code>number</code>、<code>integer</code>、<code>boolean</code>、<code>null</code>、<code>array</code>、<code>object</code>、仅作者侧可用的 <code>json</code>，以及要求恰好命中一个分支的 <code>oneOf</code>；标量 <code>enum</code> 和 <code>const</code> 值必须与节点类型匹配。显式对象节点始终声明 <code>additionalProperties: true | false</code>。参数定义仍是隐式的开放对象属性映射，每个必填属性都附带 <code>required: true</code>。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/schema.ts"><code>packages/core/tools/src/schema.ts</code></a></p>
+<p>源码：<a href="/src/packages/core/tools/src/schema.ts"><code>packages/core/tools/src/schema.ts</code></a></p>
 <pre><code>/** One author-facing schema for any lossless JSON value root. */
 type ValueSchemaSpec =
   | StringValueSchemaSpec
@@ -509,12 +509,12 @@ type ObjectJsonSchema = JsonSchemaNode &amp; { type: &#x27;object&#x27; }</code>
 <li><code>ToolCallView</code>（待执行）：<code>{ card: 'generic', title, kind?, rawInput?, content?, locations? }</code>（默认卡片；<code>locations</code> 是 <code>{ path, line? }[]</code>，表示调用读取/修改的文件，供编辑器跟随）、<code>{ card: 'terminal', title, description?, cwd? }</code>（shell 命令→终端卡片）、或 <code>{ card: 'diff', title, diffs, locations? }</code>（文件创建/修改→行内 diff 卡片；<code>diffs</code> 是 <code>{ path, oldText, newText }[]</code>，新文件时 <code>oldText: null</code>）。</li>
 <li><code>ToolResultView</code>（已完成）：<code>{ card: 'generic', title?, content? }</code>、<code>{ card: 'terminal', title?, output?, exitCode?, signal? }</code>（捕获的运行输出 + 退出状态；有能力的 UI 显示退出状态标签，其他 UI 可以派生围栏 <code> </code>`<code>console </code> 回退）、<code>{ card: 'diff', title?, diffs }</code>（已完成的文件变更→要展示的变更，通常是从变更前后内容计算出带上下文行的已应用 hunk，或在没有前像时的整文件 diff）、<code>{ card: 'search', shape, title?, truncated, total, … }</code>（已完成的发现型搜索→<code>shape: 'matches'</code>（grep）为按文件分组的匹配，<code>shape: 'paths'</code>（glob）为扁平路径列表；<code>truncated</code>/<code>total</code> 报告内联结果是否被截断，使 UI 永不把部分结果当作完整结果呈现；该视图不携带结果文本——无 search 卡片的 UI 回退到原始结果内容）、<code>{ card: 'read', title?, path, offset, lines, totalLines, lang?, content? }</code>（已完成的文件读取→带行号、可选语法高亮的代码视图；<code>offset</code> 是窗口请求的 1-based 起始行，即使 <code>lines</code> 为空也保留；<code>lang</code> 是从扩展名推得的语言提示，<code>content</code> 是无读取能力的 UI 回退时使用的去信封文本）、或 <code>{ card: 'web', kind: 'search' | 'fetch', title?, … }</code>（已完成的 web 检索；<code>kind: 'search'</code> 携带结构化的 <code>sources</code>/<code>answer?</code>/<code>truncated</code>，<code>kind: 'fetch'</code> 携带 <code>url</code>/<code>statusCode</code>/<code>truncated</code>，不具备 <code>web</code> 能力的 UI 回退到原始结果内容——正文不会重复进视图）。已完成视图会替换待执行视图，因此变更工具即使与调用时的片段重复也要返回 diff 结果；搜索和 web 检索都没有 <code>card</code> 的调用时对应视图（其 pending 状态保持为 generic 卡片，因为结构化结果只在 <code>execute</code> 之后才存在）。</li>
 </ul>
-<p><code>ToolCallKind</code>（<code>'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'other'</code>）用于为通用卡片选择图标。<code>FileLocation</code>（<code>{ path, line? }</code>）、<code>FileDiff</code>（<code>{ path, oldText, newText }</code>）与 <code>ReadFileLine</code>（<code>{ number, text }</code>，读取窗口中一行带 1-based 行号的内容）是共享的文件卡片词汇。该设计由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-02-tool-render-intent-union.zh.md">渲染意图联合类型 Agent Note</a>固定；host/client 运行时将这套中性词汇投影为各自的视图。</p>
-<p>完整的展示字段文档见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/presentation.ts"><code>packages/core/tools/src/presentation.ts</code></a>。<code>bash</code> schema 与执行器见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/shell.zh.md">shell.md</a>；通用后台控制见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">jobs.md</a>。</p>
+<p><code>ToolCallKind</code>（<code>'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'other'</code>）用于为通用卡片选择图标。<code>FileLocation</code>（<code>{ path, line? }</code>）、<code>FileDiff</code>（<code>{ path, oldText, newText }</code>）与 <code>ReadFileLine</code>（<code>{ number, text }</code>，读取窗口中一行带 1-based 行号的内容）是共享的文件卡片词汇。该设计由<a href="/src/.agents/notes/implemented/architecture/2026-07-02-tool-render-intent-union.zh.md">渲染意图联合类型 Agent Note</a>固定；host/client 运行时将这套中性词汇投影为各自的视图。</p>
+<p>完整的展示字段文档见 <a href="/src/packages/core/tools/src/presentation.ts"><code>packages/core/tools/src/presentation.ts</code></a>。<code>bash</code> schema 与执行器见 <a href="/src/docs/subsystems/shell.zh.md">shell.md</a>；通用后台控制见 <a href="/src/docs/subsystems/jobs.zh.md">jobs.md</a>。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxtools--toolsservice" class="anch"></a></p>
 <h3 id="ctx.tools-—-ToolsService"><span id="ctxtools--toolsservice" class="anch"></span><code>ctx.tools</code> — <code>ToolsService</code></h3>
 <p>Concrete tool registry and scoped executor dispatcher.</p>
@@ -614,8 +614,8 @@ guard(guard: ToolGuard): () =&gt; void
  * @returns the first denial with its optional structured identity, or undefined when no guard denies.
  */
 checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">ScopeKey</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/index.ts"><code>packages/core/tools/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">ScopeKey</a></p>
+<p>Source: <a href="/src/packages/core/tools/src/index.ts"><code>packages/core/tools/src/index.ts</code></a></p>
 <p><a id="tools-events" class="anch"></a></p>
 <h3 id="tools/-events"><span id="tools-events" class="anch"></span><code>tools/*</code> events</h3>
 <p><a id="toolschange--emit" class="anch"></a></p>
@@ -628,7 +628,7 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode emit
  */
 &#x27;tools/change&#x27;(): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
+<p>Source: <a href="/src/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
 <p><a id="toolsexecute--waterfall" class="anch"></a></p>
 <h4 id="tools/execute-—-waterfall"><code>tools/execute</code> — waterfall</h4>
 <p>Around-dispatch waterfall for timeout, retry, or metrics. <code>next()</code> returns a normalized result; wrappers may change only <code>exec.signal</code>, while call identity remains immutable. The registry re-fuses the original caller signal before the body, so replacement cannot detach caller cancellation; wrappers must still restore their signal and reach quiescence. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only that agent's calls.</p>
@@ -643,8 +643,8 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode waterfall
  */
 &#x27;tools/execute&#x27;(this: Scoped&lt;ToolsService&gt;, exec: ToolDispatchExecution, next: () =&gt; Promise&lt;ToolExecutionResult&gt;): Promise&lt;ToolExecutionResult&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
 <p><a id="toolspost-execute--waterfall" class="anch"></a></p>
 <h4 id="tools/post-execute-—-waterfall"><code>tools/post-execute</code> — waterfall</h4>
 <p>Accept, replace, enrich, or block a normalized dispatch result. <code>next()</code> accepts it unchanged; thrown tools still reach this waterfall as errors. Async listeners must observe <code>exec.signal</code>; after they settle, caller cancellation replaces only a successful accepted outcome with the code selected by whether the tool body was invoked. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only that agent's calls.</p>
@@ -660,8 +660,8 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode waterfall
  */
 &#x27;tools/post-execute&#x27;(this: Scoped&lt;ToolsService&gt;, exec: ToolExecution, result: Readonly&lt;ToolExecutionResult&gt;, next: () =&gt; Promise&lt;PostToolDecision&gt;): Promise&lt;PostToolDecision&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
 <p><a id="toolspre-execute--waterfall" class="anch"></a></p>
 <h4 id="tools/pre-execute-—-waterfall"><code>tools/pre-execute</code> — waterfall</h4>
 <p>Allow, deny, cancel, or ask before dispatch. <code>next()</code> delegates to allow; <code>cancel</code> selects the canonical pre-dispatch cancellation result, and missing approval support turns <code>ask</code> into denial. Async gates must observe <code>exec.signal</code>; the registry rechecks cancellation after they settle but never abandons their promise. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only that agent's calls.</p>
@@ -676,8 +676,8 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode waterfall
  */
 &#x27;tools/pre-execute&#x27;(this: Scoped&lt;ToolsService&gt;, exec: ToolExecution, next: () =&gt; Promise&lt;PreToolDecision&gt;): Promise&lt;PreToolDecision&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
 <p><a id="toolsptc-dispatch-log--waterfall" class="anch"></a></p>
 <h4 id="tools/ptc-dispatch-log-—-waterfall"><code>tools/ptc-dispatch-log</code> — waterfall</h4>
 <p>Allow a listener to replace content in the DURABLE LOG COPY of one <code>run_code</code> sub-dispatch outcome before the bridge appends its <code>tool/ptc-dispatch</code> event. <code>next()</code> keeps the content unchanged; a listener may return replacement blocks (e.g. the spill policy's preview + locator for an oversized text result). Only the logged copy is affected — the program already received the complete value, and the model sees neither. A throwing listener is contained: the bridge falls back to logging the original settled content. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only that agent's dispatches.</p>
@@ -695,8 +695,8 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode waterfall
  */
 &#x27;tools/ptc-dispatch-log&#x27;(this: Scoped&lt;ToolsService&gt;, dispatch: PtcDispatchLog, next: () =&gt; Promise&lt;ContentBlock[]&gt;): Promise&lt;ContentBlock[]&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tool-executor-ptc/src/runtime-types.ts"><code>packages/core/tool-executor-ptc/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/tool-executor-ptc/src/runtime-types.ts"><code>packages/core/tool-executor-ptc/src/runtime-types.ts</code></a></p>
 <p><a id="toolsresult--emit" class="anch"></a></p>
 <h4 id="tools/result-—-emit"><code>tools/result</code> — emit</h4>
 <p>Observe the frozen, lossless-JSON final outcome. Listener failures are contained. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): keyed by <code>exec.agent</code>.</p>
@@ -708,8 +708,8 @@ checkGuards(exec: ToolExecution): ToolGuardDenial | undefined</code></pre>
  * @mode emit
  */
 &#x27;tools/result&#x27;(this: Scoped&lt;ToolsService&gt;, exec: Readonly&lt;ToolExecution&gt;, result: Readonly&lt;ToolExecutionResult&gt;): undefined</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/tools/src/events.ts"><code>packages/core/tools/src/events.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/tools">← 返回图谱并聚焦该文档</a></div>
   </main>

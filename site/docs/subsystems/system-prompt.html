@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>系统提示词组装</h1>
     <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/system-prompt.md</div>
     <div class="body"><h1 id="系统提示词组装">系统提示词组装</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/system-prompt.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt">system-prompt 包</a>负责管理提示词贡献者与一次组装调用之间交换的数据。该包的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">README</a> 记录注册、排序、作用域与渲染行为；本页记录各插件实现或传递的确切跨包类型。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a>。</p>
+<p><a href="/src/docs/subsystems/system-prompt.md">English</a> | 中文</p>
+<p><a href="/src/packages/core/system-prompt">system-prompt 包</a>负责管理提示词贡献者与一次组装调用之间交换的数据。该包的 <a href="/src/packages/core/system-prompt/README.zh.md">README</a> 记录注册、排序、作用域与渲染行为；本页记录各插件实现或传递的确切跨包类型。</p>
+<p>源码：<a href="/src/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a>。</p>
 <h2 id="组装上下文">组装上下文</h2>
 <p><code>AssembleContext</code> 标识一次组装的作用域及可选接收 Session。传入 Session 时，组装结果的 <code>systemUpdates()</code> 在调用时将捕获的段与该 Session 的已提交状态比较；未传入时，它不返回写入。该上下文可合并扩展：<code>dsh-agent</code> 添加可选字段 <code>agent</code> 和 <code>modelSelection</code>。<code>assembleContextFor(agent, signal)</code> 提供 agent、Session、作用域与信号；循环添加重试期间保留的模型选择，省略推理强度时使用适配器默认值。</p>
 <pre><code>/** Merge-extensible context for one prompt assembly. */
@@ -46,8 +46,8 @@ interface ToolProviderResult {
   readonly knownNames?: readonly string[]
 }</code></pre>
 <h2 id="提示词段落">提示词段落</h2>
-<p>导出的 <code>PERSONA_PREFIX_SECTION</code>（<code>deployment:persona-prefix</code>）与 <code>PERSONA_SUFFIX_SECTION</code>（<code>deployment:persona-suffix</code>）为普通段命名，其部署默认值由系统服务注册。插件通过 <code>section()</code> 覆盖任一名称；前缀注册可携带完整模式。它们对应的 <code>PromptSectionOrderName</code> 项为 <code>DEPLOYMENT_PERSONA_PREFIX</code> 与 <code>DEPLOYMENT_PERSONA_SUFFIX</code>；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">包 README</a> 规定位置与模板配置。</p>
-<p><code>PromptSection</code> 注册文本以及可选的替换和退役通知。同名来源由最近作用域覆盖；同一作用域内，最后一个活跃注册生效。<code>AssembledSection</code> 在已求值文本之外保留 <code>name</code> 与 <code>order</code>；<code>PromptAssembly</code> 在 waterfall 的 <code>PromptPresentation</code> 上添加提供方拥有的工具和 <code>systemUpdates()</code>。返回的每个 <code>SystemUpdate</code> 包含一条系统消息及其 surface 意图：普通增量为追加，重建则先清空后续系统节点，再以一份完整提示词替换头节点。比较使用捕获的来源状态与调用时该 Session 的已提交文本。Cordis 清理移除一个注册；组装只为已提交且不再有可见注册的名称选择退役。提交退役后，该名称从最新投影移除。压缩后，下一次模型尝试根据捕获的来源提交完整重置，作为后续比较的基线。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">包 README</a> 规定时序、纯段内容块元数据与重建语义。</p>
+<p>导出的 <code>PERSONA_PREFIX_SECTION</code>（<code>deployment:persona-prefix</code>）与 <code>PERSONA_SUFFIX_SECTION</code>（<code>deployment:persona-suffix</code>）为普通段命名，其部署默认值由系统服务注册。插件通过 <code>section()</code> 覆盖任一名称；前缀注册可携带完整模式。它们对应的 <code>PromptSectionOrderName</code> 项为 <code>DEPLOYMENT_PERSONA_PREFIX</code> 与 <code>DEPLOYMENT_PERSONA_SUFFIX</code>；<a href="/src/packages/core/system-prompt/README.zh.md">包 README</a> 规定位置与模板配置。</p>
+<p><code>PromptSection</code> 注册文本以及可选的替换和退役通知。同名来源由最近作用域覆盖；同一作用域内，最后一个活跃注册生效。<code>AssembledSection</code> 在已求值文本之外保留 <code>name</code> 与 <code>order</code>；<code>PromptAssembly</code> 在 waterfall 的 <code>PromptPresentation</code> 上添加提供方拥有的工具和 <code>systemUpdates()</code>。返回的每个 <code>SystemUpdate</code> 包含一条系统消息及其 surface 意图：普通增量为追加，重建则先清空后续系统节点，再以一份完整提示词替换头节点。比较使用捕获的来源状态与调用时该 Session 的已提交文本。Cordis 清理移除一个注册；组装只为已提交且不再有可见注册的名称选择退役。提交退役后，该名称从最新投影移除。压缩后，下一次模型尝试根据捕获的来源提交完整重置，作为后续比较的基线。<a href="/src/packages/core/system-prompt/README.zh.md">包 README</a> 规定时序、纯段内容块元数据与重建语义。</p>
 <pre><code>/** One contributed section of the system prompt (registry input). */
 interface PromptSection {
   /** Logical source name; the nearest scope and latest registration in that scope win. */
@@ -113,7 +113,7 @@ interface AssembledContext {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsystemprompt--systemprompt" class="anch"></a></p>
 <h3 id="ctx.systemPrompt-—-SystemPrompt"><span id="ctxsystemprompt--systemprompt" class="anch"></span><code>ctx.systemPrompt</code> — <code>SystemPrompt</code></h3>
 <p>Registry service for the prompt inputs assembled before each model step.</p>
@@ -198,7 +198,7 @@ refreshContext(assembly: PromptAssembly, context: AssembleContext = {}): PromptA
  * @returns the post-waterfall presentation and the system updates for the supplied Session.
  */
 async assemble(context: AssembleContext = {}): Promise&lt;PromptAssembly&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
 <p><a id="system-prompt-events" class="anch"></a></p>
 <h3 id="system-prompt/-events"><span id="system-prompt-events" class="anch"></span><code>system-prompt/*</code> events</h3>
 <p><a id="system-promptassemble--waterfall" class="anch"></a></p>
@@ -220,8 +220,8 @@ async assemble(context: AssembleContext = {}): Promise&lt;PromptAssembly&gt;</co
  * @mode waterfall
  */
 &#x27;system-prompt/assemble&#x27;(this: Scoped&lt;SystemPrompt&gt;, assembly: PromptPresentation, context: AssembleContext, next: () =&gt; Promise&lt;PromptPresentation&gt;): Promise&lt;PromptPresentation&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
 <p><a id="system-promptchange--emit" class="anch"></a></p>
 <h4 id="system-prompt/change-—-emit"><code>system-prompt/change</code> — emit</h4>
 <p>Emitted when any prompt provider changes. This registry notification is unfiltered because a global change affects every scope.</p>
@@ -231,7 +231,7 @@ async assemble(context: AssembleContext = {}): Promise&lt;PromptAssembly&gt;</co
  * @mode emit
  */
 &#x27;system-prompt/change&#x27;(): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/core/system-prompt/src/index.ts"><code>packages/core/system-prompt/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/system-prompt">← 返回图谱并聚焦该文档</a></div>
   </main>

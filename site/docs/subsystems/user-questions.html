@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>用户交互</h1>
     <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/user-questions.md</div>
     <div class="body"><h1 id="用户交互">用户交互</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/user-questions.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions">dsh-user-questions</a> 的用户交互 seam。它是工具或权限插件需要人类回答后 agent（智能体）才能继续时所使用的、提供方无关的词汇。Agent-scoped waterfall listener 组合可用的 UI 界面，其中包括转发到已连接 client 的 listener。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
+<p><a href="/src/docs/subsystems/user-questions.md">English</a> | 中文</p>
+<p><a href="/src/packages/interaction/user-questions">dsh-user-questions</a> 的用户交互 seam。它是工具或权限插件需要人类回答后 agent（智能体）才能继续时所使用的、提供方无关的词汇。Agent-scoped waterfall listener 组合可用的 UI 界面，其中包括转发到已连接 client 的 listener。</p>
+<p>源码：<a href="/src/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
 <h2 id="问题选项">问题选项</h2>
 <p><code>AskUserQuestionOption</code> 包含一个可供选择的选项。<code>label</code> 是面向用户的选项文字，同时也是面向模型的选中值；<code>description</code> 是可选的 UI 帮助文本。</p>
 <pre><code>/** One selectable answer offered to the user. */
@@ -180,7 +180,7 @@ class UserQuestionError extends HarnessError {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxuserquestions--userquestionservice" class="anch"></a></p>
 <h3 id="ctx.userQuestions-—-UserQuestionService"><span id="ctxuserquestions--userquestionservice" class="anch"></span><code>ctx.userQuestions</code> — <code>UserQuestionService</code></h3>
 <p><code>ctx.userQuestions</code>: validation plus the scoped answerer waterfall.</p>
@@ -259,8 +259,8 @@ async askTimed( request: AskUserQuestionRequest &amp; { agent: Agent }, callId: 
  *   and `code`.
  */
 async ask(request: AskUserQuestionRequest): Promise&lt;AskUserQuestionAnswer&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">ToolCallId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">Agent</a> · <a href="/src/docs/subsystems/core.zh.md">ToolCallId</a></p>
+<p>Source: <a href="/src/packages/interaction/user-questions/src/index.ts"><code>packages/interaction/user-questions/src/index.ts</code></a></p>
 <p><a id="user-questions-events" class="anch"></a></p>
 <h3 id="user-questions/-events"><span id="user-questions-events" class="anch"></span><code>user-questions/*</code> events</h3>
 <p><a id="user-questionsrequest--waterfall" class="anch"></a></p>
@@ -274,8 +274,8 @@ async ask(request: AskUserQuestionRequest): Promise&lt;AskUserQuestionAnswer&gt;
  * @mode waterfall
  */
 &#x27;user-questions/request&#x27;( this: Scoped&lt;Agent&gt;, request: AskUserQuestionRequestEvent, next: () =&gt; Promise&lt;AskUserQuestionAnswer&gt;, ): Promise&lt;AskUserQuestionAnswer&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-questions/src/types.ts"><code>packages/interaction/user-questions/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">Agent</a> · <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/interaction/user-questions/src/types.ts"><code>packages/interaction/user-questions/src/types.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/user-questions">← 返回图谱并聚焦该文档</a></div>
   </main>

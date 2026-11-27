@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,10 +18,10 @@
     <h1>会话投影</h1>
     <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session-projection.md</div>
     <div class="body"><h1 id="会话投影">会话投影</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-projection.md">English</a> | 中文</p>
-<p>会话投影 seam 是一项<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/capability-seams.zh.md">能力 seam</a>：领域 host 插件经由它向客户端载体供给按会话的日志派生状态的当前全量值；三方分别是 Service Definition 与注册表（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection">dsh-session-projection</a>，<code>ctx.sessionProjections</code>）、领域贡献方（每个领域注册一个纯单元）与载体（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller">dsh-session-controller</a> 的历史尾页与 <code>session/projection</code> 推送帧）。Host 状态读取方在激活期间要求注册表存在。框架负责驱动，领域负责计算：注册表只订阅一次 <code>session/event</code>，并把每个已提交事件折叠进每个单元；领域不持有任何订阅，客户端也从不折叠领域事件——它们收到的是成品值。设计权威：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/proposed/architecture/2026-07-27-session-projection-and-command-log.zh.md">session-projection RFC</a>；驱动、缓存与变更流约定：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">包 README</a>。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
-<p><code>ProjectionHandle</code> 在注销后仍保留同步 reader。<code>stateOf(session)</code> 用原有单元折叠新提交的事件，不会重新加入全局快照或通知。必须等待注册完成才能使用 handle。参见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">注册生命周期</a>。</p>
+<p><a href="/src/docs/subsystems/session-projection.md">English</a> | 中文</p>
+<p>会话投影 seam 是一项<a href="/src/docs/capability-seams.zh.md">能力 seam</a>：领域 host 插件经由它向客户端载体供给按会话的日志派生状态的当前全量值；三方分别是 Service Definition 与注册表（<a href="/src/packages/session/session-projection">dsh-session-projection</a>，<code>ctx.sessionProjections</code>）、领域贡献方（每个领域注册一个纯单元）与载体（<a href="/src/packages/api/session-controller">dsh-session-controller</a> 的历史尾页与 <code>session/projection</code> 推送帧）。Host 状态读取方在激活期间要求注册表存在。框架负责驱动，领域负责计算：注册表只订阅一次 <code>session/event</code>，并把每个已提交事件折叠进每个单元；领域不持有任何订阅，客户端也从不折叠领域事件——它们收到的是成品值。设计权威：<a href="/src/.agents/notes/proposed/architecture/2026-07-27-session-projection-and-command-log.zh.md">session-projection RFC</a>；驱动、缓存与变更流约定：<a href="/src/packages/session/session-projection/README.zh.md">包 README</a>。</p>
+<p>源码：<a href="/src/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
+<p><code>ProjectionHandle</code> 在注销后仍保留同步 reader。<code>stateOf(session)</code> 用原有单元折叠新提交的事件，不会重新加入全局快照或通知。必须等待注册完成才能使用 handle。参见<a href="/src/packages/session/session-projection/README.zh.md">注册生命周期</a>。</p>
 <pre><code>/** An effect-owned registration with a reader retained independently of registration. */
 interface ProjectionHandle&lt;S&gt; {
   /**
@@ -46,8 +46,8 @@ interface ProjectionHandle&lt;S&gt; {
    */
   dispose(): Promise&lt;void&gt;
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">兼容规则</a>规定旧释放操作、按键读取及其每个键一次的弃用警告。</p>
-<p><code>ProjectionHandle.readerFor(session)</code> 为一个确切的 Session 返回 <code>() =&gt; S</code> 回调。调用它会读取原有单元，保留借用状态、就绪要求和同步失败。所有者可将多个读取函数组合成一个类型化对象；领域服务将它们保留在内部。参见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/README.zh.md">绑定多个状态</a>。</p>
+<p><a href="/src/packages/session/session-projection/README.zh.md">兼容规则</a>规定旧释放操作、按键读取及其每个键一次的弃用警告。</p>
+<p><code>ProjectionHandle.readerFor(session)</code> 为一个确切的 Session 返回 <code>() =&gt; S</code> 回调。调用它会读取原有单元，保留借用状态、就绪要求和同步失败。所有者可将多个读取函数组合成一个类型化对象；领域服务将它们保留在内部。参见<a href="/src/packages/session/session-projection/README.zh.md">绑定多个状态</a>。</p>
 <h2 id="投影单元">投影单元</h2>
 <p><code>ProjectionDefinition&lt;K, S&gt;</code> 在各单元内部携带宿主状态类型；注册从 <code>stateSchema</code> 推导 <code>S</code>，并返回 <code>ProjectionHandle&lt;S&gt;</code>。只有客户端可见的 key 合并到 <code>SessionProjectionMap</code>，由它约束对应的全量值。<code>wire</code> 块使单元对客户端可见，渲染归 slot 体系管，永远不归本层：</p>
 <pre><code>/**
@@ -203,7 +203,7 @@ type ProjectionKeySelection =
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsessionprojectioncache--sessionprojectioncache" class="anch"></a></p>
 <h3 id="ctx.sessionProjectionCache-—-SessionProjectionCache"><span id="ctxsessionprojectioncache--sessionprojectioncache" class="anch"></span><code>ctx.sessionProjectionCache</code> — <code>SessionProjectionCache</code></h3>
 <p>The persisted projection cache service. Opens the <code>session_projcache</code> domain at init, checkpoints live sessions on a throttled write-behind (count/interval triggers from Config) plus three mandatory points — session creation, <code>turn/end</code>, and session disposal (the live-to-cold moment) — and serves the cached rows for a session header. Every durable write is fail-soft: failures log a warning and the cache self-heals on the next write.</p>
@@ -281,8 +281,8 @@ async write(session: Session): Promise&lt;void&gt;
  * @returns the projection cut at the log end.
  */
 coldSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, events: readonly SessionEvent[], ): ProjectionSnapshot</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection-cache/src/index.ts"><code>packages/session/session-projection-cache/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a> · <a href="/src/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="/src/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="/src/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
+<p>Source: <a href="/src/packages/session/session-projection-cache/src/index.ts"><code>packages/session/session-projection-cache/src/index.ts</code></a></p>
 <p><a id="ctxsessionprojections--sessionprojectionregistry" class="anch"></a></p>
 <h3 id="ctx.sessionProjections-—-SessionProjectionRegistry"><span id="ctxsessionprojections--sessionprojectionregistry" class="anch"></span><code>ctx.sessionProjections</code> — <code>SessionProjectionRegistry</code></h3>
 <p><code>ctx.sessionProjections</code>: the projection unit table and its drive. The service subscribes to <code>session/event</code> once; every committed event passes every registered unit's <code>apply</code> (eager drive). A changed state reference computes the next client view; the change feed is notified only when its raw result changes by <code>Object.is</code>. Cells build lazily — a unit registered after events flowed, or a session older than the registry, folds <code>init</code> over the in-memory log on first touch (event or read). Consumers declare <code>sessionProjections</code> as a required injection, await registration during activation, and retain its ready handle. Registrants sharing a key share one unit and are counted. The last release removes the unit from live drives, restores, and client snapshots, while checkpoints keep each Session's last cell of it until the key registers again and the new unit refolds the log; retained handles still fold new events on demand using the original unit.</p>
@@ -440,8 +440,8 @@ restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], base
  * @returns all projection values at the supplied cut.
  */
 hydrate( session: Session, checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: SessionLogOffset, ): ProjectionSnapshot</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a> · <a href="/src/docs/subsystems/session.zh.md">SessionEvent</a> · <a href="/src/docs/subsystems/persistence.zh.md">SessionHeader</a> · <a href="/src/docs/subsystems/session.zh.md">SessionLogOffset</a></p>
+<p>Source: <a href="/src/packages/session/session-projection/src/index.ts"><code>packages/session/session-projection/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/session-projection">← 返回图谱并聚焦该文档</a></div>
   </main>

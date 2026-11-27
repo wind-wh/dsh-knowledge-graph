@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,10 +18,10 @@
     <h1>后台任务运行时</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/jobs.md</div>
     <div class="body"><h1 id="后台任务运行时">后台任务运行时</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.md">English</a> | 中文</p>
-<p>长时间运行的生产方、<code>ctx.jobs</code> 与任务控制命令共用的类型。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-09-03-jobs-seam-consolidation.zh.md">seam 收敛 Agent Note</a> 负责当前设计，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/README.zh.md">运行时 reference</a> 记录其起源；本页记录 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/src/types.ts"><code>packages/jobs/jobs/src/types.ts</code></a> 与客户端安全叶子 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/src/view.ts"><code>view.ts</code></a> 中的确切字段与变体。</p>
+<p><a href="/src/docs/subsystems/jobs.md">English</a> | 中文</p>
+<p>长时间运行的生产方、<code>ctx.jobs</code> 与任务控制命令共用的类型。<a href="/src/.agents/notes/implemented/architecture/2026-09-03-jobs-seam-consolidation.zh.md">seam 收敛 Agent Note</a> 负责当前设计，<a href="/src/packages/jobs/jobs/README.zh.md">运行时 reference</a> 记录其起源；本页记录 <a href="/src/packages/jobs/jobs/src/types.ts"><code>packages/jobs/jobs/src/types.ts</code></a> 与客户端安全叶子 <a href="/src/packages/jobs/jobs/src/view.ts"><code>view.ts</code></a> 中的确切字段与变体。</p>
 <h2 id="ID-与状态">ID 与状态</h2>
-<p><code>JobId</code> 是按 <code>&lt;kind&gt;-&lt;short-uuid&gt;</code> 生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">品牌化 id</a>，kind 后是 UUID 的 16 位小写十六进制字符。访问控制依赖拥有者授权，而非 id 的保密性。<code>JobKind</code> 派生自可合并扩展的 map；注册表将各个 kind 视为不透明的 id 命名空间。</p>
+<p><code>JobId</code> 是按 <code>&lt;kind&gt;-&lt;short-uuid&gt;</code> 生成的<a href="/src/docs/subsystems/core.zh.md">品牌化 id</a>，kind 后是 UUID 的 16 位小写十六进制字符。访问控制依赖拥有者授权，而非 id 的保密性。<code>JobKind</code> 派生自可合并扩展的 map；注册表将各个 kind 视为不透明的 id 命名空间。</p>
 <pre><code>/**
  * Producer-defined job kinds. Plugins extend this map by declaration merging;
  * the registry treats every value as an opaque id namespace.
@@ -210,7 +210,7 @@ interface JobSourceRead {
   spillPath?: string
 }</code></pre>
 <h2 id="输出环">输出环</h2>
-<p>每个 job 拥有一个有界的环。拉取源被泵入其中，<code>JobHandle.append</code> 的推送整块落地；模型通过注册表保管的游标（<code>JobRegistry.read</code>）消耗该环，任意数量的观察者按绝对字节偏移读取它（<code>JobRegistry.readAt</code>），二者互不干扰。<code>JobChannel</code> 标记 <code>stdout</code>、<code>stderr</code> 与 <code>log</code>；<code>log</code> 是只到达观察者、从不进入模型消耗式读取的生产方叙述。结算即封流并把保留量裁剪到结算上限——环没有独立的生命周期。拉取源保留的 spill 文件是 job 元数据（<code>JobView.output.spillPaths</code>，每次泵读取都会刷新），不是逐块元数据，所以环淘汰了字节之后、甚至缺口 chunk 本身也被淘汰之后，模型的丢失输出提示仍能点名该文件。浏览器通过 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/job-controller/README.zh.md"><code>dsh-api-job-controller</code></a> 的 Remote 流 <code>job.list</code> 与 <code>job.follow</code> 触达名册与环，其帧列于下文的 Cordis API 一节。</p>
+<p>每个 job 拥有一个有界的环。拉取源被泵入其中，<code>JobHandle.append</code> 的推送整块落地；模型通过注册表保管的游标（<code>JobRegistry.read</code>）消耗该环，任意数量的观察者按绝对字节偏移读取它（<code>JobRegistry.readAt</code>），二者互不干扰。<code>JobChannel</code> 标记 <code>stdout</code>、<code>stderr</code> 与 <code>log</code>；<code>log</code> 是只到达观察者、从不进入模型消耗式读取的生产方叙述。结算即封流并把保留量裁剪到结算上限——环没有独立的生命周期。拉取源保留的 spill 文件是 job 元数据（<code>JobView.output.spillPaths</code>，每次泵读取都会刷新），不是逐块元数据，所以环淘汰了字节之后、甚至缺口 chunk 本身也被淘汰之后，模型的丢失输出提示仍能点名该文件。浏览器通过 <a href="/src/packages/api/job-controller/README.zh.md"><code>dsh-api-job-controller</code></a> 的 Remote 流 <code>job.list</code> 与 <code>job.follow</code> 触达名册与环，其帧列于下文的 Cordis API 一节。</p>
 <pre><code>/** One chunk of a job&#x27;s output ring: absolute offset, text, channel, and loss marker. */
 interface JobChunk {
   /** Absolute offset of the chunk&#x27;s first byte; offsets never move once assigned. */
@@ -339,11 +339,11 @@ type JobEventFilter =
   | { readonly owner: SessionId }
   | { readonly owners: &#x27;all&#x27; | &#x27;scope&#x27; }</code></pre>
 <h2 id="服务行为">服务行为</h2>
-<p>抽象的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/src/index.ts"><code>JobRegistry</code></a> Service Definition 规定了原子化的 <code>start</code>、各自接收调用方的 <code>list</code>、<code>get</code>、消耗式 <code>read</code>、非消耗的 <code>readAt</code>、<code>kill</code> 与有界的 <code>wait</code>、带过滤的 <code>events</code> 流，以及 <code>attachController</code>；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs-local/src/index.ts"><code>LocalJobRegistry</code></a> 是进程本地的 Service Provider。授权比较拥有者会话；拥有者清理与准入使用 job 启动时登记在该拥有者会话下的活体 <code>Agent</code>。本地提供方的正安全整数配置 <code>maxConcurrentJobsPerOwner</code> 默认为 <code>10</code>，按精确拥有者统计 <code>running</code> 加 <code>stopping</code> 记录，无主任务共享一个桶；生产方的终态结算释放容量；<code>retainBytes</code>（默认 262144）与 <code>settledRetainBytes</code>（默认 16384）约束每个环的运行期与结算后保留量，<code>pumpPollMs</code>（默认 150）是拉取节奏。参见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/README.zh.md"><code>dsh-jobs</code></a> 了解 Service Definition 约定，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs-local/README.zh.md"><code>dsh-jobs-local</code></a> 了解注册表生命周期与准入策略，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/tool-jobs/README.zh.md"><code>dsh-tool-jobs</code></a> 了解面向模型的 Consumer。</p>
+<p>抽象的 <a href="/src/packages/jobs/jobs/src/index.ts"><code>JobRegistry</code></a> Service Definition 规定了原子化的 <code>start</code>、各自接收调用方的 <code>list</code>、<code>get</code>、消耗式 <code>read</code>、非消耗的 <code>readAt</code>、<code>kill</code> 与有界的 <code>wait</code>、带过滤的 <code>events</code> 流，以及 <code>attachController</code>；<a href="/src/packages/jobs/jobs-local/src/index.ts"><code>LocalJobRegistry</code></a> 是进程本地的 Service Provider。授权比较拥有者会话；拥有者清理与准入使用 job 启动时登记在该拥有者会话下的活体 <code>Agent</code>。本地提供方的正安全整数配置 <code>maxConcurrentJobsPerOwner</code> 默认为 <code>10</code>，按精确拥有者统计 <code>running</code> 加 <code>stopping</code> 记录，无主任务共享一个桶；生产方的终态结算释放容量；<code>retainBytes</code>（默认 262144）与 <code>settledRetainBytes</code>（默认 16384）约束每个环的运行期与结算后保留量，<code>pumpPollMs</code>（默认 150）是拉取节奏。参见 <a href="/src/packages/jobs/jobs/README.zh.md"><code>dsh-jobs</code></a> 了解 Service Definition 约定，<a href="/src/packages/jobs/jobs-local/README.zh.md"><code>dsh-jobs-local</code></a> 了解注册表生命周期与准入策略，<a href="/src/packages/jobs/tool-jobs/README.zh.md"><code>dsh-tool-jobs</code></a> 了解面向模型的 Consumer。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxjobcontroller--jobcontroller" class="anch"></a></p>
 <h3 id="ctx.jobController-—-JobController"><span id="ctxjobcontroller--jobcontroller" class="anch"></span><code>ctx.jobController</code> — <code>JobController</code></h3>
 <p>Host service backing the generated <code>ctx.remote.job</code> namespace.</p>
@@ -384,7 +384,7 @@ type JobEventFilter =
  * @returns the registry&#x27;s admission of the kill request.
  */
 @Remote(&#x27;kill&#x27;) kill(request: JobKillRequest): JobKillValue</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/job-controller/src/index.ts"><code>packages/api/job-controller/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/job-controller/src/index.ts"><code>packages/api/job-controller/src/index.ts</code></a></p>
 <p><a id="ctxjobs--jobregistry-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.jobs-—-JobRegistry-abstract-seam"><span id="ctxjobs--jobregistry-abstract-seam" class="anch"></span><code>ctx.jobs</code> — <code>JobRegistry</code> (abstract seam)</h3>
 <p>Abstract background job registry. Subclass, implement the abstract members, and load the subclass as a plugin — it registers as <code>ctx.jobs</code> (one implementation per context; loading a second throws, which is cordis' standard duplicate-service behavior).</p>
@@ -489,8 +489,8 @@ abstract remove(id: JobId, caller?: SessionId): void
  * @returns disposer that detaches this controller.
  */
 abstract attachController(name: string): () =&gt; void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/jobs/jobs/src/index.ts"><code>packages/jobs/jobs/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/jobs/jobs/src/index.ts"><code>packages/jobs/jobs/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/jobs">← 返回图谱并聚焦该文档</a></div>
   </main>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>遥测（telemetry）</h1>
     <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session-telemetry.md</div>
     <div class="body"><h1 id="遥测（telemetry）">遥测（telemetry）</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-telemetry.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry/README.zh.md">捕获服务</a> 负责规范事件捕获、脱敏和交接游标。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry-otel/README.zh.md">反馈后端</a> 授权 Session 前缀，并负责独立队列、逐请求调度及 4,000,000 字节上限。上报数据不会进入模型请求。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
+<p><a href="/src/docs/subsystems/session-telemetry.md">English</a> | 中文</p>
+<p><a href="/src/packages/session/session-telemetry/README.zh.md">捕获服务</a> 负责规范事件捕获、脱敏和交接游标。<a href="/src/packages/session/session-telemetry-otel/README.zh.md">反馈后端</a> 授权 Session 前缀，并负责独立队列、逐请求调度及 4,000,000 字节上限。上报数据不会进入模型请求。</p>
+<p>源码：<a href="/src/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
 <h2 id="逻辑记录">逻辑记录</h2>
 <pre><code>/**
  * Severity of a telemetry record, pre-mapped at capture so a receiver can
@@ -65,9 +65,9 @@ interface SessionTelemetryRecord {
    */
   body: unknown
 }</code></pre>
-<p>每条权威<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">会话事件</a>都会完整透传为一条有序 ledger 记录，包括每个携带完整紧凑 stream 的 <code>assistant/message</code> 或 <code>assistant/attempt</code>，以及该 seam 从未听说过、由插件合并进来的类型。进程本地 <code>agent/assistant-stream</code> frame 不进入该持久 feed。新 fork 从子会话自有后缀开始，包括继承标记和 fork 结束事件；恢复的 Session 从已存储前缀之后开始，包括恢复的 fork。后端可以选择 <code>includeHistory</code> 来包含完整前缀；重新收养同一对象时会从 handoff 游标之后继续。投递是尽力而为的：游标标记的是「已交接」而非「已送达」，记录可能丢失（崩溃、重载窗口）也可能重复（新对象回放、SDK 重试），因此接收端对 ledger 记录基于 <code>(session.id, session.format_version, event.seq)</code> 去重；ops 记录刻意省略这类标识——它们是用于告警的信号，而非用于累加的条目，重复被容忍而非被去重。</p>
+<p>每条权威<a href="/src/docs/subsystems/session.zh.md">会话事件</a>都会完整透传为一条有序 ledger 记录，包括每个携带完整紧凑 stream 的 <code>assistant/message</code> 或 <code>assistant/attempt</code>，以及该 seam 从未听说过、由插件合并进来的类型。进程本地 <code>agent/assistant-stream</code> frame 不进入该持久 feed。新 fork 从子会话自有后缀开始，包括继承标记和 fork 结束事件；恢复的 Session 从已存储前缀之后开始，包括恢复的 fork。后端可以选择 <code>includeHistory</code> 来包含完整前缀；重新收养同一对象时会从 handoff 游标之后继续。投递是尽力而为的：游标标记的是「已交接」而非「已送达」，记录可能丢失（崩溃、重载窗口）也可能重复（新对象回放、SDK 重试），因此接收端对 ledger 记录基于 <code>(session.id, session.format_version, event.seq)</code> 去重；ops 记录刻意省略这类标识——它们是用于告警的信号，而非用于累加的条目，重复被容忍而非被去重。</p>
 <h2 id="共享披露">共享披露</h2>
-<p>每个后端都通过 <code>ctx.sessionTelemetry</code> 上必需的抽象 <code>sharing</code> 成员暴露其部署级模式（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry/README.zh.md">Service Definition README</a>）。它既不是逐 Session 的接纳决定，也不是投递回执。<code>/feedback</code> 确认文本不查询它。</p>
+<p>每个后端都通过 <code>ctx.sessionTelemetry</code> 上必需的抽象 <code>sharing</code> 成员暴露其部署级模式（<a href="/src/packages/session/session-telemetry/README.zh.md">Service Definition README</a>）。它既不是逐 Session 的接纳决定，也不是投递回执。<code>/feedback</code> 确认文本不查询它。</p>
 <pre><code>/**
  * Deployment-selected session-sharing mode, not confirmation of SDK delivery.
  */
@@ -82,7 +82,7 @@ interface SessionTelemetryCaptureOptions {
   /** Include inherited fork history and stored history from earlier lifecycles; defaults to false. */
   includeHistory?: boolean
 }</code></pre>
-<p><code>includeHistory</code> 允许捕获存储与继承的记录，但本身不授权捕获。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry-otel/README.zh.md">OTel 后端</a>使用按需捕获，并要求新的自身显式反馈；它只释放截至该反馈的完整前缀，适用于所有提供方。</p>
+<p><code>includeHistory</code> 允许捕获存储与继承的记录，但本身不授权捕获。<a href="/src/packages/session/session-telemetry-otel/README.zh.md">OTel 后端</a>使用按需捕获，并要求新的自身显式反馈；它只释放截至该反馈的完整前缀，适用于所有提供方。</p>
 <h2 id="后端约定">后端约定</h2>
 <pre><code>/**
  * The minimum backend contract the coordinator requires. {@link SessionTelemetryBackend} is
@@ -129,11 +129,11 @@ interface SessionTelemetrySink {
 }</code></pre>
 <p><code>SessionTelemetryBackend</code>（<code>ctx.sessionTelemetry</code>，<a href="#ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam">签名</a>）是该约定的可加载形态：每个上下文只允许一个实现，重复加载会抛出异常；后端在其构造函数中组合 seam 的 <code>SessionTelemetryCoordinator</code>，以此装配捕获侧。</p>
 <h2 id="脱敏-waterfall：session-telemetry/record">脱敏 waterfall：<code>session-telemetry/record</code></h2>
-<p>每条记录在权威事件副本与 <code>emit()</code> 之间都要经过 <code>session-telemetry/record</code> <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">waterfall</a>（<a href="#session-telemetryrecord--waterfall">事件条目</a>）。seam 自身不带任何规则：未挂载监听器时，记录以捕获时的原样到达后端；导出数据能干净到什么程度，恰恰取决于部署方挂载了什么规则。监听器通过变换 <code>next()</code> 的返回值来堆叠；不调用 <code>next()</code> 就返回，即替换其下方的全部逻辑；抛出异常的监听器会在协调器的隔离范围内以 fail-closed 方式扣下这一条记录。脱敏只作用于导出副本；权威会话日志永不改写。</p>
+<p>每条记录在权威事件副本与 <code>emit()</code> 之间都要经过 <code>session-telemetry/record</code> <a href="/src/docs/cordis-primer.zh.md">waterfall</a>（<a href="#session-telemetryrecord--waterfall">事件条目</a>）。seam 自身不带任何规则：未挂载监听器时，记录以捕获时的原样到达后端；导出数据能干净到什么程度，恰恰取决于部署方挂载了什么规则。监听器通过变换 <code>next()</code> 的返回值来堆叠；不调用 <code>next()</code> 就返回，即替换其下方的全部逻辑；抛出异常的监听器会在协调器的隔离范围内以 fail-closed 方式扣下这一条记录。脱敏只作用于导出副本；权威会话日志永不改写。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.sessionTelemetry-—-SessionTelemetryBackend-abstract-seam"><span id="ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam" class="anch"></span><code>ctx.sessionTelemetry</code> — <code>SessionTelemetryBackend</code> (abstract seam)</h3>
 <p>Loadable form of the backend contract: one implementation per context — the cordis <code>Service</code> registration under the <code>telemetry</code> key throws on a duplicate, cordis' standard behavior. A backend composes a SessionTelemetryCoordinator in its constructor to install the capture side.</p>
@@ -151,7 +151,7 @@ flush?(): void
  * @returns resolves when the backend&#x27;s pipeline has quiesced.
  */
 abstract shutdown(): Promise&lt;void&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
 <p><a id="session-telemetry-events" class="anch"></a></p>
 <h3 id="session-telemetry/-events"><span id="session-telemetry-events" class="anch"></span><code>session-telemetry/*</code> events</h3>
 <p><a id="session-telemetryrecord--waterfall" class="anch"></a></p>
@@ -176,7 +176,7 @@ abstract shutdown(): Promise&lt;void&gt;</code></pre>
  * @mode waterfall
  */
 &#x27;session-telemetry/record&#x27;(record: SessionTelemetryRecord, next: () =&gt; SessionTelemetryRecord): SessionTelemetryRecord</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/session/session-telemetry/src/index.ts"><code>packages/session/session-telemetry/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/session-telemetry">← 返回图谱并聚焦该文档</a></div>
   </main>

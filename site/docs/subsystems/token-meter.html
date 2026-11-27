@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>Token 计量</h1>
     <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/token-meter.md</div>
     <div class="body"><h1 id="Token-计量">Token 计量</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/token-meter.md">English</a> | 中文</p>
+<p><a href="/src/docs/subsystems/token-meter.md">English</a> | 中文</p>
 <p><code>@deepseek-ai/dsh-token-meter</code> 公开一个独立的回放快照，用于表示请求压力与按位置计算的表层定价。<code>logRevision</code> 表示生成该计量中每个字段时所消费的持久事件数量。</p>
-<p>来源：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/types.ts"><code>packages/llm/token-meter/src/types.ts</code></a></p>
+<p>来源：<a href="/src/packages/llm/token-meter/src/types.ts"><code>packages/llm/token-meter/src/types.ts</code></a></p>
 <h2 id="TokenMeasurement"><code>TokenMeasurement</code></h2>
 <pre><code>/** Detached immutable request-pressure and surface snapshot at one consumed log revision. */
 interface TokenMeasurement {
@@ -60,7 +60,7 @@ interface TokenSurfaceNode {
 <p>表层顺序具有权威性；替换节点的持久 seq 可能高于位置排在其后的节点。该快照不可变，不会随底层回放折叠推进而增长。</p>
 <h2 id="ContextPressureProjection"><code>ContextPressureProjection</code></h2>
 <p><code>ctx.tokenMeter.contextPressure(session)</code> 同步读取最新记录的 <code>pressureTokens</code> 和 <code>contextWindow</code>；客户端投影还根据表层变化派生 <code>projectedTokens</code>。这些显示值不为新请求计价；请求计价使用 <code>measure()</code>。</p>
-<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/projection.ts"><code>packages/llm/token-meter/src/projection.ts</code></a></p>
+<p>来源: <a href="/src/packages/llm/token-meter/src/projection.ts"><code>packages/llm/token-meter/src/projection.ts</code></a></p>
 <pre><code>/**
  * Approximate context occupancy for a status display.
  *
@@ -93,7 +93,7 @@ interface ContextPressureProjection {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxtokenmeter--tokenmeter" class="anch"></a></p>
 <h3 id="ctx.tokenMeter-—-TokenMeter"><span id="ctxtokenmeter--tokenmeter" class="anch"></span><code>ctx.tokenMeter</code> — <code>TokenMeter</code></h3>
 <p>Replay owner for one service-wide estimator and isolated per-session folds.</p>
@@ -134,8 +134,8 @@ measure(session: Session, requestHeader?: EpochHeader): TokenMeasurement
  * @returns content and role-framing tokens under the fixed service heuristic.
  */
 estimateMessage(message: Message): number</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">EpochHeader</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">Message</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/token-meter/src/index.ts"><code>packages/llm/token-meter/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">EpochHeader</a> · <a href="/src/docs/subsystems/llm-streaming.zh.md">Message</a> · <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/llm/token-meter/src/index.ts"><code>packages/llm/token-meter/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/token-meter">← 返回图谱并聚焦该文档</a></div>
   </main>

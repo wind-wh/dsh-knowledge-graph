@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -20,8 +20,8 @@
     <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-cordis-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
 <p>     更新时先运行 <code>pnpm run gen-cordis-catalog</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/cordis-api/events.md</code> 重新记录配对。 --&gt;</p>
 <h1 id="事件">事件</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/events.md">English</a> | 中文</p>
-<p>每个上下文中都混入了事件分发 API。Harness 事件声明及其分发模式会生成到各自所属的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">子系统页面</a>。</p>
+<p><a href="/src/docs/cordis-api/events.md">English</a> | 中文</p>
+<p>每个上下文中都混入了事件分发 API。Harness 事件声明及其分发模式会生成到各自所属的<a href="/src/docs/subsystems/core.zh.md">子系统页面</a>。</p>
 <h3 id="ctx.parallelname,-...args">ctx.parallel(name, ...args)</h3>
 <pre><code>/**
  * Dispatch an event, running all listeners concurrently.
@@ -38,7 +38,7 @@ parallel&lt;K extends keyof Events&gt;(thisArg: NoInfer&lt;ThisType&lt;Events[K]
 <li><code>args</code>：传递给每个监听器的参数。</li>
 </ul>
 <p><strong>返回值</strong>：一个 Promise，在所有监听器均已完成后兑现。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L43">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L43">源码</a></p>
 <h3 id="ctx.emitname,-...args">ctx.emit(name, ...args)</h3>
 <pre><code>/**
  * Dispatch an event synchronously, ignoring listener return values.
@@ -53,7 +53,7 @@ emit&lt;K extends keyof Events&gt;(thisArg: NoInfer&lt;ThisType&lt;Events[K]&gt;
 <li><code>name</code>：事件名称。</li>
 <li><code>args</code>：传递给每个监听器的参数。</li>
 </ul>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L52">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L52">源码</a></p>
 <h3 id="ctx.serialname,-...args">ctx.serial(name, ...args)</h3>
 <pre><code>/**
  * Dispatch an event, awaiting listeners in order until one bails.
@@ -70,7 +70,7 @@ serial&lt;K extends keyof Events&gt;(thisArg: NoInfer&lt;ThisType&lt;Events[K]&g
 <li><code>args</code>：传递给每个监听器的参数。</li>
 </ul>
 <p><strong>返回值</strong>：第一个提前终止值（非 null、非 false 且非 undefined）；如果没有，则不返回此类值。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L62">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L62">源码</a></p>
 <h3 id="ctx.bailname,-...args">ctx.bail(name, ...args)</h3>
 <pre><code>/**
  * Dispatch an event, calling listeners in order until one bails.
@@ -87,7 +87,7 @@ bail&lt;K extends keyof Events&gt;(thisArg: NoInfer&lt;ThisType&lt;Events[K]&gt;
 <li><code>args</code>：传递给每个监听器的参数。</li>
 </ul>
 <p><strong>返回值</strong>：第一个提前终止值（非 null、非 false 且非 undefined）；如果没有，则不返回此类值。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L72">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L72">源码</a></p>
 <h3 id="ctx.waterfallname,-...args">ctx.waterfall(name, ...args)</h3>
 <pre><code>/**
  * Dispatch an event whose last argument is a `next` continuation.
@@ -108,7 +108,7 @@ waterfall&lt;K extends keyof Events&gt;(thisArg: NoInfer&lt;ThisType&lt;Events[K
 <li><code>args</code>：监听器参数；最后一个参数是最内层的 <code>next</code>。</li>
 </ul>
 <p><strong>返回值</strong>：最外层监听器的返回值。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L85">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L85">源码</a></p>
 <h3 id="ctx.onname,-listener,-options?">ctx.on(name, listener, options?)</h3>
 <pre><code>/**
  * Register an event listener owned by the current fiber.
@@ -126,7 +126,7 @@ on&lt;K extends keyof Events&gt;(name: K, listener: Events[K], options?: boolean
 <li><code>options</code>：监听器选项；布尔值可作为 <code>prepend</code> 的简写。</li>
 </ul>
 <p><strong>返回值</strong>：一个用于移除监听器的资源释放函数；如果调用该函数时监听器仍处于注册状态，则返回 <code>true</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L96">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L96">源码</a></p>
 <h3 id="ctx.oncename,-listener,-options?">ctx.once(name, listener, options?)</h3>
 <pre><code>/**
  * Same as `on()`, but the listener disposes itself after its first call.
@@ -144,7 +144,7 @@ once&lt;K extends keyof Events&gt;(name: K, listener: Events[K], options?: boole
 <li><code>options</code>：监听器选项；布尔值可作为 <code>prepend</code> 的简写。</li>
 </ul>
 <p><strong>返回值</strong>：一个用于移除监听器的资源释放函数；如果调用该函数时监听器仍处于注册状态，则返回 <code>true</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L105">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L105">源码</a></p>
 <h2 id="EventOptions">EventOptions</h2>
 <p><code>ctx.on()</code> 和 <code>ctx.once()</code> 接受的选项。</p>
 <pre><code>/** Options accepted by `ctx.on()` and `ctx.once()`. */
@@ -154,7 +154,7 @@ interface EventOptions {
   /** Receive the event regardless of context filter checks. */
   global?: boolean
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L111">源码</a></p>
+<p><a href="/src/vendor/cordis/src/events.ts#L111">源码</a></p>
 <h2 id="DispatchMode">DispatchMode</h2>
 <p>事件服务使用的事件分发策略。</p>
 <p><code>emit</code> 运行同步监听器但不等待它们，<code>parallel</code> 同时等待所有监听器，<code>serial</code> 依次等待监听器直至其中一个提前终止分发，<code>bail</code> 遇到第一个同步提前终止值时停止，<code>waterfall</code> 则围绕最终的 <code>next</code> 回调组合监听器。</p>
@@ -167,7 +167,7 @@ interface EventOptions {
  * listeners around a final `next` callback.
  */
 type DispatchMode = &#x27;emit&#x27; | &#x27;parallel&#x27; | &#x27;serial&#x27; | &#x27;bail&#x27; | &#x27;waterfall&#x27;</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/events.ts#L31">源码</a></p></div>
+<p><a href="/src/vendor/cordis/src/events.ts#L31">源码</a></p></div>
     <div class="back"><a href="/?focus=reference/cordis-api/events">← 返回图谱并聚焦该文档</a></div>
   </main>
 </div>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,15 +18,15 @@
     <h1>Web Client Slots</h1>
     <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/slots.md</div>
     <div class="body"><h1 id="Web-Client-Slots">Web Client Slots</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/slots.md">English</a> | 中文</p>
-<p>Slots 是 Web Client 的类型化 React 组合系统。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-slots/README.zh.md"><code>dsh-client-ui-slots</code></a>定义不依赖 React 的注册表与类型代数；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-renderer/README.zh.md"><code>dsh-client-ui-renderer</code></a>把可观测源绑定成钩子、渲染整棵树，并在内部拥有 React context。功能插件通过 <code>ctx.slots.register()</code> 贡献 UI，绝不导入其他功能插件的组件。</p>
-<p>本文记录 slot 的所有权、组件输入、扩展 API 与当前层级。外围的启动、Remote、Client model 与 Conversation 数据通路见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/web-client.zh.md">Web Client 架构</a>。</p>
+<p><a href="/src/docs/subsystems/slots.md">English</a> | 中文</p>
+<p>Slots 是 Web Client 的类型化 React 组合系统。<a href="/src/packages/client/ui-slots/README.zh.md"><code>dsh-client-ui-slots</code></a>定义不依赖 React 的注册表与类型代数；<a href="/src/packages/client/ui-renderer/README.zh.md"><code>dsh-client-ui-renderer</code></a>把可观测源绑定成钩子、渲染整棵树，并在内部拥有 React context。功能插件通过 <code>ctx.slots.register()</code> 贡献 UI，绝不导入其他功能插件的组件。</p>
+<p>本文记录 slot 的所有权、组件输入、扩展 API 与当前层级。外围的启动、Remote、Client model 与 Conversation 数据通路见 <a href="/src/docs/subsystems/web-client.zh.md">Web Client 架构</a>。</p>
 <p><code>plugins.bundle.config</code> 以 npm 包名为 key，提供 Bundle 详情配置。<code>plugins.bundle.activation</code> 在用户显式启用后渲染可选引导，由拥有者提供关闭引导和打开该 Bundle 详情的回调。<code>conversation.input.activity</code> 提供模型选择器与发送按钮之间的单个活动控件，可展开工具栏并在卸载时释放展开状态。</p>
 <p>插件目录声明 <code>plugins.add.actions</code>，它是 root 作用域的 list，在添加插件菜单的安装项之后提供 <code>MenuItemButton</code> 行。owner 提供 <code>onDismiss()</code>，用于开始动作前关闭菜单。该 slot 遵循所属插件页面声明的生命周期。</p>
-<p>root 作用域的 list <code>sidebar.panellist.actions</code>、<code>conversation.session.header.views.actions</code> 和 <code>sidebar.right.tab.guide.actions</code> 提供面板行、View 标签和右侧栏引导卡片之后“更多”菜单的菜单行。区域只在其 list 有注册项时画“更多”按钮与菜单，并传入可自定义的入口及其 Pin 状态、<code>onOpen</code>、<code>onPinnedChange</code> 与 <code>onDismiss</code>。面板和 View 入口还通过可选的 <code>active</code> 状态标识当前选中项，该状态独立于 Pin 状态。root 作用域的 <code>sidebar.panel.icon</code> factory 拥有 <code>sidebar.panellist</code> list，按 <code>id</code>、<code>size</code> 与 <code>active</code> 为侧栏行和更多菜单入口渲染已注册图标。各区域在内存中维护已收起的入口 id；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-entry-customization/README.zh.md"><code>ui-entry-customization</code></a> 注册随产品提供的菜单行。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-workspace/README.zh.md">ui-workspace</a> 记录 Session 行的扩展位置、显示条件和键盘行为。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-settings/README.zh.md">ui-settings</a> 记录设置页面与导航图标扩展点。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-session-panel/README.zh.md">ui-session-panel</a> 记录会话面板的分栏、标题控件、行与开关角标扩展位置。</p>
+<p>root 作用域的 list <code>sidebar.panellist.actions</code>、<code>conversation.session.header.views.actions</code> 和 <code>sidebar.right.tab.guide.actions</code> 提供面板行、View 标签和右侧栏引导卡片之后“更多”菜单的菜单行。区域只在其 list 有注册项时画“更多”按钮与菜单，并传入可自定义的入口及其 Pin 状态、<code>onOpen</code>、<code>onPinnedChange</code> 与 <code>onDismiss</code>。面板和 View 入口还通过可选的 <code>active</code> 状态标识当前选中项，该状态独立于 Pin 状态。root 作用域的 <code>sidebar.panel.icon</code> factory 拥有 <code>sidebar.panellist</code> list，按 <code>id</code>、<code>size</code> 与 <code>active</code> 为侧栏行和更多菜单入口渲染已注册图标。各区域在内存中维护已收起的入口 id；<a href="/src/packages/client/ui-entry-customization/README.zh.md"><code>ui-entry-customization</code></a> 注册随产品提供的菜单行。</p>
+<p><a href="/src/packages/client/ui-workspace/README.zh.md">ui-workspace</a> 记录 Session 行的扩展位置、显示条件和键盘行为。</p>
+<p><a href="/src/packages/client/ui-settings/README.zh.md">ui-settings</a> 记录设置页面与导航图标扩展点。</p>
+<p><a href="/src/packages/client/ui-session-panel/README.zh.md">ui-session-panel</a> 记录会话面板的分栏、标题控件、行与开关角标扩展位置。</p>
 <h2 id="声明与生命周期">声明与生命周期</h2>
 <p><code>SlotMap</code> 是编译期注册表。包通过声明合并写入 key、cardinality（基数）、scope、owner props、keyed props 与可选的 slot 级 inject face。运行时声明则是拥有该渲染位置的组件在 <code>children</code> 中给出的对应条目。</p>
 <p>声明一个 child 会同时产生三种效果：令该 child key 生效、授权 parent entry 调用 <code>renderSlot</code> 或 <code>renderSlotChain</code>，以及记录运行时 dispatch 规格。每个声明只能有一个存活 owner。向未声明 slot 注册，或重复声明其他 entry 已拥有的 child，都会在插件激活时失败。</p>
@@ -68,7 +68,7 @@ export function apply(ctx: Context): void {
 <li>布局：outlet 会在 owner 与内容之间插入一个 <code>display: contents</code> 的 <code>[data-slot]</code> 元素，所以 owner 侧的选择器不能假定内容是直接子元素。包裹 <code>children</code> 的层自身不得产生盒子（其 slot 另有说明的除外）——例如应使用 <code>display: contents</code>——否则内容会脱离父元素的布局。</li>
 </ul>
 <p><a id="component-inputs" class="anch"></a></p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-context-menu/README.zh.md">右键菜单插件</a> 通过 <code>provideRoot</code> 贡献 <code>useContextMenu</code>；每个作用域接收同一个由插件拥有的触发器工厂。提供方卸载时，注入属性与保留的处理器一并失效。其根作用域 keyed Slot <code>contextMenu.icon</code> 根据操作元数据渲染业务方提供的图标。</p>
+<p><a href="/src/packages/client/ui-context-menu/README.zh.md">右键菜单插件</a> 通过 <code>provideRoot</code> 贡献 <code>useContextMenu</code>；每个作用域接收同一个由插件拥有的触发器工厂。提供方卸载时，注入属性与保留的处理器一并失效。其根作用域 keyed Slot <code>contextMenu.icon</code> 根据操作元数据渲染业务方提供的图标。</p>
 <h2 id="组件输入"><span id="component-inputs" class="anch"></span>组件输入</h2>
 <p>注册组件会在 binding 位置收到组装后的输入。组件应从这些类型推导 props，不要重新抄写成员。</p>
 <table><thead><tr><th>输入</th><th>声明者</th><th>组件类型</th></tr></thead><tbody><tr><td>owner 值与标准 scope 值</td><td><code>SlotMap</code> 条目与已安装的 scope adapter</td><td><code>PropsRuntime&lt;K&gt;</code></td></tr><tr><td>获授权的 child renderer</td><td>注册项的 <code>children</code> keys</td><td><code>PropsRenderSlots&lt;S&gt;</code></td></tr><tr><td>共享视图状态的 selector hook 与 mutation callback</td><td>注册项的 <code>store</code></td><td><code>PropsStore&lt;H&gt;</code></td></tr><tr><td>私有数据、callback 与 observable hook</td><td>注册项的 <code>inject</code> factory</td><td><code>InjectFace&lt;I&gt;</code></td></tr><tr><td>本地化 <code>t</code> 函数</td><td>注册项的 <code>locale</code> namespace</td><td><code>PropsLocale&lt;N&gt;</code></td></tr><tr><td>chain 选中的值</td><td>注册项的 <code>select</code> 结果</td><td>通过 <code>ComposedProps</code> 提供的 <code>matched</code></td></tr><tr><td>被包裹的 owner 内容</td><td><code>SlotMap</code> 条目的 <code>hoc</code> kind</td><td>通过 <code>ComposedProps</code> 提供的 <code>children</code></td></tr></tbody></table>
@@ -172,7 +172,7 @@ Factory: conversation.user.text [UserText]
 Factory: conversation.images.content [MessageImagesContent / ImageGallery]
 Factory: conversation.chat.reasoning.content [ReasoningContent / MarkdownText]</code></pre>
 <p>四个图片 Slot 默认均填入 <code>MessageImages</code>，由它携带调用者的图片引用和授权 loader 调用 <code>conversation.images.content</code>。用户与输出图片的替换互不影响。<code>conversation.user.text</code> Factory 由用户内容、Queue 和 Goal 共用；其 <code>inline: true</code> keyed Slot 使用 span 锚点及行内错误占位，而不是块级包装。</p>
-<p>生成的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts">Client inspect catalog</a> 是包含所有外壳分支及每个 key 的完整参考，包含 cardinality、scope、owner props、标准 props、当前 occupant、声明 owner 与替换风险。运行中的动态包可以用 <code>cordis_inspect what:"client"</code> 查询实时树与某个精确 key；源码 catalog 由 <code>pnpm run gen-client-catalog</code> 根据 <code>SlotMap</code> 声明和 <code>slots.register()</code> 调用点生成。</p>
+<p>生成的 <a href="/src/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts">Client inspect catalog</a> 是包含所有外壳分支及每个 key 的完整参考，包含 cardinality、scope、owner props、标准 props、当前 occupant、声明 owner 与替换风险。运行中的动态包可以用 <code>cordis_inspect what:"client"</code> 查询实时树与某个精确 key；源码 catalog 由 <code>pnpm run gen-client-catalog</code> 根据 <code>SlotMap</code> 声明和 <code>slots.register()</code> 调用点生成。</p>
 <p><a id="extension-rules" class="anch"></a></p>
 <h2 id="扩展规则"><span id="extension-rules" class="anch"></span>扩展规则</h2>
 <ul>

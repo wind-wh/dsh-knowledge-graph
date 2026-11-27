@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>会话持久化</h1>
     <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/persistence.md</div>
     <div class="body"><h1 id="会话持久化">会话持久化</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.md">English</a> | 中文</p>
-<p>事件日志的<strong>持久性 seam</strong>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a> 描述了内存中的 <code>Session</code>：仅追加的 <code>SessionEvent</code> 日志即为真源。本页描述如何使该日志持久化：抽象的 <code>SessionPersistence</code> 服务、它的提供方模型与随产品交付的 JSONL 后端、flush 检查点、崩溃恢复，以及随日志一同存储的元数据头。日志承载的事件词汇在生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/persistence-catalog.zh.md">持久化日志事件目录</a>中逐项列举。</p>
-<p>该 seam 是一个<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>：一个抽象服务（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence">dsh-session-persistence</a>，<code>ctx.sessionPersistence</code>）在现有 <code>SessionEvent</code> 上暴露 <code>create</code>/<code>open</code>/<code>stat</code>/<code>list</code>——<strong>没有平行的持久化事件类型</strong>——其中 <code>create</code> 与 <code>open</code> 返回逐会话的 <code>SessionHandle</code>（<code>read</code>/<code>append</code>/<code>flush</code>/<code>close</code>），它承载全部日志访问与单写者所有权。仓库随产品交付 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a> 作为其 provider；仓库外 provider 可以实现同一服务约定。见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence/README.zh.md">session-persistence reference</a>。</p>
+<p><a href="/src/docs/subsystems/persistence.md">English</a> | 中文</p>
+<p>事件日志的<strong>持久性 seam</strong>。<a href="/src/docs/subsystems/session.zh.md">session.md</a> 描述了内存中的 <code>Session</code>：仅追加的 <code>SessionEvent</code> 日志即为真源。本页描述如何使该日志持久化：抽象的 <code>SessionPersistence</code> 服务、它的提供方模型与随产品交付的 JSONL 后端、flush 检查点、崩溃恢复，以及随日志一同存储的元数据头。日志承载的事件词汇在生成的<a href="/src/docs/persistence-catalog.zh.md">持久化日志事件目录</a>中逐项列举。</p>
+<p>该 seam 是一个<a href="/src/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>：一个抽象服务（<a href="/src/packages/session/session-persistence">dsh-session-persistence</a>，<code>ctx.sessionPersistence</code>）在现有 <code>SessionEvent</code> 上暴露 <code>create</code>/<code>open</code>/<code>stat</code>/<code>list</code>——<strong>没有平行的持久化事件类型</strong>——其中 <code>create</code> 与 <code>open</code> 返回逐会话的 <code>SessionHandle</code>（<code>read</code>/<code>append</code>/<code>flush</code>/<code>close</code>），它承载全部日志访问与单写者所有权。仓库随产品交付 <a href="/src/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a> 作为其 provider；仓库外 provider 可以实现同一服务约定。见<a href="/src/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>与 <a href="/src/packages/session/session-persistence/README.zh.md">session-persistence reference</a>。</p>
 <h2 id="SessionHandle——通向已存储会话的一条打开通道"><code>SessionHandle</code>——通向已存储会话的一条打开通道</h2>
 <p>每一次日志读写都经由句柄流动，绝不经由按 id 寻址的服务方法：句柄是跨进程写租约把守的唯一入口。读取会返回调用方独占的外层 slice，以及由生产者建立的 event value 别名状态。一种句柄类型同时服务两种访问——在 <code>read</code> 句柄上执行修改是运行时的 <code>SessionReadOnlyError</code>，而非类型层面的拆分——而进程内单写者所有权使得在已有活跃持有者时第二次 <code>open(id, 'write')</code> 以 <code>SessionAlreadyOwnedError</code> 拒绝。</p>
 <pre><code>/** One persistence event slice returned by {@link SessionHandle.read}. */
@@ -110,9 +110,9 @@ interface SessionHandle extends AsyncDisposable {
 <h2 id="flush-检查点">flush 检查点</h2>
 <p><code>session/event</code> 是一个*同步*通知；挂载的后端按会话 id 把它路由进活跃写句柄的有界 write-behind 窗口，而不阻塞生产方（后端一次性安装这些监听器，因为持久化已保证每个 id 只有一个活跃写句柄）。第一个待处理事件会开启固定的内部批处理窗口，后续事件会加入但不会重置其截止时间。窗口到期后会通过该会话的写句柄启动一次持久化 <code>append</code>；该次写入期间接纳的事件会获得自己的截止时间，并形成后续批次。<code>session/flush</code> 会取消等待并排空至完全停稳，因此循环仍将其用作在领取下一个普通轮次之前的顺序与错误观察检查点。后台写入被拒绝时会按序保留对应事件、暂停自动路径，并通过 logger 报告；下一次显式 flush 会重试，并向其调用方响亮地拒绝。<code>session/disposed</code> 会执行同样的最终排空并关闭句柄，而 <code>close()</code> 本身会经由仍然打开的存储排空已路由的缓冲，因此后端 teardown 的关闭清扫不丢任何数据。该窗口只限制有意的批处理等待，不限制事件循环调度或后端完成持久化的延迟。</p>
 <h2 id="崩溃恢复保留被中断的轮次">崩溃恢复保留被中断的轮次</h2>
-<p>一个在轮次中途崩溃的日志以打开的 <code>turn/start</code> 而无 <code>turn/end</code> 结束。持久化<strong>不会</strong>截断或修复它：在长周期任务中，单个轮次可能非常庞大（许多步骤、大量工具输出），而这些事件在崩溃前已被持久追加。它返回物理上有效的连续日志；只有撕裂物理尾部——属于一次从未完成的 append——中不完整的碎片会被丢弃：从中恢复的完整记录（JSONL 后端会部分解码撕裂的 Zstandard 帧）由写路径在句柄的第一次新 append 之前持久重写。修复是读方的职责：resume（agent-loop）通过其写句柄读取已存储的日志，计算 <code>interruptedTurnClosers</code>——缺失的工具错误、任何未闭合的 <code>step/end</code>，以及一个合成的 <code>turn/end { reason: { kind: 'interrupted' } }</code>——并在发布 Session 之前把它们作为普通批次通过同一句柄追加。<code>interrupted</code> 是唯一一个不由循环发出的 <code>TurnEndReason</code>（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a>）。</p>
+<p>一个在轮次中途崩溃的日志以打开的 <code>turn/start</code> 而无 <code>turn/end</code> 结束。持久化<strong>不会</strong>截断或修复它：在长周期任务中，单个轮次可能非常庞大（许多步骤、大量工具输出），而这些事件在崩溃前已被持久追加。它返回物理上有效的连续日志；只有撕裂物理尾部——属于一次从未完成的 append——中不完整的碎片会被丢弃：从中恢复的完整记录（JSONL 后端会部分解码撕裂的 Zstandard 帧）由写路径在句柄的第一次新 append 之前持久重写。修复是读方的职责：resume（agent-loop）通过其写句柄读取已存储的日志，计算 <code>interruptedTurnClosers</code>——缺失的工具错误、任何未闭合的 <code>step/end</code>，以及一个合成的 <code>turn/end { reason: { kind: 'interrupted' } }</code>——并在发布 Session 之前把它们作为普通批次通过同一句柄追加。<code>interrupted</code> 是唯一一个不由循环发出的 <code>TurnEndReason</code>（见 <a href="/src/docs/subsystems/session.zh.md">session.md</a>）。</p>
 <p>因此修复只在写所有权之下写入：活跃会话的写句柄由其生命周期所有者持有，故并发的 <code>open(id, 'write')</code> 会以 <code>SessionAlreadyOwnedError</code> 拒绝，而不是让修复与活跃轮次竞速。只读观察方（session-query）仅在内存中用同样的闭合事件配平被中断的冷日志，不回写任何内容。</p>
-<p>只读观察即 <code>open(id, 'read')</code>：句柄提供经过验证的连续前缀切片，绝不返回撕裂尾部，且同一句柄上的重复读取绝不会观察到比先前读取更旧的状态。持久化侧不存在已准备 Session 缓存：session-query 拥有自己的冷读缓存，按 <code>stat().revision</code> 变更令牌为每个 id 缓存一个已配平的冷 Session，仅在令牌变化时重新读取。该生命周期由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>定义；已归档的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/architecture/2026-08-05-session-preparation.md">Session 准备阶段记录</a>记载了发布边界 <code>SessionPreparation</code> 最初的决策。</p>
+<p>只读观察即 <code>open(id, 'read')</code>：句柄提供经过验证的连续前缀切片，绝不返回撕裂尾部，且同一句柄上的重复读取绝不会观察到比先前读取更旧的状态。持久化侧不存在已准备 Session 缓存：session-query 拥有自己的冷读缓存，按 <code>stat().revision</code> 变更令牌为每个 id 缓存一个已配平的冷 Session，仅在令牌变化时重新读取。该生命周期由<a href="/src/.agents/notes/implemented/architecture/2026-08-27-handle-based-session-persistence.zh.md">基于句柄的持久化 Agent Note</a>定义；已归档的 <a href="/src/.agents/notes/archived/architecture/2026-08-05-session-preparation.md">Session 准备阶段记录</a>记载了发布边界 <code>SessionPreparation</code> 最初的决策。</p>
 <h2 id="SessionLocation——每一-Session-的产物元数据"><code>SessionLocation</code>——每一 Session 的产物元数据</h2>
 <p><code>SessionLocation</code> 用于诊断与导出的观察元数据；日志访问仍走会话句柄的 <code>read</code>。已物化的持久化快照携带选中产物路径，<code>SessionFormatUnsupportedError</code> 也能指出本构建拒绝解读的原始日志。JSONL 提供其项目/会话目录内 transcript（文本记录）的绝对路径；没有逐会话工件的后端则不提供。</p>
 <pre><code>/**
@@ -130,7 +130,7 @@ interface SessionLocation {
 <p><a id="sessionheader--metadata-beside-the-log" class="anch"></a></p>
 <h2 id="SessionHeader：日志旁的元数据"><span id="sessionheader--metadata-beside-the-log" class="anch"></span><code>SessionHeader</code>：日志旁的元数据</h2>
 <p>每个会话的元数据与事件日志<strong>分开</strong>存储：header 携带格式版本、cwd 与 <code>isSeeded</code> 谱系 bit，含正文的存储值则在其旁边单独携带精确 inherited cut。二者都不进入 <code>SessionEventMap</code>，也不会到达 <code>deriveMessages()</code>。logical header 通过 <code>session.header</code> 附加，Session 则以 <code>inheritedEventCount</code> 暴露其 cut。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/types.ts"><code>packages/core/session/src/types.ts</code></a></p>
+<p>源码：<a href="/src/packages/core/session/src/types.ts"><code>packages/core/session/src/types.ts</code></a></p>
 <pre><code>/**
  * Immutable validated storage metadata, kept outside the conversation event log.
  */
@@ -181,7 +181,7 @@ interface SessionHeader {
   readonly agentPreset?: string
 }</code></pre>
 <h2 id="格式拒绝：本构建无法可靠读取的日志">格式拒绝：本构建无法可靠读取的日志</h2>
-<p>后端用 <code>SessionFormatUnsupportedError</code> 拒绝无法可靠解读的日志，它与 <code>SessionPersistenceCorruptionError</code> 区分，因为数据没有损坏。<code>stat</code> 与 <code>list</code> 会对最高规范 generation 分类，并在不读取或改变正文的前提下转换受支持的历史 header。历史 <code>open</code> 会共享每个 Session 唯一的一次 migration preparation，再返回当前逻辑值，并保持每个源路径、字节与 inode 不变。JSONL provider 直接从该内存结果返回读句柄而不发布；写 open 则在持有单写者 claim 与文件 lease 时复用 preparation、排他发布最终 current generation，随后才返回可写句柄。即使仍有较旧的可读 generation，最高的未来 generation 仍会导致拒绝。当前格式恢复会保留已安装扩展和带 <code>ignorable: true</code> 的未知事件；历史 v0/v1/v2 迁移则会拒绝未知类型，即使它带有 ignorable 标记。后端为每个会话保留独立文件时，消息附上选定的原始日志路径。仓库外后端必须在自己的物理格式入口提供等价的仅当前句柄值与方向感知拒绝。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md">已发布格式迁移决策</a>负责迁移链与不可变发布规则。</p>
+<p>后端用 <code>SessionFormatUnsupportedError</code> 拒绝无法可靠解读的日志，它与 <code>SessionPersistenceCorruptionError</code> 区分，因为数据没有损坏。<code>stat</code> 与 <code>list</code> 会对最高规范 generation 分类，并在不读取或改变正文的前提下转换受支持的历史 header。历史 <code>open</code> 会共享每个 Session 唯一的一次 migration preparation，再返回当前逻辑值，并保持每个源路径、字节与 inode 不变。JSONL provider 直接从该内存结果返回读句柄而不发布；写 open 则在持有单写者 claim 与文件 lease 时复用 preparation、排他发布最终 current generation，随后才返回可写句柄。即使仍有较旧的可读 generation，最高的未来 generation 仍会导致拒绝。当前格式恢复会保留已安装扩展和带 <code>ignorable: true</code> 的未知事件；历史 v0/v1/v2 迁移则会拒绝未知类型，即使它带有 ignorable 标记。后端为每个会话保留独立文件时，消息附上选定的原始日志路径。仓库外后端必须在自己的物理格式入口提供等价的仅当前句柄值与方向感知拒绝。<a href="/src/.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md">已发布格式迁移决策</a>负责迁移链与不可变发布规则。</p>
 <h2 id="CreateSessionOptions：seed-与元数据"><code>CreateSessionOptions</code>：seed 与元数据</h2>
 <p>通过 store 创建 <code>Session</code> 时会接收 <code>seed</code>（初始回放或 fork 历史）、可选的精确 <code>inheritedEventCount</code> 与 <code>meta</code>（store 整合进 <code>SessionHeader</code> 的存储层字段）。store 填充 <code>version</code>/<code>id</code> 并为 <code>createdAt</code> 提供默认值；调用方可以提供已校验的绝对 <code>cwd</code>、<code>parentSession</code> 谱系、<code>isSeeded</code> 谱系标记、可选的粗粒度 <code>origin</code>、<code>delegationDepth</code>、用于组装该 agent（智能体）的 <code>agentPreset</code> 以及已有的 <code>createdAt</code>。seeded 创建必须显式提供与 inherited prefix 完全相等的 seed 和精确 cut；constructor 会先在该 cut 追加 child-owned tagged end-seed marker，setup 再添加 child-owned event。<code>origin: 'subagent'</code> 让产品导航能够隐藏重复的 child 行；它不证明描述符有效，也不证明 child 可以恢复。</p>
 <pre><code>/**
@@ -301,13 +301,13 @@ interface SessionPersistenceSnapshot {
 <h2 id="后端">后端</h2>
 <p>随产品交付的多个 provider 实现抽象 <code>SessionPersistence</code> 约定（<code>create</code>/<code>open</code>/<code>stat</code>/<code>list</code>，逐会话 <code>SessionHandle</code> 承载 <code>read</code>/<code>append</code>/<code>flush</code>/<code>close</code>，全程可选支持取消），并通过共享的持久化契约套件：</p>
 <ul>
-<li><strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a></strong>——逐会话仅追加的逻辑 JSONL 日志，默认存储为带 checksum 的连续 Zstandard frame，也可配置为原始行；具备崩溃安全的原子实体化、逐批 <code>fsync</code> 的 append，以及在第一次新 append 之前截断撕裂尾部。<code>stat</code>/<code>list</code> 携带 <code>sizeBytes</code> 与尽力而为的、由 <code>fs.stat</code> 派生的修订号。</li>
-<li><strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-sqlite">dsh-session-persistence-sqlite</a></strong>——带索引元数据及前驱关联 Segment 的逻辑 JSON 事件存储，每次写入存为一帧 JSON 行，默认以 Zstandard 压缩。此可选提供者在首次打开时导入现有 JSONL，并协调并发读者及每个 Session 的唯一写者；<code>stat</code>/<code>list</code> 不导入历史。</li>
+<li><strong><a href="/src/packages/session/session-persistence-jsonl">dsh-session-persistence-jsonl</a></strong>——逐会话仅追加的逻辑 JSONL 日志，默认存储为带 checksum 的连续 Zstandard frame，也可配置为原始行；具备崩溃安全的原子实体化、逐批 <code>fsync</code> 的 append，以及在第一次新 append 之前截断撕裂尾部。<code>stat</code>/<code>list</code> 携带 <code>sizeBytes</code> 与尽力而为的、由 <code>fs.stat</code> 派生的修订号。</li>
+<li><strong><a href="/src/packages/session/session-persistence-sqlite">dsh-session-persistence-sqlite</a></strong>——带索引元数据及前驱关联 Segment 的逻辑 JSON 事件存储，每次写入存为一帧 JSON 行，默认以 Zstandard 压缩。此可选提供者在首次打开时导入现有 JSONL，并协调并发读者及每个 Session 的唯一写者；<code>stat</code>/<code>list</code> 不导入历史。</li>
 </ul>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxdeepseekchatimport--deepseekchatimportservice" class="anch"></a></p>
 <h3 id="ctx.deepseekChatImport-—-DeepseekChatImportService"><span id="ctxdeepseekchatimport--deepseekchatimportservice" class="anch"></span><code>ctx.deepseekChatImport</code> — <code>DeepseekChatImportService</code></h3>
 <p>Serves the owner-only export upload route and the limits the browser checks first.</p>
@@ -319,7 +319,7 @@ interface SessionPersistenceSnapshot {
  * @throws {RemoteError} `deepseekChatImport/owner-only` for a caller that is not the owner.
  */
 @Remote limits(signal: AbortSignal): DeepseekChatImportLimits</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/deepseek-chat-import/src/index.ts"><code>packages/experimental/deepseek-chat-import/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/experimental/deepseek-chat-import/src/index.ts"><code>packages/experimental/deepseek-chat-import/src/index.ts</code></a></p>
 <p><a id="ctxsessionpersistence--sessionpersistence-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.sessionPersistence-—-SessionPersistence-abstract-seam"><span id="ctxsessionpersistence--sessionpersistence-abstract-seam" class="anch"></span><code>ctx.sessionPersistence</code> — <code>SessionPersistence</code> (abstract seam)</h3>
 <p>Durable append-only session storage addressed through per-session handles.</p>
@@ -392,8 +392,8 @@ abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise&l
  * @returns one snapshot per stored session.
  */
 abstract list(options?: SessionPersistenceListOptions): Promise&lt;readonly SessionPersistenceSnapshot[]&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence/src/index.ts"><code>packages/session/session-persistence/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/session/session-persistence/src/index.ts"><code>packages/session/session-persistence/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/persistence">← 返回图谱并聚焦该文档</a></div>
   </main>

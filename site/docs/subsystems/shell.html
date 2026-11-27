@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,11 +18,11 @@
     <h1>Shell 执行器</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/shell.md</div>
     <div class="body"><h1 id="Shell-执行器">Shell 执行器</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/shell.md">English</a> | 中文</p>
-<p>shell 执行 seam 由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell">dsh-shell</a> 在 <code>ctx.shell</code> 上提供 Service Definition。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/README.zh.md">shell 包组</a>列出其 Bash 与 PowerShell 提供方以及面向模型的 Consumer。通用后台任务的 id、所有权与控制位于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">jobs.md</a>；本 seam 返回进程句柄，不注册后台任务。managed-range 机制封装在<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>之后。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell/src/types.ts"><code>packages/shell/shell/src/types.ts</code></a></p>
+<p><a href="/src/docs/subsystems/shell.md">English</a> | 中文</p>
+<p>shell 执行 seam 由 <a href="/src/packages/shell/shell">dsh-shell</a> 在 <code>ctx.shell</code> 上提供 Service Definition。<a href="/src/packages/shell/README.zh.md">shell 包组</a>列出其 Bash 与 PowerShell 提供方以及面向模型的 Consumer。通用后台任务的 id、所有权与控制位于 <a href="/src/docs/subsystems/jobs.zh.md">jobs.md</a>；本 seam 返回进程句柄，不注册后台任务。managed-range 机制封装在<a href="/src/docs/subsystems/subprocess.zh.md">子进程 seam</a>之后。</p>
+<p>源码：<a href="/src/packages/shell/shell/src/types.ts"><code>packages/shell/shell/src/types.ts</code></a></p>
 <h2 id="受管-shell-环境命名空间">受管 shell 环境命名空间</h2>
-<p><code>DSH_*</code> 变量是归 Harness 所有的子进程事实。面向模型的 bash 工具通过 <code>ctx.shellEnv</code> 收集它们，再经由 <code>ShellExecRequest.dshEnv</code> 传递；子进程服务在合并当前快照之前会移除继承而来的 <code>DSH_*</code> 名称。<code>DshEnvironmentKey</code>／<code>DshEnvironment</code> 词汇归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
+<p><code>DSH_*</code> 变量是归 Harness 所有的子进程事实。面向模型的 bash 工具通过 <code>ctx.shellEnv</code> 收集它们，再经由 <code>ShellExecRequest.dshEnv</code> 传递；子进程服务在合并当前快照之前会移除继承而来的 <code>DSH_*</code> 名称。<code>DshEnvironmentKey</code>／<code>DshEnvironment</code> 词汇归<a href="/src/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
 <h2 id="请求与规格：resolve-拆分">请求与规格：<code>resolve()</code> 拆分</h2>
 <p>该 seam 将<strong>面向模型/插件的请求</strong>（<code>workdir</code>/<code>timeoutMs</code>/<code>stdoutMaxBytes</code> 可选，由配置或请求策略补全）与执行器实际使用的<strong>完全解析后的 spec</strong>（这些字段均为必填）分开。工具层在二者之间调用 <code>ctx.shell.resolve(request)</code>（仓库的「包边界处显式优于隐式」规则）；<code>ShellExecSpec</code> 携带的是已解析的值。</p>
 <pre><code>/**
@@ -138,9 +138,9 @@ interface ShellRunResult {
   /** Sandbox execution facts, absent for an unsandboxed executor. */
   sandbox?: ShellSandboxInfo
 }</code></pre>
-<p>每个流是一个 <code>CollectedOutput</code>：（可能被截断的）文本加恢复信息；截断时，<code>text</code> 是<strong>尾部</strong>，完整流溢出到一个私有文件。这些字段归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
+<p>每个流是一个 <code>CollectedOutput</code>：（可能被截断的）文本加恢复信息；截断时，<code>text</code> 是<strong>尾部</strong>，完整流溢出到一个私有文件。这些字段归<a href="/src/docs/subsystems/subprocess.zh.md">子进程 seam</a>所有，由 <code>dsh-shell</code> 重导出。</p>
 <h2 id="文件沙箱：ShellSandboxInfo">文件沙箱：<code>ShellSandboxInfo</code></h2>
-<p>使用沙箱的执行器通过 <code>ShellExecutor.sandboxMode</code> 暴露其已配置的模式回退值。工具层请求 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/README.zh.md"><code>@deepseek-ai/dsh-sandbox-policy</code></a>，把每个调用会话的持久 <code>sandbox/mode</code> 覆盖值与不可变 cwd 解析为 <code>ShellExecRequest.sandboxPolicy</code>；经用户批准、严格更宽松的调用只替换模式。模式/root/enforcement 词汇归 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md"><code>@deepseek-ai/dsh-sandbox</code> 沙箱 seam</a> 所有；模式仅管辖文件效果。</p>
+<p>使用沙箱的执行器通过 <code>ShellExecutor.sandboxMode</code> 暴露其已配置的模式回退值。工具层请求 <a href="/src/packages/sandbox/sandbox-policy/README.zh.md"><code>@deepseek-ai/dsh-sandbox-policy</code></a>，把每个调用会话的持久 <code>sandbox/mode</code> 覆盖值与不可变 cwd 解析为 <code>ShellExecRequest.sandboxPolicy</code>；经用户批准、严格更宽松的调用只替换模式。模式/root/enforcement 词汇归 <a href="/src/docs/subsystems/sandbox.zh.md"><code>@deepseek-ai/dsh-sandbox</code> 沙箱 seam</a> 所有；模式仅管辖文件效果。</p>
 <p>沙箱化运行会报告其模式、保守的拒绝分类与强制执行完整度。<code>runnerFailed</code> 标记命令运行前沙箱 runner 已失败；前台执行会抛出 <code>SANDBOX_UNAVAILABLE</code>，而已结束的后台进程只能通过其事实通道报告。</p>
 <pre><code>/**
  * Sandbox facts for one run, present iff a sandboxing executor handled it.
@@ -157,7 +157,7 @@ interface ShellSandboxInfo {
   /** Whether the sandbox runner failed before the command could run. */
   runnerFailed?: boolean
 }</code></pre>
-<p>当受限模式没有可用后端时，<code>ctx.sandbox</code> 提供方会抛出、执行器会传播由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/sandbox.zh.md">沙箱 seam</a>所有的 <code>SANDBOX_UNAVAILABLE</code> 错误码。选定的 runner 拒绝其 profile 时会触达同一个故障关闭的前台错误；已结束的后台任务则记录 <code>runnerFailed</code>。模型会在结果中收到拒绝/runner 事实，仅当拒绝标记指出生效模式时才得知该模式，并可通过 <code>sandbox_permissions</code> 加 <code>justification</code> 请求一次性、严格更宽松的重试；执行任何操作前，<code>ctx.approval</code> 必须批准该次确切调用。完整的策略与切换设计见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-policy/README.zh.md">沙箱 参考</a>。</p>
+<p>当受限模式没有可用后端时，<code>ctx.sandbox</code> 提供方会抛出、执行器会传播由<a href="/src/docs/subsystems/sandbox.zh.md">沙箱 seam</a>所有的 <code>SANDBOX_UNAVAILABLE</code> 错误码。选定的 runner 拒绝其 profile 时会触达同一个故障关闭的前台错误；已结束的后台任务则记录 <code>runnerFailed</code>。模型会在结果中收到拒绝/runner 事实，仅当拒绝标记指出生效模式时才得知该模式，并可通过 <code>sandbox_permissions</code> 加 <code>justification</code> 请求一次性、严格更宽松的重试；执行任何操作前，<code>ctx.approval</code> 必须批准该次确切调用。完整的策略与切换设计见<a href="/src/packages/sandbox/sandbox-policy/README.zh.md">沙箱 参考</a>。</p>
 <h2 id="后台进程：ShellProcess">后台进程：<code>ShellProcess</code></h2>
 <p><code>start()</code> 在异步启动准备完成后返回句柄；取消或准备失败会在发布前拒绝调用。该句柄没有 id 或 owner。<code>dsh-tool-bash</code> 将它适配为 <code>ctx.jobs.start()</code> 钩子；随后由通用运行时拥有任务标识与生命周期。<code>done</code> 会在底层进程结算时完成且绝不 reject；subprocess 提供方的 rejection 会生成状态为 <code>killed</code> 的进程，并把不声明阶段的错误写入 stderr。进程结算后仍可读取，并且沙箱事实会在 <code>done</code> 完成前写入。</p>
 <pre><code>/**
@@ -212,11 +212,11 @@ interface ShellProcessRead {
   stderrSpillPath?: string
 }</code></pre>
 <h2 id="服务">服务</h2>
-<p><code>ShellExecutor</code> 拥有 <code>resolve</code>、前台 <code>run</code>、后台进程 <code>start</code> 以及 <code>sandboxMode</code> 能力事实。<code>dsh-bash-local</code> 拥有命令默认值补全、超时/中止分类、终端环境以及后台读取合并；managed-range 终止、有界收集器、spill 文件、凭据清除与 dispose（资源释放）后完全停稳归<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">子进程服务</a>所有。<code>dsh-tool-bash</code> 拥有面向模型的渲染，并将后台句柄适配到<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">通用任务运行时</a>。<code>dsh-shell</code> 拥有 shell 工具共享的退出状态约定：导出的 <code>parseExitStatus</code>/<code>ParsedExitStatus</code> 是 <code>dsh-tool-bash</code> 的 <code>renderResult</code> 与 <code>dsh-tool-pwsh</code> 的 <code>renderPwshResult</code> 所追加的 <code>[exit code: N]</code> / <code>[killed by signal: X]</code> 标记的逆解析，两个工具的 <code>presentResult</code> 都用它把渲染文本拆分为 terminal 卡的输出正文与退出状态 pill。</p>
+<p><code>ShellExecutor</code> 拥有 <code>resolve</code>、前台 <code>run</code>、后台进程 <code>start</code> 以及 <code>sandboxMode</code> 能力事实。<code>dsh-bash-local</code> 拥有命令默认值补全、超时/中止分类、终端环境以及后台读取合并；managed-range 终止、有界收集器、spill 文件、凭据清除与 dispose（资源释放）后完全停稳归<a href="/src/docs/subsystems/subprocess.zh.md">子进程服务</a>所有。<code>dsh-tool-bash</code> 拥有面向模型的渲染，并将后台句柄适配到<a href="/src/docs/subsystems/jobs.zh.md">通用任务运行时</a>。<code>dsh-shell</code> 拥有 shell 工具共享的退出状态约定：导出的 <code>parseExitStatus</code>/<code>ParsedExitStatus</code> 是 <code>dsh-tool-bash</code> 的 <code>renderResult</code> 与 <code>dsh-tool-pwsh</code> 的 <code>renderPwshResult</code> 所追加的 <code>[exit code: N]</code> / <code>[killed by signal: X]</code> 标记的逆解析，两个工具的 <code>presentResult</code> 都用它把渲染文本拆分为 terminal 卡的输出正文与退出状态 pill。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxshell--shellexecutor-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.shell-—-ShellExecutor-abstract-seam"><span id="ctxshell--shellexecutor-abstract-seam" class="anch"></span><code>ctx.shell</code> — <code>ShellExecutor</code> (abstract seam)</h3>
 <p>Abstract bash execution service. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as <code>ctx.shell</code> (one implementation per context; loading a second throws, which is cordis' standard duplicate-service behavior).</p>
@@ -245,7 +245,7 @@ abstract resolve(request: ShellExecRequest): ShellExecSpec
  * @throws on preparation failure or caller cancellation before process publication.
  */
 abstract execute(spec: ShellExecSpec): Promise&lt;ShellExecution&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell/src/index.ts"><code>packages/shell/shell/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/shell/shell/src/index.ts"><code>packages/shell/shell/src/index.ts</code></a></p>
 <p><a id="ctxshellenv--shellenvregistry" class="anch"></a></p>
 <h3 id="ctx.shellEnv-—-ShellEnvRegistry"><span id="ctxshellenv--shellenvregistry" class="anch"></span><code>ctx.shellEnv</code> — <code>ShellEnvRegistry</code></h3>
 <p>Registry (<code>ctx.shellEnv</code>) for trusted, per-execution <code>DSH_*</code> variables. The namespace is rebuilt for every model shell call: ambient <code>DSH_*</code> values are discarded by the executor, then the registry's current snapshot is injected. Built-in shell facts remain owned by the registry itself while plugins can register additional, enumerable facts with effect-scoped disposal.</p>
@@ -269,8 +269,8 @@ collect(execution: ToolExecution): DshEnvironment
  * @returns declarations sorted by environment variable name.
  */
 list(): BashEnvVariableInfo[]</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.zh.md">DshEnvironment</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">ToolExecution</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell-env/src/index.ts"><code>packages/shell/shell-env/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/subprocess.zh.md">DshEnvironment</a> · <a href="/src/docs/subsystems/tools.zh.md">ToolExecution</a></p>
+<p>Source: <a href="/src/packages/shell/shell-env/src/index.ts"><code>packages/shell/shell-env/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/shell">← 返回图谱并聚焦该文档</a></div>
   </main>

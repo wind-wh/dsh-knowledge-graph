@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -20,7 +20,7 @@
     <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-cordis-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
 <p>     更新时先运行 <code>pnpm run gen-cordis-catalog</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/cordis-api/fiber.md</code> 重新记录配对。 --&gt;</p>
 <h1 id="Fiber">Fiber</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/fiber.md">English</a> | 中文</p>
+<p><a href="/src/docs/cordis-api/fiber.md">English</a> | 中文</p>
 <p>fiber 是一个已加载的插件实例，包含其生命周期状态、经过校验的配置以及已注册的作用。<code>ctx.fiber</code> 是当前 fiber，<code>ctx.effect()</code> 会将调用委托给它。</p>
 <h3 id="ctx.effectexecute,-label?">ctx.effect(execute, label?)</h3>
 <pre><code>/**
@@ -45,61 +45,61 @@ effect(execute: () =&gt; Effect, label?: string): AsyncDisposable&lt;Promise&lt;
 <li><code>label</code>：在 <code>getEffects()</code> 诊断信息中显示的作用标签。</li>
 </ul>
 <p><strong>返回</strong>一个用于撤销该作用的清理函数，并在清理完成后结算。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L443">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L443">源码</a></p>
 <h3 id="ctx.fiber">ctx.fiber</h3>
 <pre><code>/** The fiber (plugin runtime instance) that owns this context. */
 fiber: Fiber</code></pre>
 <p>拥有此上下文的 fiber（插件运行时实例）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L12">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L12">源码</a></p>
 <h2 id="Fiber-类">Fiber 类</h2>
 <p>单次插件应用的运行时实例。</p>
 <p>fiber 会跟踪 <code>ctx.plugin()</code> 返回的插件上下文所对应的依赖状态、原始配置与有效配置、生命周期作用和清理操作。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L214">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L214">源码</a></p>
 <h3 id="fiber.uid">fiber.uid</h3>
 <pre><code>/** Unique id within the registry; 0 for the root fiber, `null` once disposed. */
 public uid: number | null</code></pre>
 <p>在注册表中的唯一 id；根 fiber 的 id 为 0，dispose 后为 <code>null</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L216">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L216">源码</a></p>
 <h3 id="fiber.ctx">fiber.ctx</h3>
 <pre><code>/** The context this fiber&#x27;s plugin runs in (extends the parent context). */
 public readonly ctx: Context</code></pre>
 <p>此 fiber 的插件运行所在的上下文（扩展自父上下文）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L218">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L218">源码</a></p>
 <h3 id="fiber.config">fiber.config</h3>
 <pre><code>/** Raw plugin input retained for the next activation. */
 public config: any</code></pre>
 <p>为下次激活保留的原始插件输入。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L220">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L220">源码</a></p>
 <h3 id="fiber.state">fiber.state</h3>
 <pre><code>/** Current lifecycle state; transitions emit `internal/status`. */
 public state</code></pre>
 <p>当前生命周期状态；状态转换会发出 <code>internal/status</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L222">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L222">源码</a></p>
 <h3 id="fiber.dispose">fiber.dispose</h3>
 <pre><code>/** Dispose this fiber: unload the plugin, then settle once cleanup finished. */
 public readonly dispose: () =&gt; Promise&lt;void&gt;</code></pre>
 <p>dispose 此 fiber：卸载插件，并在清理完成后结算。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L224">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L224">源码</a></p>
 <h3 id="fiber.committed">fiber.committed</h3>
 <pre><code>/** Required implementations retained through dependent teardown. */
 public committed: Readonly&lt;Dict&lt;Impl&gt;&gt; | undefined</code></pre>
 <p>在依赖方清理完成前保留的所需服务实现。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L226">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L226">源码</a></p>
 <h3 id="fiber.provisions">fiber.provisions</h3>
 <pre><code>/** Service implementations owned by this fiber, including isolated provisions. */
 public readonly provisions: Set&lt;Impl&gt;</code></pre>
 <p>此 fiber 拥有的服务实现，包括隔离域中的服务。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L228">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L228">源码</a></p>
 <h3 id="fiber.inertia">fiber.inertia</h3>
 <pre><code>/** The in-flight load/unload transition, if one is currently running. */
 public inertia: Promise&lt;void&gt; | undefined</code></pre>
 <p>当前正在进行的加载或卸载转换；如果没有此类转换，则为 undefined。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L230">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L230">源码</a></p>
 <h3 id="fiber.name">fiber.name</h3>
 <pre><code>/** The plugin&#x27;s display name, inherited from the nearest named ancestor, else `&#x27;root&#x27;`. */
 get name()</code></pre>
 <p>插件的显示名称，继承自最近的具名祖先；如果不存在，则为 <code>'root'</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L364">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L364">源码</a></p>
 <h3 id="fiber.assertActive">fiber.assertActive()</h3>
 <pre><code>/**
  * Throw if the fiber has already been disposed.
@@ -110,7 +110,7 @@ get name()</code></pre>
 assertActive()</code></pre>
 <p>如果 fiber 已经 dispose，则抛出异常。</p>
 <p><strong>返回</strong>：fiber 仍处于活动状态时不返回任何内容。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L379">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L379">源码</a></p>
 <h3 id="fiber.effectexecute,-label?">fiber.effect(execute, label?)</h3>
 <pre><code>/**
  * Register a cleanup-aware effect on this fiber.
@@ -134,7 +134,7 @@ effect(execute: () =&gt; Effect, label?: string): AsyncDisposable&lt;Promise&lt;
 <li><code>label</code>：在 <code>getEffects()</code> 诊断信息中显示的作用标签。</li>
 </ul>
 <p><strong>返回</strong>一个用于撤销该作用的清理函数，并在清理完成后结算。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L443">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L443">源码</a></p>
 <h3 id="fiber.getEffects">fiber.getEffects()</h3>
 <pre><code>/**
  * Return metadata for currently registered effects.
@@ -144,12 +144,12 @@ effect(execute: () =&gt; Effect, label?: string): AsyncDisposable&lt;Promise&lt;
 getEffects()</code></pre>
 <p>返回当前已注册作用的元数据。</p>
 <p><strong>返回</strong>：每个带标签的活动作用对应一棵 <code>EffectMeta</code> 树。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L596">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L596">源码</a></p>
 <h3 id="fiber.rawConfig">fiber.rawConfig</h3>
 <pre><code>/** Raw input retained for the next activation, without evaluating expressions or validating it. */
 get rawConfig(): unknown</code></pre>
 <p>保留供下次激活使用的原始输入，不执行表达式求值或验证。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L671">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L671">源码</a></p>
 <h3 id="fiber.effectiveConfig">fiber.effectiveConfig</h3>
 <pre><code>/**
  * The object passed to plugin activation or the latest successful update that retained the instance.
@@ -158,7 +158,7 @@ get rawConfig(): unknown</code></pre>
  */
 get effectiveConfig(): unknown</code></pre>
 <p>传给插件激活过程或最近一次成功保留实例的更新的对象。候选配置求值不发布结果；volatile 更新保留其中的引用。激活前为 undefined，卸载后仍可读取；需要运行中实例的调用方还应检查 <code>state</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L686">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L686">源码</a></p>
 <h3 id="fiber.resolveConfigconfig">fiber.resolveConfig(config)</h3>
 <pre><code>/**
  * Evaluate and validate a candidate using this fiber&#x27;s `internal/config` hooks and runtime schema.
@@ -174,7 +174,7 @@ resolveConfig(config: unknown): unknown</code></pre>
 <li><code>config</code>：原始候选输入。</li>
 </ul>
 <p><strong>返回</strong>候选配置的解析结果，保留 schema 返回对象的身份。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L698">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L698">源码</a></p>
 <h3 id="fiber.await">fiber.await()</h3>
 <pre><code>/**
  * Wait for current lifecycle work and rethrow startup errors.
@@ -185,7 +185,7 @@ resolveConfig(config: unknown): unknown</code></pre>
 async await()</code></pre>
 <p>等待当前生命周期工作完成，并重新抛出启动错误。</p>
 <p><strong>返回</strong>：进入稳定状态后的此 fiber。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L776">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L776">源码</a></p>
 <h3 id="fiber.restart">fiber.restart()</h3>
 <pre><code>/**
  * Dispose and immediately reload this plugin with its current config.
@@ -196,7 +196,7 @@ async await()</code></pre>
 async restart()</code></pre>
 <p>dispose 此插件，并立即使用其当前配置重新加载。</p>
 <p><strong>返回</strong>一个在重新加载完成后兑现的 promise。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L790">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L790">源码</a></p>
 <h3 id="fiber.updateconfig,-noSave?">fiber.update(config, noSave?)</h3>
 <pre><code>/**
  * Resolve a candidate, retain its raw config and apply it through the update waterfall.
@@ -212,7 +212,7 @@ update(config: any, noSave = false): Awaitable&lt;void&gt;</code></pre>
 <li><code>noSave</code> — 为 true 时不发出持久化通知。</li>
 </ul>
 <p><strong>返回</strong> 可等待的更新或重启结果；同步监听器处理更新时为 undefined。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L805">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L805">源码</a></p>
 <h2 id="Effect">Effect</h2>
 <p><code>ctx.effect()</code> 和插件启动所接受的作用主体结果。</p>
 <p>可以是单个清理函数、兑现为清理函数的 promise，或生成多个清理函数的（可能为异步的）可迭代对象。生成器作用会在每个清理函数产生时将其注册。</p>
@@ -226,7 +226,7 @@ update(config: any, noSave = false): Awaitable&lt;void&gt;</code></pre>
 type Effect&lt;T = any&gt; =
   | SyncEffect&lt;T&gt;
   | AsyncEffect&lt;T&gt;</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L113">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L113">源码</a></p>
 <h2 id="Disposable">Disposable</h2>
 <p>作用返回的函数，用于在资源释放期间释放资源。</p>
 <p>拥有该函数的 fiber 卸载时，清理函数会按注册的相反顺序运行；清理函数可以是异步的，此时卸载过程会等待其完成。</p>
@@ -237,7 +237,7 @@ type Effect&lt;T = any&gt; =
  * they may be async, in which case unloading awaits them.
  */
 type Disposable&lt;T = any&gt; = () =&gt; T</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L104">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L104">源码</a></p>
 <h2 id="EffectMeta">EffectMeta</h2>
 <p>用于在诊断信息中公开嵌套作用标签的树节点。</p>
 <pre><code>/** Tree node used to expose nested effect labels for diagnostics. */
@@ -247,7 +247,7 @@ interface EffectMeta {
   /** Metadata of nested effects registered while this effect ran. */
   children: EffectMeta[]
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L126">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L126">源码</a></p>
 <h2 id="CordisError">CordisError</h2>
 <p>具有稳定机器可读错误码的框架错误。</p>
 <pre><code>/** Framework error with a stable machine-readable code. */
@@ -267,7 +267,7 @@ namespace CordisError {
     INACTIVE_EFFECT: &#x27;cannot create effect on inactive context&#x27;,
   } as const
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L187">源码</a></p>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L187">源码</a></p>
 <h2 id="ValidationError">ValidationError</h2>
 <p>插件配置未通过 standard-schema 校验时抛出的错误。</p>
 <pre><code>/** Error raised when plugin configuration fails standard-schema validation. */
@@ -305,7 +305,7 @@ class ValidationError extends TypeError {
    */
   static formatPath(path: StandardSchemaV1.Issue[&#x27;path&#x27;])
 }</code></pre>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/fiber.ts#L19">源码</a></p></div>
+<p><a href="/src/vendor/cordis/src/fiber.ts#L19">源码</a></p></div>
     <div class="back"><a href="/?focus=reference/cordis-api/fiber">← 返回图谱并聚焦该文档</a></div>
   </main>
 </div>

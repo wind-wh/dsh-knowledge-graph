@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>用户审批</h1>
     <div class="meta">分组：策略与交互 · 本地副本：.ua/docs-local/subsystems/approval.md</div>
     <div class="body"><h1 id="用户审批">用户审批</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/approval.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval">dsh-user-approval</a> 的用户审批 seam 回答一个问题：这个具体操作是否可以继续？它拥有共享的请求/结果词汇、<code>ctx.approval</code> 分发服务、<code>approval/request</code> 应答者 waterfall（瀑布式事件）、仅记录日志的审计事件对，以及按会话的 <code>ask</code>/<code>never</code> 策略。UI 通道可以提供人类应答者；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/acp">ACP（Agent Client Protocol）自动化桥接层</a>为其拥有的 agent（智能体）提供一次性机器决策。调用方如 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/tools">dsh-tools</a> 和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/tool-bash">dsh-tool-bash</a> 消费闭合的结果，除非结果为 <code>allowed-once</code>，否则一律拒绝。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval/src/index.ts"><code>packages/interaction/user-approval/src/index.ts</code></a></p>
+<p><a href="/src/docs/subsystems/approval.md">English</a> | 中文</p>
+<p><a href="/src/packages/interaction/user-approval">dsh-user-approval</a> 的用户审批 seam 回答一个问题：这个具体操作是否可以继续？它拥有共享的请求/结果词汇、<code>ctx.approval</code> 分发服务、<code>approval/request</code> 应答者 waterfall（瀑布式事件）、仅记录日志的审计事件对，以及按会话的 <code>ask</code>/<code>never</code> 策略。UI 通道可以提供人类应答者；<a href="/src/packages/acp/acp">ACP（Agent Client Protocol）自动化桥接层</a>为其拥有的 agent（智能体）提供一次性机器决策。调用方如 <a href="/src/packages/core/tools">dsh-tools</a> 和 <a href="/src/packages/shell/tool-bash">dsh-tool-bash</a> 消费闭合的结果，除非结果为 <code>allowed-once</code>，否则一律拒绝。</p>
+<p>源码：<a href="/src/packages/interaction/user-approval/src/index.ts"><code>packages/interaction/user-approval/src/index.ts</code></a></p>
 <h2 id="标识与结果">标识与结果</h2>
 <p>每个请求都会获得一个全新的 <code>ApprovalRequestId</code>。该品牌类型将 <code>approval/asked</code> 与 <code>approval/decided</code> 审计事件配对，同时不会让审批 id 与工具调用 id 或 agent/会话 id 互换。</p>
 <pre><code>/**
@@ -82,7 +82,7 @@ interface ApprovalRequest extends ApprovalRequestEvent {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxapproval--approvalservice" class="anch"></a></p>
 <h3 id="ctx.approval-—-ApprovalService"><span id="ctxapproval--approvalservice" class="anch"></span><code>ctx.approval</code> — <code>ApprovalService</code></h3>
 <p>Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. It exposes deterministic policy changes to the model through the runtime-context snapshot and switch notices.</p>
@@ -121,8 +121,8 @@ async request(req: ApprovalRequest): Promise&lt;ApprovalOutcome&gt;
  * @returns the last logged policy, or `undefined` without one.
  */
 overrideOf(session: Session): ApprovalPolicy | undefined</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval/src/index.ts"><code>packages/interaction/user-approval/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">Agent</a> · <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/interaction/user-approval/src/index.ts"><code>packages/interaction/user-approval/src/index.ts</code></a></p>
 <p><a id="approval-events" class="anch"></a></p>
 <h3 id="approval/-events"><span id="approval-events" class="anch"></span><code>approval/*</code> events</h3>
 <p><a id="approvalrequest--waterfall" class="anch"></a></p>
@@ -136,8 +136,8 @@ overrideOf(session: Session): ApprovalPolicy | undefined</code></pre>
  * @mode waterfall
  */
 &#x27;approval/request&#x27;( this: Scoped&lt;Agent&gt;, req: ApprovalRequestEvent, next: () =&gt; Promise&lt;ApprovalOutcome&gt;, ): Promise&lt;ApprovalOutcome&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/interaction/user-approval/src/types.ts"><code>packages/interaction/user-approval/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">Agent</a> · <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/interaction/user-approval/src/types.ts"><code>packages/interaction/user-approval/src/types.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/approval">← 返回图谱并聚焦该文档</a></div>
   </main>

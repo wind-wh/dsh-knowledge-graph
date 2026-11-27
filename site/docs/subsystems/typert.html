@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,8 +18,8 @@
     <h1>Typert 远程调用</h1>
     <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/typert.md</div>
     <div class="body"><h1 id="Typert-远程调用">Typert 远程调用</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/typert.md">English</a> | 中文</p>
-<p>以下类型由生成的 Remote 产物、Host Gateway 与消费方 API assembly 共用。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md">Typert Gateway Agent Note</a> 负责架构与传输决策；本页记录 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/protocol/src/types.ts"><code>dsh-typert-protocol</code></a> 和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway/src/types.ts"><code>dsh-api-gateway</code></a> 中公共约定的字面定义。</p>
+<p><a href="/src/docs/subsystems/typert.md">English</a> | 中文</p>
+<p>以下类型由生成的 Remote 产物、Host Gateway 与消费方 API assembly 共用。<a href="/src/.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md">Typert Gateway Agent Note</a> 负责架构与传输决策；本页记录 <a href="/src/packages/typert/protocol/src/types.ts"><code>dsh-typert-protocol</code></a> 和 <a href="/src/packages/api/gateway/src/types.ts"><code>dsh-api-gateway</code></a> 中公共约定的字面定义。</p>
 <h2 id="Lookup-与上下文声明">Lookup 与上下文声明</h2>
 <p>业务对象包通过声明合并扩展两个空 map。lookup 将一种 Host 对象类型与其 wire identity 关联；上下文声明将一种作用域上下文类别与其 wire identity 关联。生成的 descriptor 引用这些 key，运行时提供方则提供活对象解析行为。</p>
 <pre><code>/** Merge-extensible Host object lookup declarations. */
@@ -43,7 +43,7 @@ interface TypertLookupDefinition {
 <h2 id="调用-descriptor">调用 descriptor</h2>
 <p><code>InvocationDescriptor</code> 是本地反射信息，不是 wire message。Host 与消费方构建会生成彼此对应的 descriptor；请求只发送 endpoint 与具名 <code>args</code>。strict codec 携带生成的 schema factory，SRC codec 则在不恢复结构类型的前提下强制要求输入为 JSON 安全值。一元结果 codec 可提供 <code>encode()</code> 处理含字节的子树，并通过 <code>decode()</code> 递归校验原生字节；Client 声明将每个 <code>Uint8Array</code> 限定为以 <code>ArrayBuffer</code> 为底层缓冲区。纯 JSON 结果无需字节识别或 Client 解码。取消通过带外 carrier signal 表达：它在业务参数之后注入，绝不进入 <code>args</code>。</p>
 <p><code>createTypertRemoteInfo</code> 返回实现 <code>TypertRemoteInfo</code> 的惰性类实例，后者扩展可挂载的 <code>TypertRemoteContribution</code>。其 <code>methods</code> 索引引用 <code>descriptors</code> 中的直接方法对象：每个 <code>TypertRemoteMethod</code> 增加具名 <code>input(options?)</code> 和 <code>invoke</code>，在方法及参数上保留文档，并以 <code>result</code> 作为唯一输出 codec。一元 <code>mode</code> 缺省；流式 <code>mode</code> 为 <code>'stream'</code>。仅使用 Context 接收器的方法保留在描述符和作用域声明中。Registry 查询返回基础描述符；<code>isTypertRemoteMethod</code> 收窄生成的直接调用能力，但不会恢复各端点的精确泛型。</p>
-<p><code>TypertSchema</code> 保证解析能力，不保证任意 Zod 操作，尽管原始 factory spec 要求 Zod factory。缺少文档或不支持可选的 JSON Schema 投影，不会使普通方法失效。info 索引与每种输入策略的视图、解析器和派生投影都独立惰性求值并缓存；读取元数据或 schema 绝不发起网络调用。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/protocol/README.zh.md">协议参考</a>定义这些 API，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/generator/README.zh.md">生成器参考</a>定义它们彼此分离的 Host <code>./typert</code>、消费方 <code>./remote</code> 和 Client <code>./client/typert</code> 产物。</p>
+<p><code>TypertSchema</code> 保证解析能力，不保证任意 Zod 操作，尽管原始 factory spec 要求 Zod factory。缺少文档或不支持可选的 JSON Schema 投影，不会使普通方法失效。info 索引与每种输入策略的视图、解析器和派生投影都独立惰性求值并缓存；读取元数据或 schema 绝不发起网络调用。<a href="/src/packages/typert/protocol/README.zh.md">协议参考</a>定义这些 API，<a href="/src/packages/typert/generator/README.zh.md">生成器参考</a>定义它们彼此分离的 Host <code>./typert</code>、消费方 <code>./remote</code> 和 Client <code>./client/typert</code> 产物。</p>
 <p><code>TypertRemoteSpec</code> 保存包名与按端点键控的 <code>TypertRemoteMethodSpec</code>。每个有序 <code>TypertRemoteParameterSpec</code> 条目都包含从同一 checker 解析后类型模型生成的普通 <code>codec</code> 和 <code>strictCodec</code> factory；运行时派生标识、默认 wire 名称和具名调用视图。<code>TypertRemoteInputOptions</code> 仅包含 <code>strict?: boolean</code>；<code>method.input(options?)</code> 选择缓存的 <code>TypertRemoteValue&lt;T&gt;</code>，提供匹配的解析及可选文档/投影，而不改变 Host 分发或 <code>result</code>。<code>RemoteDecoded&lt;T&gt;</code> 则描述 carrier 重建的一元结果，不会收窄任意解析器输出。</p>
 <pre><code>/** Codec attached to one invocation parameter or result. */
 type TypertCodec&lt;Value = unknown&gt; =
@@ -253,7 +253,7 @@ interface RemoteInvocation {
   uplink&lt;In = unknown&gt;(): AsyncIterable&lt;In&gt;
 }</code></pre>
 <h2 id="Remote-访问资源">Remote 访问资源</h2>
-<p>每个 Remote 方法都受 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access/README.zh.md"><code>dsh-api-remote-access</code></a> 的访问控制：只有当该 principal 种类的 policy 在调用访问的每个资源上都绑定了列出该端点 action 的 role 时，非 owner 调用才被放行。拥有某个身份类型的包把其资源种类声明合并进 <code>TypertResourceMap</code>；内置的无身份资源 <code>global</code> 从不是其中的种类。Gateway 从 <code>@Remote({ resources })</code> 或 <code>@RemoteScope(key, { resources })</code> 的 <code>resources</code> 读取函数读取某个种类的身份，其次是把该种类声明为 <code>resource</code> 的 lookup 参数或作用域 Context，再次是在 <code>typert.resources</code> 中登记的默认字段或 resolver；不指向任何资源的调用访问 <code>global</code>。决策由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-10-12-peer-principal-and-remote-access.zh.md">Peer 身份属性 Agent Note</a> 负责。</p>
+<p>每个 Remote 方法都受 <a href="/src/packages/api/remote-access/README.zh.md"><code>dsh-api-remote-access</code></a> 的访问控制：只有当该 principal 种类的 policy 在调用访问的每个资源上都绑定了列出该端点 action 的 role 时，非 owner 调用才被放行。拥有某个身份类型的包把其资源种类声明合并进 <code>TypertResourceMap</code>；内置的无身份资源 <code>global</code> 从不是其中的种类。Gateway 从 <code>@Remote({ resources })</code> 或 <code>@RemoteScope(key, { resources })</code> 的 <code>resources</code> 读取函数读取某个种类的身份，其次是把该种类声明为 <code>resource</code> 的 lookup 参数或作用域 Context，再次是在 <code>typert.resources</code> 中登记的默认字段或 resolver；不指向任何资源的调用访问 <code>global</code>。决策由 <a href="/src/.agents/notes/implemented/architecture/2026-10-12-peer-principal-and-remote-access.zh.md">Peer 身份属性 Agent Note</a> 负责。</p>
 <pre><code>/**
  * Merge-extensible resource kinds whose identities a Remote call or forwarded
  * event may carry. The package that owns an identity type declares its kind;
@@ -405,7 +405,7 @@ interface TypertGateway {
 }</code></pre>
 <h2 id="消费方-Remote">消费方 Remote</h2>
 <p><code>ctx.remote</code> 只暴露由已导入 <code>/remote</code> 产物贡献的 namespace。<code>$mount()</code> 会把生成的 descriptor 与具体方法作为一项由 fiber 持有的操作统一注册。每个 namespace 都是可追踪的 <code>remote.&lt;namespace&gt;</code> Cordis 子服务，其生命周期覆盖已挂载的方法；JavaScript Proxy 与 Host 业务服务类型都不会进入消费方。</p>
-<p>元数据所有权与连接所有权相互独立；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/registry/README.zh.md">注册表参考</a>说明离线注册与挂载生命周期。</p>
+<p>元数据所有权与连接所有权相互独立；<a href="/src/packages/typert/registry/README.zh.md">注册表参考</a>说明离线注册与挂载生命周期。</p>
 <pre><code>/** Client Remote capability implemented by the Gateway and consumed by Remote assemblies. */
 interface TypertClientRemote extends TypertRemoteNamespaceMap {
   /**
@@ -428,7 +428,7 @@ interface TypertClientRemote extends TypertRemoteNamespaceMap {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxremoteaccess--remoteaccessservice" class="anch"></a></p>
 <h3 id="ctx.remoteAccess-—-RemoteAccessService"><span id="ctxremoteaccess--remoteaccessservice" class="anch"></span><code>ctx.remoteAccess</code> — <code>RemoteAccessService</code></h3>
 <p>Registry of access policies, the Gateway's access decisions, list filtering, and the per-Peer access snapshot. Every composition that mounts the Gateway mounts this service too.</p>
@@ -502,7 +502,7 @@ snapshotFor(principal: Principal): RemoteAccessBaseline
  * @returns the access frames of one generation.
  */
 @Remote({ mode: &#x27;stream&#x27; }) async *follow(signal: AbortSignal): AsyncIterable&lt;RemoteAccessFrame&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/remote-access/src/index.ts"><code>packages/api/remote-access/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/remote-access/src/index.ts"><code>packages/api/remote-access/src/index.ts</code></a></p>
 <p><a id="ctxtypert--typertregistry" class="anch"></a></p>
 <h3 id="ctx.typert-—-TypertRegistry"><span id="ctxtypert--typertregistry" class="anch"></span><code>ctx.typert</code> — <code>TypertRegistry</code></h3>
 <p>Registry of generated schemas, package reflection, invocations, and Remote dependency providers.</p>
@@ -559,7 +559,7 @@ listPackages(filter: TypertPackageFilter = {}): TypertPackageRecord[]
  * @returns a fresh JSON Schema document.
  */
 toJSONSchema(key: string, params?: z.core.ToJSONSchemaParams): z.core.JSONSchema.BaseSchema</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/typert/registry/src/service.ts"><code>packages/typert/registry/src/service.ts</code></a></p>
+<p>Source: <a href="/src/packages/typert/registry/src/service.ts"><code>packages/typert/registry/src/service.ts</code></a></p>
 <p><a id="ctxtypertgateway--typertgatewayservice" class="anch"></a></p>
 <h3 id="ctx.typertGateway-—-TypertGatewayService"><span id="ctxtypertgateway--typertgatewayservice" class="anch"></span><code>ctx.typertGateway</code> — <code>TypertGatewayService</code></h3>
 <p>Resolve strict generated definitions or conservative SRC markers against current Cordis Services and Typert providers.</p>
@@ -597,7 +597,7 @@ async invoke(request: InvokeRemoteRequest): Promise&lt;unknown&gt;
  * @returns a cancellation-aware iterable over the business results.
  */
 async stream(request: InvokeRemoteRequest): Promise&lt;AsyncIterable&lt;unknown&gt;&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/gateway/src/index.ts"><code>packages/api/gateway/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/gateway/src/index.ts"><code>packages/api/gateway/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/typert">← 返回图谱并聚焦该文档</a></div>
   </main>

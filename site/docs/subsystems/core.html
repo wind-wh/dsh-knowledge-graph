@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,16 +18,16 @@
     <h1>核心</h1>
     <div class="meta">分组：内核与作用域 · 本地副本：.ua/docs-local/subsystems/core.md</div>
     <div class="body"><h1 id="核心">核心</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.md">English</a> | 中文</p>
-<p><strong>核心</strong>子系统即 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/README.zh.md"><code>packages/core</code></a>，包含每个组合都会启动的包：事件溯源的会话日志、系统提示词组装、工具注册表、agent（智能体）类型，以及驱动它们的具体循环。本页说明 <code>agent</code>/<code>agent-loop</code> 这对包所声明的内容：agent 如何被创建与拥有，以及 <code>Agent</code> 句柄的投递、取消与拦截约定；本页还说明每个子系统都遵循的两个类型模式。该组的专属页面与目录其余部分见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/README.zh.md">子系统 README</a>。</p>
+<p><a href="/src/docs/subsystems/core.md">English</a> | 中文</p>
+<p><strong>核心</strong>子系统即 <a href="/src/packages/core/README.zh.md"><code>packages/core</code></a>，包含每个组合都会启动的包：事件溯源的会话日志、系统提示词组装、工具注册表、agent（智能体）类型，以及驱动它们的具体循环。本页说明 <code>agent</code>/<code>agent-loop</code> 这对包所声明的内容：agent 如何被创建与拥有，以及 <code>Agent</code> 句柄的投递、取消与拦截约定；本页还说明每个子系统都遵循的两个类型模式。该组的专属页面与目录其余部分见<a href="/src/docs/subsystems/README.zh.md">子系统 README</a>。</p>
 <h2 id="主干逐包速览">主干逐包速览</h2>
-<p>一个轮次按同一条循环流经六个包：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop"><code>agent-loop</code></a> 中的 driver 认领一条排队的提示词，在<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">会话日志</a>（<code>ctx.sessions</code>）上开启轮次，通过 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/system-prompt.zh.md">system-prompt</a>（<code>ctx.systemPrompt</code>）组装请求前缀并从日志派生历史，经 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">LLM（大语言模型） seam</a> 流式获取模型响应，经<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">工具注册表</a>（<code>ctx.tools</code>）分发工具调用，并把每个模型可见的事实追加回日志，供下一步派生。循环搬运的对话词汇——<code>Message</code>、<code>ContentBlock</code>、<code>StreamChunk</code>、模型请求——由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/README.zh.md"><code>packages/llm</code></a> 声明，记录在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a>。</p>
-<table><thead><tr><th>包</th><th>负责内容</th><th>页面</th></tr></thead><tbody><tr><td><code>session/</code></td><td>仅追加的 <code>SessionEvent</code> 日志与内存 store——唯一真源（<code>ctx.sessions</code>）</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a></td></tr><tr><td><code>system-prompt/</code></td><td>提示词段落与工具 schema 组装（<code>ctx.systemPrompt</code>）</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/system-prompt.zh.md">system-prompt.md</a></td></tr><tr><td><code>tools/</code></td><td>带作用域的工具注册表与受保护的执行流水线（<code>ctx.tools</code>）</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">tools.md</a></td></tr><tr><td><code>agent/</code></td><td><code>Agent</code> 接口、实时注册表、发起者作用域与 <code>agent/*</code> 事件词汇（<code>ctx.agents</code>）</td><td>本页</td></tr><tr><td><code>agent-loop/</code></td><td>实现公开 <code>Agent</code> 约定的具体 driver（<code>ctx.agentLoop</code>）</td><td>本页</td></tr><tr><td><code>scope/</code></td><td>注册表与循环用于构建按 agent 作用域的注册原语</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">scope.md</a></td></tr></tbody></table>
-<p><code>scope/</code> 是这里唯一的非服务包：一个零依赖库（<code>createScope</code>/<code>scopeOf</code>/<code>scopeTarget</code>），在模块图中位于 <code>session/</code> 与 <code>system-prompt/</code> 之下，正是为了让它们消费它而不形成环。<code>agent-loop</code> 是公开 <code>Agent</code> 约定的唯一具体实现，放在这里因为它是 harness 的默认产品循环；它在 <code>ctx.agents.withInitiator()</code> 内运行每个 driver。扩展插件依赖 <code>agent</code>——包括需要发起 Agent 时——而绝不直接依赖 <code>agent-loop</code>，因此循环保持可替换。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/base/README.zh.md"><code>dsh-base</code></a> 是默认产品组合，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/sdk-minimal/README.zh.md"><code>dsh-sdk-minimal</code></a> 则声明一棵更小的独立配置树。</p>
+<p>一个轮次按同一条循环流经六个包：<a href="/src/packages/core/agent-loop"><code>agent-loop</code></a> 中的 driver 认领一条排队的提示词，在<a href="/src/docs/subsystems/session.zh.md">会话日志</a>（<code>ctx.sessions</code>）上开启轮次，通过 <a href="/src/docs/subsystems/system-prompt.zh.md">system-prompt</a>（<code>ctx.systemPrompt</code>）组装请求前缀并从日志派生历史，经 <a href="/src/docs/subsystems/llm-streaming.zh.md">LLM（大语言模型） seam</a> 流式获取模型响应，经<a href="/src/docs/subsystems/tools.zh.md">工具注册表</a>（<code>ctx.tools</code>）分发工具调用，并把每个模型可见的事实追加回日志，供下一步派生。循环搬运的对话词汇——<code>Message</code>、<code>ContentBlock</code>、<code>StreamChunk</code>、模型请求——由 <a href="/src/packages/llm/README.zh.md"><code>packages/llm</code></a> 声明，记录在 <a href="/src/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a>。</p>
+<table><thead><tr><th>包</th><th>负责内容</th><th>页面</th></tr></thead><tbody><tr><td><code>session/</code></td><td>仅追加的 <code>SessionEvent</code> 日志与内存 store——唯一真源（<code>ctx.sessions</code>）</td><td><a href="/src/docs/subsystems/session.zh.md">session.md</a></td></tr><tr><td><code>system-prompt/</code></td><td>提示词段落与工具 schema 组装（<code>ctx.systemPrompt</code>）</td><td><a href="/src/docs/subsystems/system-prompt.zh.md">system-prompt.md</a></td></tr><tr><td><code>tools/</code></td><td>带作用域的工具注册表与受保护的执行流水线（<code>ctx.tools</code>）</td><td><a href="/src/docs/subsystems/tools.zh.md">tools.md</a></td></tr><tr><td><code>agent/</code></td><td><code>Agent</code> 接口、实时注册表、发起者作用域与 <code>agent/*</code> 事件词汇（<code>ctx.agents</code>）</td><td>本页</td></tr><tr><td><code>agent-loop/</code></td><td>实现公开 <code>Agent</code> 约定的具体 driver（<code>ctx.agentLoop</code>）</td><td>本页</td></tr><tr><td><code>scope/</code></td><td>注册表与循环用于构建按 agent 作用域的注册原语</td><td><a href="/src/docs/subsystems/scope.zh.md">scope.md</a></td></tr></tbody></table>
+<p><code>scope/</code> 是这里唯一的非服务包：一个零依赖库（<code>createScope</code>/<code>scopeOf</code>/<code>scopeTarget</code>），在模块图中位于 <code>session/</code> 与 <code>system-prompt/</code> 之下，正是为了让它们消费它而不形成环。<code>agent-loop</code> 是公开 <code>Agent</code> 约定的唯一具体实现，放在这里因为它是 harness 的默认产品循环；它在 <code>ctx.agents.withInitiator()</code> 内运行每个 driver。扩展插件依赖 <code>agent</code>——包括需要发起 Agent 时——而绝不直接依赖 <code>agent-loop</code>，因此循环保持可替换。<a href="/src/packages/bundle/base/README.zh.md"><code>dsh-base</code></a> 是默认产品组合，<a href="/src/packages/bundle/sdk-minimal/README.zh.md"><code>dsh-sdk-minimal</code></a> 则声明一棵更小的独立配置树。</p>
 <p><a id="creation-and-ownership" class="anch"></a></p>
 <h2 id="创建与所有权"><span id="creation-and-ownership" class="anch"></span>创建与所有权</h2>
 <p>消费方通过 <code>ctx.agents</code> 创建 agent——<code>create()</code> 在一个调用方提供的 <code>SessionId</code> 下构建全新会话与 agent，<code>resume()</code> 先加载持久会话——或者通过循环的声明式配置条目创建。编程式创建返回归属所有者的句柄：</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/index.ts"><code>packages/core/agent/src/index.ts</code></a></p>
+<p>源码：<a href="/src/packages/core/agent/src/index.ts"><code>packages/core/agent/src/index.ts</code></a></p>
 <pre><code>/**
  * An owned agent plus its disposer, returned by {@link AgentRegistry.create} /
  * {@link AgentRegistry.resume}. The disposer is a CAPABILITY: among consumers,
@@ -51,7 +51,7 @@ interface AgentHandle {
 <p><a id="the-agent-handle" class="anch"></a></p>
 <h2 id="Agent-句柄"><span id="the-agent-handle" class="anch"></span>Agent 句柄</h2>
 <p><code>Agent</code> 是每个插件（UI、钩子、orchestrator）面向编程的 surface；<code>ctx.agents.get(id)</code> 返回它，<a href="#initiating-agent">发起者作用域</a>携带它。具体实现为 dsh-agent-loop 包内部细节；循环外没有任何组件依赖它。统一的 <code>send</code> 方法直接暴露 target 与 wakeup 路由；<code>followup</code>、<code>steer</code> 与 <code>inject</code> 是固定预设的别名方法。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
+<p>源码：<a href="/src/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
 <pre><code>/** Public live-agent handle; the runtime face augments its live capabilities. */
 interface Agent {
   /** Session-backed Agent identity. */
@@ -104,7 +104,7 @@ interface Agent {
    * turn and runs when the aborted activity converges to idle; a `disposed`
    * cancel leaves it parked. A wake submitted while already idle always opens
    * its turn boundary, even when its message is cleared before the driver
-   * claims ([driver wake convergence](https://github.com/deepseek-ai/deepseek-harness/blob/master/agent-loop/src/agent.ts)).
+   * claims ([driver wake convergence](/src/agent-loop/src/agent.ts)).
    * @param message - identified content and the source that supplied it.
    * @param target - the preferred next-turn or next-step inbox boundary.
    * @param wakeup - whether delivery may wake the driver.
@@ -180,7 +180,7 @@ type AssistantStreamFrame =
       }
       | { readonly kind: &#x27;abandoned&#x27; }
   }</code></pre>
-<p><code>running</code> 描述整个驱动器的排空区间，可能跨越连续的排队轮次；它不能证明某个轮次仍然打开。dispose 会把 agent 从注册表移除并发出 <code>agent/disposed</code>；它不是一个终态 status 值。<code>followup()</code> 不返回句柄：其 <code>MessageId</code> 标识的是持久的 inbox 插入、认领与丢弃事实，而非之后的助手输出或轮次结束。<code>whenIdle()</code> 观察的是整个 agent，因此只有当调用方明确拥有从回执到空闲的这段区间时，才能把它称为一次 run（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-30-followup-enqueue-and-owned-runs.zh.md">决策</a>）。</p>
+<p><code>running</code> 描述整个驱动器的排空区间，可能跨越连续的排队轮次；它不能证明某个轮次仍然打开。dispose 会把 agent 从注册表移除并发出 <code>agent/disposed</code>；它不是一个终态 status 值。<code>followup()</code> 不返回句柄：其 <code>MessageId</code> 标识的是持久的 inbox 插入、认领与丢弃事实，而非之后的助手输出或轮次结束。<code>whenIdle()</code> 观察的是整个 agent，因此只有当调用方明确拥有从回执到空闲的这段区间时，才能把它称为一次 run（<a href="/src/.agents/notes/implemented/architecture/2026-07-30-followup-enqueue-and-owned-runs.zh.md">决策</a>）。</p>
 <pre><code>/**
  * Merge-extensible agent options. Route fields may be live accessors until the
  * Session records a selection or request; step preparation captures their value.
@@ -197,7 +197,7 @@ interface AgentOptions {
   maxTokens?: number
 }</code></pre>
 <p>步骤准备在提示词组装前要求 <code>provider</code> 与 <code>model</code> 都存在。已弃用的 <code>agent/request</code> hook 可以更改请求控制参数，但必须保留该路由。显式 <code>reasoningEffort</code> 会为该路由的首次请求提供初始值；确切模型解析会校验该值，省略时则允许填入适配器默认值。提供 <code>maxTokens</code> 时，它必须是正安全整数，并限制每次对话模型请求的输出；省略时，系统会在写入请求 header 前填入确切模型的适配器默认值，否则提供方行为保持不变。agent 作用域的 <code>deployment:persona-prefix</code> 提示词段落可以遮蔽全局默认 persona。</p>
-<p><code>AgentLoop</code> 在 <code>ctx.sessionProjections</code> 上注册 <code>modelSelection</code>，并通过每个 <code>agent.model</code> 实例提供选择操作。<code>model/selection</code> 记录完整选择，但不进入模型历史。匹配的请求头会清除 <code>pending</code>，最近请求仍保留为 <code>lastUsed</code>。适配器默认的推理强度会被省略，使后续请求重新解析默认值。只有尚未记录选择或请求时，<code>next</code> 才为 null，此时由 <code>AgentOptions</code> 提供路由。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/README.zh.md">Agent 模型 API</a>说明选择优先级与恢复策略。</p>
+<p><code>AgentLoop</code> 在 <code>ctx.sessionProjections</code> 上注册 <code>modelSelection</code>，并通过每个 <code>agent.model</code> 实例提供选择操作。<code>model/selection</code> 记录完整选择，但不进入模型历史。匹配的请求头会清除 <code>pending</code>，最近请求仍保留为 <code>lastUsed</code>。适配器默认的推理强度会被省略，使后续请求重新解析默认值。只有尚未记录选择或请求时，<code>next</code> 才为 null，此时由 <code>AgentOptions</code> 提供路由。<a href="/src/packages/core/agent/README.zh.md">Agent 模型 API</a>说明选择优先级与恢复策略。</p>
 <pre><code>/** Agent-owned access to the model choice for future steps. */
 interface Model {
   /**
@@ -321,14 +321,14 @@ type AgentCancelCause =
   | { readonly kind: &#x27;hook&#x27;; readonly reason: string }
   | { readonly kind: &#x27;disposed&#x27; }</code></pre>
 <p>cause 是由 TypeScript 强制约束的同进程输入。活跃的取消持有者把同一个对象暴露为仅运行时的 <code>AbortSignal.reason</code>；signal 不授予协作监听器任何分类权限。持久 <code>turn/end</code> 以 <code>{ kind: 'aborted', reason: TurnEndCancelCause }</code> 记录结果，取消原因随终态结果一起持久化。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.zh.md">事件分类</a>负责 <code>agent/*</code> 生命周期、检查点与 waterfall（瀑布式事件）约定。轮次和步骤边界是持久会话事件，而不是 agent emit。</p>
+<p><a href="/src/docs/architecture.zh.md">事件分类</a>负责 <code>agent/*</code> 生命周期、检查点与 waterfall（瀑布式事件）约定。轮次和步骤边界是持久会话事件，而不是 agent emit。</p>
 <p><a id="initiating-agent" class="anch"></a></p>
 <h2 id="发起-Agent"><span id="initiating-agent" class="anch"></span>发起 Agent</h2>
-<p><code>ctx.agents</code> 携带的进程本地 initiator 就是上面的确切 <code>Agent</code>，不是单独的 frame 或复制的标识。环境中存在该值既不能证明存活，也不代表授权；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.zh.md">initiator 作用域决策</a>定义其生命周期和作用域规则。</p>
+<p><code>ctx.agents</code> 携带的进程本地 initiator 就是上面的确切 <code>Agent</code>，不是单独的 frame 或复制的标识。环境中存在该值既不能证明存活，也不代表授权；<a href="/src/.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.zh.md">initiator 作用域决策</a>定义其生命周期和作用域规则。</p>
 <p><a id="interception-decisions" class="anch"></a></p>
 <h2 id="拦截决策"><span id="interception-decisions" class="anch"></span>拦截决策</h2>
 <p>pre-step 决策使用与持久 user-role 输入相同、带标识的 <code>UserMessage</code> 类型。进入步骤的批次具有权威性，并保留每条消息的 <code>id</code> 和 <code>source</code>。钩子桥接层把其原生决策字段映射到这一类型化结果上。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
+<p>源码：<a href="/src/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
 <p><code>agent/pre-step</code> 接收一个 payload，携带独占的已领取批次（<code>messages</code>）、拟进入步骤的坐标（<code>turn</code>、<code>step</code>）与当前轮次的取消 <code>signal</code>。首次提案在已打开的轮次内、任何步骤开始前运行；工具 continuation 可以在步骤之间提交空的已领取批次：</p>
 <p>它返回 <code>PreStepDecision</code>。reject 不会打开步骤。enter 提供在 <code>step/start</code> 后追加的完整消息批次；最终决策省略的已领取消息保持已删除，而领取后插入的输入仍留待后续处理：</p>
 <pre><code>/** Whether and with which messages the loop enters a proposed step. */
@@ -349,10 +349,10 @@ type RequestErrorAction = { kind: &#x27;retry&#x27; } | undefined</code></pre>
 type SessionStartSource = &#x27;startup&#x27; | &#x27;resume&#x27; | &#x27;clear&#x27; | &#x27;compact&#x27;</code></pre>
 <h2 id="会话">会话</h2>
 <p><code>Session</code> 是一份类型化 <code>SessionEvent</code> 的<strong>仅追加日志</strong>——唯一的真源。LLM 消息历史从日志*派生*（<code>deriveMessages()</code>），而非单独存储。每个条目携带单调的 <code>seq</code>、<code>time</code> 与按 <code>type</code> 判别的 <code>data</code> payload；surface 变体还可以在 <code>sourceEventSeqs</code> 中列出被引用的较早事件，并携带 <code>surfaceOp</code>。</p>
-<p><code>SessionEvent</code> 信封的确切条件字段、十三种核心事件变体（<code>turn/start</code>、<code>turn/end</code>、<code>step/start</code>、<code>step/end</code>、<code>user/message</code>、<code>system/message</code>、<code>assistant/message</code>、<code>assistant/attempt</code>、<code>tool/call</code>、<code>tool/result</code>、<code>request/header</code>、<code>request/context</code>、<code>session/end-seed</code>）、<code>deriveMessages()</code> 投影规则、<code>TurnEndReason</code> 原因以及执行封闭和独立事件规则都在 <strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a></strong> 中。日志如何持久化——<code>SessionPersistence</code> 接口、JSONL provider、<code>session/flush</code> 检查点、崩溃恢复与 <code>SessionHeader</code>——则在 <strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a></strong> 中。</p>
+<p><code>SessionEvent</code> 信封的确切条件字段、十三种核心事件变体（<code>turn/start</code>、<code>turn/end</code>、<code>step/start</code>、<code>step/end</code>、<code>user/message</code>、<code>system/message</code>、<code>assistant/message</code>、<code>assistant/attempt</code>、<code>tool/call</code>、<code>tool/result</code>、<code>request/header</code>、<code>request/context</code>、<code>session/end-seed</code>）、<code>deriveMessages()</code> 投影规则、<code>TurnEndReason</code> 原因以及执行封闭和独立事件规则都在 <strong><a href="/src/docs/subsystems/session.zh.md">session.md</a></strong> 中。日志如何持久化——<code>SessionPersistence</code> 接口、JSONL provider、<code>session/flush</code> 检查点、崩溃恢复与 <code>SessionHeader</code>——则在 <strong><a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a></strong> 中。</p>
 <h2 id="ToolDefinition"><code>ToolDefinition</code></h2>
 <p>唯一属于核心的流水线编写类型：每个已注册工具*是什么*——一个面向模型的 <code>ToolSchema</code> 加上一个 <code>execute</code> 函数，以及可选的最终内容回调与 UI 回调。工具作者很少手动构造它（<code>defineTool</code> DSL 会使用类型化参数构建），但它是注册表存储并由循环用于分发的约定。</p>
-<p>其完整字段、<code>defineTool</code>/<code>ValueSchemaSpec</code>/<code>ParameterSchemaSpec</code> 类型化 schema DSL、<code>ToolExecution</code>/<code>ToolExecutionResult</code> waterfall 类型，以及工具展示 UI 类型都在 <strong><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">tools.md</a></strong> 中。</p>
+<p>其完整字段、<code>defineTool</code>/<code>ValueSchemaSpec</code>/<code>ParameterSchemaSpec</code> 类型化 schema DSL、<code>ToolExecution</code>/<code>ToolExecutionResult</code> waterfall 类型，以及工具展示 UI 类型都在 <strong><a href="/src/docs/subsystems/tools.zh.md">tools.md</a></strong> 中。</p>
 <p><a id="repo-wide-type-patterns" class="anch"></a></p>
 <h2 id="全仓通用类型模式"><span id="repo-wide-type-patterns" class="anch"></span>全仓通用类型模式</h2>
 <p>两个模式在每个子系统中反复出现，只在此处记录一次。</p>
@@ -374,19 +374,19 @@ declare module &#x27;@deepseek-ai/dsh-llm&#x27; {
   }
 }</code></pre>
 <p>六个规范 map 使用此模式；插件作者扩展它们：</p>
-<table><thead><tr><th>Map</th><th>包</th><th>派生</th><th>目录</th></tr></thead><tbody><tr><td><code>ContentBlockMap</code></td><td>dsh-llm</td><td><code>ContentBlock</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>MessageSourceMap</code></td><td>dsh-llm</td><td><code>MessageSource</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>LlmRequestPurposeMap</code></td><td>dsh-llm</td><td><code>LlmRequestPurpose</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">llm-streaming.zh.md</a></td></tr><tr><td><code>FinishReasonMap</code></td><td>dsh-llm</td><td><code>FinishReason</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>TurnEndReasonMap</code></td><td>dsh-session</td><td><code>TurnEndReason</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a></td></tr><tr><td><code>SessionEventMap</code></td><td>dsh-session</td><td><code>SessionEvent</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a></td></tr></tbody></table>
+<table><thead><tr><th>Map</th><th>包</th><th>派生</th><th>目录</th></tr></thead><tbody><tr><td><code>ContentBlockMap</code></td><td>dsh-llm</td><td><code>ContentBlock</code></td><td><a href="/src/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>MessageSourceMap</code></td><td>dsh-llm</td><td><code>MessageSource</code></td><td><a href="/src/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>LlmRequestPurposeMap</code></td><td>dsh-llm</td><td><code>LlmRequestPurpose</code></td><td><a href="/src/docs/subsystems/llm-streaming.zh.md">llm-streaming.zh.md</a></td></tr><tr><td><code>FinishReasonMap</code></td><td>dsh-llm</td><td><code>FinishReason</code></td><td><a href="/src/docs/subsystems/llm-streaming.zh.md">llm-streaming.md</a></td></tr><tr><td><code>TurnEndReasonMap</code></td><td>dsh-session</td><td><code>TurnEndReason</code></td><td><a href="/src/docs/subsystems/session.zh.md">session.md</a></td></tr><tr><td><code>SessionEventMap</code></td><td>dsh-session</td><td><code>SessionEvent</code></td><td><a href="/src/docs/subsystems/session.zh.md">session.md</a></td></tr></tbody></table>
 <p>消费方最常 <code>switch</code> 的两个大型判别联合类型是：<strong><code>StreamChunk</code></strong>（流式协议）和 <strong><code>SessionEvent</code></strong>（日志条目）。按仓库约定，对标签做 <code>switch</code>——不要链式 <code>if</code>——这样每个分支都能窄化类型，拼错的标签会编译失败。</p>
 <p><a id="branded-ids" class="anch"></a></p>
 <h3 id="品牌化-ID"><span id="branded-ids" class="anch"></span>品牌化 ID</h3>
 <p>在包之间传递的 ID 都经过<strong>品牌化</strong>——结构上是字符串，但在类型层面不可互换（不能把 <code>SessionId</code> 传给需要 <code>ToolCallId</code> 的位置）。构造使用共享 <code>brandString&lt;T&gt;()</code> helper 或所属方自定义的校验工厂；比较、日志记录和 JSON 行为与普通字符串相同。</p>
-<p><code>Branded&lt;B&gt;</code> 原语与无状态构造函数位于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/brand">dsh-brand</a>，该包不依赖 harness 能力。<code>brandString&lt;T&gt;()</code> 应用仅编译期存在的字符串品牌。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/util/brand/src/index.ts"><code>packages/util/brand/src/index.ts</code></a></p>
+<p><code>Branded&lt;B&gt;</code> 原语与无状态构造函数位于 <a href="/src/packages/util/brand">dsh-brand</a>，该包不依赖 harness 能力。<code>brandString&lt;T&gt;()</code> 应用仅编译期存在的字符串品牌。</p>
+<p>源码：<a href="/src/packages/util/brand/src/index.ts"><code>packages/util/brand/src/index.ts</code></a></p>
 <pre><code>/** A string carrying a compile-time-only brand `B`. */
 type Branded&lt;B extends string&gt; = string &amp; { readonly [BRAND]: B }</code></pre>
-<p>两个核心 ID 是 <code>ToolCallId</code>（关联工具调用及其结果；dsh-llm）和 <code>SessionId</code>（活跃 agent 与持久会话共享的标识；dsh-session）。能力包也会品牌化各自的 id，例如 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/jobs.zh.md">jobs.md</a> 中的 <code>JobId</code>。</p>
+<p>两个核心 ID 是 <code>ToolCallId</code>（关联工具调用及其结果；dsh-llm）和 <code>SessionId</code>（活跃 agent 与持久会话共享的标识；dsh-session）。能力包也会品牌化各自的 id，例如 <a href="/src/docs/subsystems/jobs.zh.md">jobs.md</a> 中的 <code>JobId</code>。</p>
 <h2 id="TurnBoundaryProjection"><code>TurnBoundaryProjection</code></h2>
 <p><code>ctx.agents.turnBoundaryOf(session)</code> 读取已记录的轮次和步骤位置，无需活跃 Agent。注册表持有此状态；消费方不注册其投影定义。</p>
-<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
+<p>来源: <a href="/src/packages/core/agent/src/types.ts"><code>packages/core/agent/src/types.ts</code></a></p>
 <pre><code>/** Turn and step positions recorded in a Session. */
 interface TurnBoundaryProjection {
   /** Seq of the open turn&#x27;s `turn/start`, or null between turns. */
@@ -401,7 +401,7 @@ interface TurnBoundaryProjection {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxagentdefaultmodel--agentdefaultmodelconfig" class="anch"></a></p>
 <h3 id="ctx.agentDefaultModel-—-AgentDefaultModelConfig"><span id="ctxagentdefaultmodel--agentdefaultmodelconfig" class="anch"></span><code>ctx.agentDefaultModel</code> — <code>AgentDefaultModelConfig</code></h3>
 <p>Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.</p>
@@ -419,7 +419,7 @@ currentSelection(): ModelSelection
  * @returns fulfillment after the optional profile write settles.
  */
 async saveSelection(next: ModelSelection): Promise&lt;void&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-default-model/src/index.ts"><code>packages/core/agent-default-model/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/core/agent-default-model/src/index.ts"><code>packages/core/agent-default-model/src/index.ts</code></a></p>
 <p><a id="ctxagentloop--agentloop" class="anch"></a></p>
 <h3 id="ctx.agentLoop-—-AgentLoop"><span id="ctxagentloop--agentloop" class="anch"></span><code>ctx.agentLoop</code> — <code>AgentLoop</code></h3>
 <p>Concrete agent factory and driver service.</p>
@@ -450,8 +450,8 @@ async createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise&lt;Ag
  * @returns the published handle.
  */
 async resume(ownerCtx: Context, options: ResumeAgentOptions): Promise&lt;AgentHandle&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">SessionHeader</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop/src/index.ts"><code>packages/core/agent-loop/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/persistence.zh.md">SessionHeader</a></p>
+<p>Source: <a href="/src/packages/core/agent-loop/src/index.ts"><code>packages/core/agent-loop/src/index.ts</code></a></p>
 <p><a id="ctxagentpresets--agentpresetregistry" class="anch"></a></p>
 <h3 id="ctx.agentPresets-—-AgentPresetRegistry"><span id="ctxagentpresets--agentpresetregistry" class="anch"></span><code>ctx.agentPresets</code> — <code>AgentPresetRegistry</code></h3>
 <p>Registry of YAML-declared presets and the revisions live Agents retain.</p>
@@ -549,8 +549,8 @@ async acquireScope(id?: string): Promise&lt;{ key: ScopeKey } &amp; AsyncDisposa
  * @returns Current declaration metadata and activation states.
  */
 compositionInventory(): Promise&lt;AgentPresetComposition[]&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">ScopeKey</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/preset/agent-preset-registry/src/index.ts"><code>packages/preset/agent-preset-registry/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">ScopeKey</a> · <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/preset/agent-preset-registry/src/index.ts"><code>packages/preset/agent-preset-registry/src/index.ts</code></a></p>
 <p><a id="ctxagents--agentregistry" class="anch"></a></p>
 <h3 id="ctx.agents-—-AgentRegistry"><span id="ctxagents--agentregistry" class="anch"></span><code>ctx.agents</code> — <code>AgentRegistry</code></h3>
 <p>Agent service (<code>ctx.agents</code>): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain. Agent *creation* is provided by whichever plugin implements the AgentFactory (<code>@deepseek-ai/dsh-agent-loop</code>), registered via setFactory.</p>
@@ -704,8 +704,8 @@ get(id: SessionId): Agent | undefined
  * @returns a fresh array; mutating it does not affect the registry.
  */
 list(): Agent[]</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/index.ts"><code>packages/core/agent/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/index.ts"><code>packages/core/agent/src/index.ts</code></a></p>
 <p><a id="agent-events" class="anch"></a></p>
 <h3 id="agent/-events"><span id="agent-events" class="anch"></span><code>agent/*</code> events</h3>
 <p><a id="agentassistant-stream--emit" class="anch"></a></p>
@@ -721,8 +721,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/assistant-stream&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; frame: AssistantStreamFrame }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentcreated--serial" class="anch"></a></p>
 <h4 id="agent/created-—-serial"><code>agent/created</code> — serial</h4>
 <p>An entered agent is ready for per-agent initialization after factory setup. Listeners run in order and are awaited before creation resolves. AgentLoop holds queued input until all listeners finish. A throw or rejection fails creation and skips later listeners. Disposal retains the scope and session until dispatch settles; listeners must not await agent.whenIdle() or their own owner's disposal.</p>
@@ -740,8 +740,8 @@ list(): Agent[]</code></pre>
  * @mode serial
  */
 &#x27;agent/created&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; source: SessionStartSource; signal?: AbortSignal }): undefined | Promise&lt;undefined&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentdisposed--emit" class="anch"></a></p>
 <h4 id="agent/disposed-—-emit"><code>agent/disposed</code> — emit</h4>
 <p>An agent left the registry; AgentLoop emits this after driver quiescence and scoped-registration unwind, but before session detachment. Custom registry users own their driver-ordering contract.</p>
@@ -754,8 +754,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/disposed&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agenterror--emit" class="anch"></a></p>
 <h4 id="agent/error-—-emit"><code>agent/error</code> — emit</h4>
 <p>A step or turn errored. The machine reports a failure here even when the error has no in-turn position for a durable record.</p>
@@ -770,8 +770,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/error&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; turn: number; step: number; error: unknown }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentinboxclaimed--emit" class="anch"></a></p>
 <h4 id="agent/inbox/claimed-—-emit"><code>agent/inbox/claimed</code> — emit</h4>
 <p>One message left the inbox inside its open turn. If the proposed step is rejected, the claimed message ends here: it is neither discarded nor re-emitted as a user/message, and the turn closes without a step.</p>
@@ -786,8 +786,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/inbox/claimed&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; message: UserMessage; turn: number }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">UserMessage</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a> · <a href="/src/docs/subsystems/session.zh.md">UserMessage</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentinboxdiscarded--emit" class="anch"></a></p>
 <h4 id="agent/inbox/discarded-—-emit"><code>agent/inbox/discarded</code> — emit</h4>
 <p>One message was discarded from the live inbox.</p>
@@ -799,8 +799,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/inbox/discarded&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; message: UserMessage }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">UserMessage</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a> · <a href="/src/docs/subsystems/session.zh.md">UserMessage</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentinboxinserted--emit" class="anch"></a></p>
 <h4 id="agent/inbox/inserted-—-emit"><code>agent/inbox/inserted</code> — emit</h4>
 <p>One message entered the live inbox.</p>
@@ -812,8 +812,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/inbox/inserted&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; message: UserMessage }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">UserMessage</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a> · <a href="/src/docs/subsystems/session.zh.md">UserMessage</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentpre-step--waterfall" class="anch"></a></p>
 <h4 id="agent/pre-step-—-waterfall"><code>agent/pre-step</code> — waterfall</h4>
 <p>Reject a proposed step or replace the messages that enter it. Calling <code>next()</code> preserves the current messages.</p>
@@ -830,8 +830,8 @@ list(): Agent[]</code></pre>
  * @mode waterfall
  */
 &#x27;agent/pre-step&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; messages: UserMessage[]; turn: number; step: number; signal: AbortSignal; modelSelection: Readonly&lt;ModelSelection&gt; }, next: () =&gt; Promise&lt;PreStepDecision&gt;): Promise&lt;PreStepDecision&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">UserMessage</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a> · <a href="/src/docs/subsystems/session.zh.md">UserMessage</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentrequest-error--waterfall" class="anch"></a></p>
 <h4 id="agent/request-error-—-waterfall"><code>agent/request-error</code> — waterfall</h4>
 <p>Handle one failed model-request attempt before the loop retries or closes its step. A listener returns <code>{ kind: 'retry' }</code> without calling <code>next()</code> when it owns recovery, or calls <code>next()</code> to delegate. The default <code>undefined</code> leaves the failure terminal.</p>
@@ -851,8 +851,8 @@ list(): Agent[]</code></pre>
  * @mode waterfall
  */
 &#x27;agent/request-error&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; turn: number; step: number; provider: string; failure: LlmFailure; retryPolicy: ResolvedRetryPolicy | undefined; signal: AbortSignal }, next: () =&gt; Promise&lt;RequestErrorAction&gt;): Promise&lt;RequestErrorAction&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">LlmFailure</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">ResolvedRetryPolicy</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/llm-streaming.zh.md">LlmFailure</a> · <a href="/src/docs/subsystems/llm-streaming.zh.md">ResolvedRetryPolicy</a> · <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentstatus--emit" class="anch"></a></p>
 <h4 id="agent/status-—-emit"><code>agent/status</code> — emit</h4>
 <p>Agent status changed (<code>idle</code> ⇄ <code>running</code>). A waking delivery enters <code>running</code> synchronously after reserving cancellation; <code>idle</code> means no driver remains scheduled or active.</p>
@@ -866,8 +866,8 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent/status&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; status: AgentStatus }): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agentturn-stopping--serial" class="anch"></a></p>
 <h4 id="agent/turn-stopping-—-serial"><code>agent/turn-stopping</code> — serial</h4>
 <p>The turn is about to close: the model owes no response (no live tool calls, no fresh steering). Awaited before the boundary commits — a listener that objects steers (<code>agent.steer(...)</code>) and the machine re-reads its inbox: fresh steering runs another step, none closes the turn. Data decides, so listener order cannot change the outcome. The inverse control (stop a tool loop early) is data too: a tool result carrying <code>concludesTurn</code> ends the turn at its step. The conclusion never short-circuits already-submitted next-step work: same-step <code>additionalContexts</code> or racing steering still runs, and the turn closes only when that inbox drains.</p>
@@ -889,8 +889,8 @@ list(): Agent[]</code></pre>
  * @mode serial
  */
 &#x27;agent/turn-stopping&#x27;(this: Scoped&lt;Agent&gt;, payload: { agent: Agent; turn: number; signal: AbortSignal }): Promise&lt;void&gt; | void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/agent/src/runtime-types.ts"><code>packages/core/agent/src/runtime-types.ts</code></a></p>
 <p><a id="agent-loop-events" class="anch"></a></p>
 <h3 id="agent-loop/-events"><span id="agent-loop-events" class="anch"></span><code>agent-loop/*</code> events</h3>
 <p><a id="agent-loopconfig-start-failed--emit" class="anch"></a></p>
@@ -906,7 +906,7 @@ list(): Agent[]</code></pre>
  * @mode emit
  */
 &#x27;agent-loop/config-start-failed&#x27;(payload: { sessionId: SessionId; error: unknown }): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop/src/index.ts"><code>packages/core/agent-loop/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/core/agent-loop/src/index.ts"><code>packages/core/agent-loop/src/index.ts</code></a></p>
 <p><a id="agent-preset-events" class="anch"></a></p>
 <h3 id="agent-preset/-events"><span id="agent-preset-events" class="anch"></span><code>agent-preset/*</code> events</h3>
 <p><a id="agent-presetselected--emit" class="anch"></a></p>
@@ -920,7 +920,7 @@ list(): Agent[]</code></pre>
  * @param agentPreset - the preset recorded by the committed selection.
  */
 &#x27;agent-preset/selected&#x27;(sessionId: SessionId, agentPreset: string): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/preset/agent-preset-registry/src/types.ts"><code>packages/preset/agent-preset-registry/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/preset/agent-preset-registry/src/types.ts"><code>packages/preset/agent-preset-registry/src/types.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/core">← 返回图谱并聚焦该文档</a></div>
   </main>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>Client 模块</h1>
     <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/client-modules.md</div>
     <div class="body"><h1 id="Client-模块">Client 模块</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/client-modules.md">English</a> | 中文</p>
-<p>Web 插件表：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules">dsh-client-modules</a> 中 client 模块系统的 Node 半，以 <code>ctx.clientModules</code>（<code>ClientModuleRegistry</code>）形式提供。它扫描宿主 Loader 的 entry，找出声明了 <code>dsh.client</code> 的包，组合出 <code>window.__DSH_BOOT__</code> entry 图，在 <code>/plugins</code> 下提供带版本的单资源或多资源 combo 脚本，并以启动协议行回应每次 index 注入收集——这是同一个服务的四个面。它是 Web GUI 栈的一项可选能力，不属于 agent loop（智能体循环）主干，并且是 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/host/webserver">dsh-host-webserver</a> 的消费方：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/web-server.zh.md">web-server.md</a> 所述的载体提供本服务注册的前缀路由与其回应的 <code>webserver/index-inject</code> 事件。同一个包的浏览器半（<code>ctx.modules</code>，即拉取并物化这些 bundle 的 lazy CJS 模块表）属于内核机件，记录在<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/README.zh.md">包 README</a>中，不在本页。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/src/client/manifest.ts"><code>packages/client/modules/src/client/manifest.ts</code></a></p>
+<p><a href="/src/docs/subsystems/client-modules.md">English</a> | 中文</p>
+<p>Web 插件表：<a href="/src/packages/client/modules">dsh-client-modules</a> 中 client 模块系统的 Node 半，以 <code>ctx.clientModules</code>（<code>ClientModuleRegistry</code>）形式提供。它扫描宿主 Loader 的 entry，找出声明了 <code>dsh.client</code> 的包，组合出 <code>window.__DSH_BOOT__</code> entry 图，在 <code>/plugins</code> 下提供带版本的单资源或多资源 combo 脚本，并以启动协议行回应每次 index 注入收集——这是同一个服务的四个面。它是 Web GUI 栈的一项可选能力，不属于 agent loop（智能体循环）主干，并且是 <a href="/src/packages/host/webserver">dsh-host-webserver</a> 的消费方：<a href="/src/docs/subsystems/web-server.zh.md">web-server.md</a> 所述的载体提供本服务注册的前缀路由与其回应的 <code>webserver/index-inject</code> 事件。同一个包的浏览器半（<code>ctx.modules</code>，即拉取并物化这些 bundle 的 lazy CJS 模块表）属于内核机件，记录在<a href="/src/packages/client/modules/README.zh.md">包 README</a>中，不在本页。</p>
+<p>源码：<a href="/src/packages/client/modules/src/client/manifest.ts"><code>packages/client/modules/src/client/manifest.ts</code></a></p>
 <h2 id="wire">wire</h2>
 <p>图是 Node 半与浏览器半之间协议层的唯一真源。宿主从扫描到的包组合出 <code>WebBootEntry</code> 行与 <code>WebBootBatch</code> 描述，随后在 Vite entry 之前向结构化 index 注入表贡献 registration facade、application preload、bootstrap 脚本与图全局量。<code>global</code> 行渲染为 <code>globalThis["__DSH_BOOT__"]</code>，其中 <code>&lt;</code> 已转义，插件可控的字符串因此无法逃出 script 元素。没有有效 manifest 的页面无法启动：浏览器解析器会拒绝畸形 row 或批次、未知成员，以及未恰好归属一个初始 combo 描述的 entry。</p>
 <pre><code>/**
@@ -86,14 +86,14 @@ interface WebBootGraph {
   batches: WebBootBatch[]
 }</code></pre>
 <p>首次发布与 HMR 都从入口的 mtime、ctime 和大小派生每个 row 的 <code>rev</code>，不对可执行字节求哈希。相同产物会跨 Host 重启保持 revision。初始 descriptor 把 row 划入 bootstrap 与 application 两个调度阶段，每个阶段都可以包含多条 descriptor。URL 只含有序 package 资源列表和从这些 row revision 派生的 revision，阶段名不会进入路由。图组合保持 row 顺序，并在 map 形式 URL 超过 3 KiB 前贪心切分，不拼接脚本，也不读取 map。图 revision 对 entry 与 batch descriptor 求哈希。<code>immediately</code> 标记第一阶段的 registration barrier；同一 combo 中的 row 共享脚本传输，不同 combo 则独立加载。</p>
-<p><code>release</code> 把本包版本与 client 构建固化进 Host 构建产物的源码 commit 配成一对，不计入图 revision。只有 Host 提供页面启动时的 release，页面才应用图和 rebuilt 帧；其他 release 要等页面刷新（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/README.zh.md">Host release 变化</a>）。</p>
+<p><code>release</code> 把本包版本与 client 构建固化进 Host 构建产物的源码 commit 配成一对，不计入图 revision。只有 Host 提供页面启动时的 release，页面才应用图和 rebuilt 帧；其他 release 要等页面刷新（<a href="/src/packages/client/modules/README.zh.md">Host release 变化</a>）。</p>
 <h2 id="扫描">扫描</h2>
 <p>包加入这张表的方式，是在自己的 package.json 中声明 <code>dsh.client</code>（<code>platform: 'web'</code>、可选的 <code>inject</code> 边、可选的 <code>immediately</code>），并在 <code>exports["./client"]</code> 导出构建好的 bundle。每个 live row 都从自己的 Loader specifier 与所属 tree <code>baseUrl</code> 解析；若 <code>loader.internal.resolveSync</code> 可用，则使用 Host face import 所用的同一个实现。最近归属的 package manifest 提供浏览器模块 id，因此相对 source 与 built overlay 仍保留包身份。若不同的 active Loader source 解析到同一包名，组合会失败；一个来源卸载后，仍存活的来源无需重启 fiber 即可提供该 row。</p>
 <p>包按 Loader entry 名增量对账。fiber 构造或 dispose（资源释放）时的每次 Cordis <code>internal/plugin</code> 事件都会把该 fiber 的 entry 名标脏。每次非空 flush 在开始时枚举全部 Loader entries 一次并按名称建索引；待处理名称使用索引中的全部同名来源，缺失名称使用空列表移除已卸载的来源。包解析过程不得在对账期间同步添加或移除 Loader entries。激活阶段初始化全部当前名称并同步 flush；后续通知通过微任务执行 flush。</p>
 <p>激活时，畸形声明、缺失 bundle 和 flush 枚举失败会聚合为组合错误：fiber 失败，由启动流程报告。稳态下，包失败只记录警告，不妨碍其他名称继续对账。枚举失败会消费失败批次、记录一条警告，并保持包状态和已发布的图不变；受影响的每个名称都要等另一次通知才会重试。</p>
 <p>每次对账都会重新读取包 manifest 与 bundle 元数据。同一来源的 fiber 重启若读到相同的声明与 bundle 元数据，就保留其 row 与 rev，且不读取 bundle 字节；声明、client 导出或 bundle 发生变化时，由这次对账发布。没有伴随条目重启的 bundle 重建经 <code>rebuilt()</code> 到达图。</p>
 <h2 id="bundle-路由与-index-注入">bundle 路由与 index 注入</h2>
-<p><code>GET</code>／<code>HEAD /plugins/??&lt;package-a&gt;/client.js,&lt;package-b&gt;/client.js&amp;rev=&lt;rev&gt;</code> 寻址一份生成的 combo 脚本；单资源请求采用同一形式，也是 HMR 路径。<code>/plugins/&lt;package&gt;/assets/&lt;path&gt;</code> 提供包发布的图片，该路由由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/README.zh.md">包 README</a> 说明。脚本在首次 <code>GET</code> 时只拼接一次，并以 <code>sourceMappingURL</code> 结尾，该引用只携带 combo 查询串——<code>??&lt;package-a&gt;/client.js.map,&lt;package-b&gt;/client.js.map&amp;rev=&lt;rev&gt;</code>，按脚本自身目录而非文档解析。启动、index 渲染、脚本 <code>GET</code> 和 <code>HEAD</code> 都不会读取 map 文件；首次 map <code>GET</code> 才会读取并校验这些文件、组合一份 Indexed Source Map v3，并缓存该 body。组件有自带 map 时直接用于对应 section；没有时则获得 identity section，其 <code>sourcesContent</code> 是捕获的 bundle，source 名取打包后的 <code>sourceURL</code> 或插件路由。每条启动请求 URL 按 UTF-8 字节计算都不超过 3 KiB；切分按更长的 map 形式计算。所有 application URL 都会预加载，所有 bootstrap URL 都会在图全局量与 Vite entry 之前执行。已物化响应使用长期 immutable 缓存。未知或被修改的资源列表、缺少 revision 及陈旧 revision 都返回 404，绝不提供其他字节，也不会让 SPA fallback 把 HTML 当作 JavaScript 返回；其他方法返回 405。注入行在每次 index 渲染时携带当前图，因此重新加载总是基于实时组合启动。</p>
+<p><code>GET</code>／<code>HEAD /plugins/??&lt;package-a&gt;/client.js,&lt;package-b&gt;/client.js&amp;rev=&lt;rev&gt;</code> 寻址一份生成的 combo 脚本；单资源请求采用同一形式，也是 HMR 路径。<code>/plugins/&lt;package&gt;/assets/&lt;path&gt;</code> 提供包发布的图片，该路由由<a href="/src/packages/client/modules/README.zh.md">包 README</a> 说明。脚本在首次 <code>GET</code> 时只拼接一次，并以 <code>sourceMappingURL</code> 结尾，该引用只携带 combo 查询串——<code>??&lt;package-a&gt;/client.js.map,&lt;package-b&gt;/client.js.map&amp;rev=&lt;rev&gt;</code>，按脚本自身目录而非文档解析。启动、index 渲染、脚本 <code>GET</code> 和 <code>HEAD</code> 都不会读取 map 文件；首次 map <code>GET</code> 才会读取并校验这些文件、组合一份 Indexed Source Map v3，并缓存该 body。组件有自带 map 时直接用于对应 section；没有时则获得 identity section，其 <code>sourcesContent</code> 是捕获的 bundle，source 名取打包后的 <code>sourceURL</code> 或插件路由。每条启动请求 URL 按 UTF-8 字节计算都不超过 3 KiB；切分按更长的 map 形式计算。所有 application URL 都会预加载，所有 bootstrap URL 都会在图全局量与 Vite entry 之前执行。已物化响应使用长期 immutable 缓存。未知或被修改的资源列表、缺少 revision 及陈旧 revision 都返回 404，绝不提供其他字节，也不会让 SPA fallback 把 HTML 当作 JavaScript 返回；其他方法返回 405。注入行在每次 index 渲染时携带当前图，因此重新加载总是基于实时组合启动。</p>
 <h2 id="服务">服务</h2>
 <pre><code>/** Filesystem baseline captured before a client artifact snapshot is read. */
 interface ClientArtifactBaseline {
@@ -106,12 +106,12 @@ interface ClientArtifactBaseline {
   /** Bundle size in bytes. */
   readonly size: number
 }</code></pre>
-<p><code>ClientModuleRegistry</code>（<code>ctx.clientModules</code>，定义于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/src/index.ts"><code>packages/client/modules/src/index.ts</code></a>）暴露读取面与重建面；签名见生成的<a href="#ctxclientmodules--clientmoduleregistry">服务目录</a>。<code>graph()</code> 返回当前组合出的图（两次变更之间是同一个稳定对象），<code>clientPath(id)</code> 返回 bundle 的绝对路径，<code>artifactBaseline(id)</code> 返回读取当前快照前捕获的 bundle stat 值。<code>fetchBundle()</code> 返回与 HTTP 路由相同的响应：惰性的 bundle 响应，以及每次请求都读取的包资源。<code>rebuilt(id)</code> 发布没有伴随条目重启的 bundle 重建：它从文件系统元数据派生 revision，只有 revision 变化才会读取新字节、重新组合图并发出通知；条目重启则经对账发布。<code>onRebuilt</code> 按发生变化的 bundle 逐个触发并携带新 revision；<code>onGraphChanged</code> 在任何一次重新组合了图的 flush 之后触发（行的增删，或 rebuilt 带来的 revision 变化），并采用拉取模型——监听器自行重读 <code>graph()</code>。两条通知路径都会兜住监听器异常，因此一个抛错的订阅者既不能让后续订阅者被跳过，也不能杀死触发这次 flush 的一方。</p>
-<p>随包提供的 Web 组合通过 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/hmr/README.zh.md"><code>dsh-client-hmr</code></a> 交付动态图快照。Host 立即转发现有图变化通知，重连会发送当前完整图。图描述浏览器的目标条目，不声明 Host 清理已经完成。产物轮询另外报告重建 revision。仅 source map 变化不会触发重载；新 combo-map URL 只会在 bundle revision 变化后出现，每份 map body 由其首次 <code>GET</code> 固定。Client Modules 校验快照，并将对账与重建串行协调；它持有启动创建的条目映射，负责单资源到达、异步移除、未使用模块与样式清理，以及页面本地重试状态。静态平台模块与 bootstrap 保持页面生命周期；Electron 安装属于独立流程。</p>
+<p><code>ClientModuleRegistry</code>（<code>ctx.clientModules</code>，定义于 <a href="/src/packages/client/modules/src/index.ts"><code>packages/client/modules/src/index.ts</code></a>）暴露读取面与重建面；签名见生成的<a href="#ctxclientmodules--clientmoduleregistry">服务目录</a>。<code>graph()</code> 返回当前组合出的图（两次变更之间是同一个稳定对象），<code>clientPath(id)</code> 返回 bundle 的绝对路径，<code>artifactBaseline(id)</code> 返回读取当前快照前捕获的 bundle stat 值。<code>fetchBundle()</code> 返回与 HTTP 路由相同的响应：惰性的 bundle 响应，以及每次请求都读取的包资源。<code>rebuilt(id)</code> 发布没有伴随条目重启的 bundle 重建：它从文件系统元数据派生 revision，只有 revision 变化才会读取新字节、重新组合图并发出通知；条目重启则经对账发布。<code>onRebuilt</code> 按发生变化的 bundle 逐个触发并携带新 revision；<code>onGraphChanged</code> 在任何一次重新组合了图的 flush 之后触发（行的增删，或 rebuilt 带来的 revision 变化），并采用拉取模型——监听器自行重读 <code>graph()</code>。两条通知路径都会兜住监听器异常，因此一个抛错的订阅者既不能让后续订阅者被跳过，也不能杀死触发这次 flush 的一方。</p>
+<p>随包提供的 Web 组合通过 <a href="/src/packages/client/hmr/README.zh.md"><code>dsh-client-hmr</code></a> 交付动态图快照。Host 立即转发现有图变化通知，重连会发送当前完整图。图描述浏览器的目标条目，不声明 Host 清理已经完成。产物轮询另外报告重建 revision。仅 source map 变化不会触发重载；新 combo-map URL 只会在 bundle revision 变化后出现，每份 map body 由其首次 <code>GET</code> 固定。Client Modules 校验快照，并将对账与重建串行协调；它持有启动创建的条目映射，负责单资源到达、异步移除、未使用模块与样式清理，以及页面本地重试状态。静态平台模块与 bootstrap 保持页面生命周期；Electron 安装属于独立流程。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxclientmodules--clientmoduleregistry" class="anch"></a></p>
 <h3 id="ctx.clientModules-—-ClientModuleRegistry"><span id="ctxclientmodules--clientmoduleregistry" class="anch"></span><code>ctx.clientModules</code> — <code>ClientModuleRegistry</code></h3>
 <p>The web plugin table service: incremental <code>dsh.client</code> scan + wire composition + bundle and package-asset route + index injection rows. Construction runs the activation scan synchronously — a malformed declaration or missing bundle among the already-loaded entries aggregates into one loud throw (FAILED fiber; the boot activation audit reports it).</p>
@@ -187,8 +187,8 @@ onRebuilt(listener: (id: string, rev: string) =&gt; void): () =&gt; void
  * @returns the unsubscriber.
  */
 onGraphChanged(listener: () =&gt; void): () =&gt; void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/typert.zh.md">Principal</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/modules/src/index.ts"><code>packages/client/modules/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/typert.zh.md">Principal</a></p>
+<p>Source: <a href="/src/packages/client/modules/src/index.ts"><code>packages/client/modules/src/index.ts</code></a></p>
 <p><a id="ctxconfig--syncedconfigservice" class="anch"></a></p>
 <h3 id="ctx.config-—-SyncedConfigService"><span id="ctxconfig--syncedconfigservice" class="anch"></span><code>ctx.config</code> — <code>SyncedConfigService</code></h3>
 <p>Read-only access to other packages' synced Config; a plugin receives its own through <code>apply</code>.</p>
@@ -200,7 +200,7 @@ onGraphChanged(listener: () =&gt; void): () =&gt; void</code></pre>
  * @returns the object, or undefined while no activation of the package is running.
  */
 resolveConfigByPackage&lt;C&gt;(packageName: string): SyncedConfig&lt;C&gt; | undefined</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/config/src/types.ts"><code>packages/client/config/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/client/config/src/types.ts"><code>packages/client/config/src/types.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/client-modules">← 返回图谱并聚焦该文档</a></div>
   </main>

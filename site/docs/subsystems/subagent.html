@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,10 +18,10 @@
     <h1>子代理</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/subagent.md</div>
     <div class="body"><h1 id="子代理">子代理</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subagent.md">English</a> | 中文</p>
-<p>统一的 activation API 管理本地对话和外部执行。创建祖先关系、运行归属和通信由 subagent 树管理。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent-control/README.zh.md">subagent 控制工具</a>负责 agent 身份和当前调用者的收件箱等待；Team 工具添加共享任务与任务策略。</p>
+<p><a href="/src/docs/subsystems/subagent.md">English</a> | 中文</p>
+<p>统一的 activation API 管理本地对话和外部执行。创建祖先关系、运行归属和通信由 subagent 树管理。<a href="/src/packages/subagent/tool-subagent-control/README.zh.md">subagent 控制工具</a>负责 agent 身份和当前调用者的收件箱等待；Team 工具添加共享任务与任务策略。</p>
 <h2 id="能力与-activation-请求">能力与 activation 请求</h2>
-<p>所有后端都使用 startActivation。能力标记校验请求选项；prepareContinuable 选择本地 Agent 创建，start 选择一次外部执行。面向模型的工具采用 parent 回传。Workflow 与 code mode 消费者可以等待 caller 结果，不额外向父代理注入消息。历史子会话的 descriptor 不可用时，以 <code>mode: 'unknown'</code> 保持可发现性，但不授予继续执行能力；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.zh.md">包 README</a> 定义目录持久化语义。</p>
+<p>所有后端都使用 startActivation。能力标记校验请求选项；prepareContinuable 选择本地 Agent 创建，start 选择一次外部执行。面向模型的工具采用 parent 回传。Workflow 与 code mode 消费者可以等待 caller 结果，不额外向父代理注入消息。历史子会话的 descriptor 不可用时，以 <code>mode: 'unknown'</code> 保持可发现性，但不授予继续执行能力；<a href="/src/packages/subagent/subagent/README.zh.md">包 README</a> 定义目录持久化语义。</p>
 <p>由 Host 选定的可选 <code>cwd</code> 指定子级的初始目录；相对路径以父级的当前目录为基准解析。省略时，在准入阶段捕获该目录。面向模型的委派工具不传目录。本地子 Session 保留父级的原始项目，冷恢复保留其日志中的目录状态。</p>
 <pre><code>/** Current concurrency capacity of one subagent tree; observing it reserves no slots. */
 interface SubagentCapacity {
@@ -139,7 +139,7 @@ interface ResolvedSubagentStartRequest extends SubagentStartRequest {
   readonly cwd: string
 }</code></pre>
 <h2 id="本地子代理与-activation">本地子代理与 activation</h2>
-<p>只有 spawn 支持独立的 <code>agentPreset</code>；省略选择与 fork 都继承父方的活跃组装。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.zh.md">子级 preset 规则</a>定义显式选择、事件顺序和历史恢复行为。</p>
+<p>只有 spawn 支持独立的 <code>agentPreset</code>；省略选择与 fork 都继承父方的活跃组装。<a href="/src/packages/subagent/subagent/README.zh.md">子级 preset 规则</a>定义显式选择、事件顺序和历史恢复行为。</p>
 <p>本地子代理拥有持久 Session，最多有一个在线 activation。Manager 预留身份和容量，通过后端准备子代理，并管理输入准入、冷恢复以及先子后父的释放顺序。activation 结果在资源释放和完成通知之后结算。释放操作单独报告清理失败，不会覆盖已捕获的结果。结构化结果提交会关闭该 activation 的输入；之后的冷恢复不会继承输出 schema。</p>
 <pre><code>/**
  * What the continuation manager asks a provider for while materializing one
@@ -177,7 +177,7 @@ interface ContinuableCreateSpec {
   readonly seed?: readonly SessionEvent[]
 }</code></pre>
 <h2 id="Agent-名称">Agent 名称</h2>
-<p>Session id 仍是路由、授权、持久化和任务归属使用的唯一执行身份；名称是面向模型的引用。<code>SubagentActivation.name</code> 是子级的完整名称；当从根开始的每一级都有名称时，<code>listDescendants()</code> 的行以 <code>path</code> 携带该名称。<code>namesOf(agent)</code> 报告在线成员及其直接创建者的名称；根的名称为 <code>lead</code>。<code>resolveName(caller, name, signal)</code> 为 <code>lead</code> 或完整名称返回对应 Session id；树中不存在的其他文本原样作为 Session id 返回，而指向无成员的斜杠路径以 <code>AGENT_NAME_NOT_FOUND</code> 失败。调用方授权解析结果；解析本身不授予权限。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.zh.md">包 README</a> 定义名称规则、默认值、失败和目录持久化。</p>
+<p>Session id 仍是路由、授权、持久化和任务归属使用的唯一执行身份；名称是面向模型的引用。<code>SubagentActivation.name</code> 是子级的完整名称；当从根开始的每一级都有名称时，<code>listDescendants()</code> 的行以 <code>path</code> 携带该名称。<code>namesOf(agent)</code> 报告在线成员及其直接创建者的名称；根的名称为 <code>lead</code>。<code>resolveName(caller, name, signal)</code> 为 <code>lead</code> 或完整名称返回对应 Session id；树中不存在的其他文本原样作为 Session id 返回，而指向无成员的斜杠路径以 <code>AGENT_NAME_NOT_FOUND</code> 失败。调用方授权解析结果；解析本身不授予权限。<a href="/src/packages/subagent/subagent/README.zh.md">包 README</a> 定义名称规则、默认值、失败和目录持久化。</p>
 <pre><code>/** Model-facing names of one live tree member and its direct creator. */
 interface SubagentMemberNames {
   /** `lead` for the root, the slash-separated path for a named descendant, otherwise the Session id. */
@@ -227,7 +227,7 @@ type SubagentInterruptAuthority =
   | { readonly kind: &#x27;user&#x27; }
   | { readonly kind: &#x27;ancestor&#x27;; readonly agent: Agent }</code></pre>
 <h2 id="持久枚举">持久枚举</h2>
-<p>父级拥有的 <code>subagentCatalog</code> 投影列出所有本地子级及 parent 投递的外部子级。caller 投递的外部执行由调用方负责成员关系与结果收集；本地工作流子级在完成后仍可被发现。外部条目携带 <code>mode: 'external'</code>，不能打开子 Session 或接受后续消息。目录在创建时记录成员关系，不携带执行状态。<code>list_agents</code> 展示根和可达的可继续后代，其活跃状态为 <code>running</code> 或 <code>inactive</code>；参见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent-control/README.zh.md">控制工具</a>。</p>
+<p>父级拥有的 <code>subagentCatalog</code> 投影列出所有本地子级及 parent 投递的外部子级。caller 投递的外部执行由调用方负责成员关系与结果收集；本地工作流子级在完成后仍可被发现。外部条目携带 <code>mode: 'external'</code>，不能打开子 Session 或接受后续消息。目录在创建时记录成员关系，不携带执行状态。<code>list_agents</code> 展示根和可达的可继续后代，其活跃状态为 <code>running</code> 或 <code>inactive</code>；参见<a href="/src/packages/subagent/tool-subagent-control/README.zh.md">控制工具</a>。</p>
 <h2 id="结果与后端句柄">结果与后端句柄</h2>
 <p>SubagentResult 供程序消费方读取。activation 注册表保留外部后端句柄，直到释放完成。清理失败不会覆盖已捕获的执行结果：activation 结果与父级通知保留该结果，dispose 拒绝，而在线 subagent/end 事件报告 error。后端提供的诊断必须满足下述安全信息要求。</p>
 <pre><code>/**
@@ -303,7 +303,7 @@ interface SubagentRun {
   dispose(): Promise&lt;void&gt;
 }</code></pre>
 <h2 id="提供方约定：SubagentProvider">提供方约定：SubagentProvider</h2>
-<p><code>SubagentManager</code> 统一管理启动、消息准入与执行生命周期。Spawn 与 Fork 提供用于本地 Agent 的独立创建输入。Codex、Claude Code、ACP 和 DSH SDK 提供一个执行句柄，不增加多轮能力。每条 activation 都是直接持有 AgentHandle 或 SubagentRun 的执行期记录。外部完成由句柄的 result promise 确定；inbox 与空闲准入仅属于本地执行。两条路径共用准入、容量、父子所有权、取消和释放机制。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.zh.md">包参考</a>说明组合与部署要求。</p>
+<p><code>SubagentManager</code> 统一管理启动、消息准入与执行生命周期。Spawn 与 Fork 提供用于本地 Agent 的独立创建输入。Codex、Claude Code、ACP 和 DSH SDK 提供一个执行句柄，不增加多轮能力。每条 activation 都是直接持有 AgentHandle 或 SubagentRun 的执行期记录。外部完成由句柄的 result promise 确定；inbox 与空闲准入仅属于本地执行。两条路径共用准入、容量、父子所有权、取消和释放机制。<a href="/src/packages/subagent/subagent/README.zh.md">包参考</a>说明组合与部署要求。</p>
 <pre><code>/**
  * One registered transport for running child agents. Providers are trusted
  * same-process implementations; callers treat descriptors and returned values
@@ -358,7 +358,7 @@ interface SubagentProvider {
 }</code></pre>
 <h2 id="持久化枚举：listDescendants-与目录条目">持久化枚举：<code>listDescendants()</code> 与目录条目</h2>
 <p>模型侧的 <code>list_agents</code> 适配器将当前活动表示为 <code>running</code> 或 <code>inactive</code>。这些值不描述任务完成情况，也不保证 <code>send_message</code> 会成功。</p>
-<p>通过 <code>ctx.sessionQuery.observeSession(parentSessionId, { signal })</code>，可从 <code>observation.projections?.values.subagentCatalog</code> 获取直接子级条目；调用方使用 <code>using</code> 释放观察对象。条目遵循父会话事件顺序，不读取子级日志，也不枚举 Session 语料库。查询失败直接传播；缺少目录投影意味着发现功能不可用。浏览器条目从共享 projection store 派生成员关系，并从 Session 状态补充活动状态；control stream 推送完整目录更新。<code>listDescendants()</code> 递归读取这些目录，并从每个子级目录推导 <code>hasChildren</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-09-01-parent-owned-subagent-catalog.zh.md">父目录 Agent Note</a> 说明创建、fork 隔离、排序和持久化成本。</p>
+<p>通过 <code>ctx.sessionQuery.observeSession(parentSessionId, { signal })</code>，可从 <code>observation.projections?.values.subagentCatalog</code> 获取直接子级条目；调用方使用 <code>using</code> 释放观察对象。条目遵循父会话事件顺序，不读取子级日志，也不枚举 Session 语料库。查询失败直接传播；缺少目录投影意味着发现功能不可用。浏览器条目从共享 projection store 派生成员关系，并从 Session 状态补充活动状态；control stream 推送完整目录更新。<code>listDescendants()</code> 递归读取这些目录，并从每个子级目录推导 <code>hasChildren</code>。<a href="/src/.agents/notes/implemented/architecture/2026-09-01-parent-owned-subagent-catalog.zh.md">父目录 Agent Note</a> 说明创建、fork 隔离、排序和持久化成本。</p>
 <p><code>SubagentRuntime.listDescendants(rootSessionId)</code> 以稳定前序递归调用同一目录读取函数，保留每个父级的事件顺序。外部条目是没有本地 Session 的叶节点。一次性和未知模式条目仍是遍历节点；未知模式产生 <code>unsupported</code> 诊断。无法读取的子级目录产生 <code>corrupt</code> 或 <code>unavailable</code>，只停止该分支。根读取失败、服务或投影缺失、取消会使整个查询失败。每个可达目录只观察一次，并在下一次读取前释放；重复 id 和循环引用会被跳过。可达目录中不存在的 Session 不会被发现，包括普通 Session fork 及其下的子 agent。每行携带目录中的父级、相对根的深度；当从根开始的每一级都有名称时，还以 <code>path</code> 携带完整名称：</p>
 <pre><code>/** One catalog descendant with its direct parent and edge distance from the requested root. */
 type SubagentDescendantListEntry = SubagentListEntry &amp; {
@@ -373,7 +373,7 @@ type SubagentDescendantListEntry = SubagentListEntry &amp; {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsubagentmodelselection--subagentmodelselectionconfig" class="anch"></a></p>
 <h3 id="ctx.subagentModelSelection-—-SubagentModelSelectionConfig"><span id="ctxsubagentmodelselection--subagentmodelselectionconfig" class="anch"></span><code>ctx.subagentModelSelection</code> — <code>SubagentModelSelectionConfig</code></h3>
 <p>Host settings owner whose current value authorizes explicit child routes in every Session.</p>
@@ -385,7 +385,7 @@ type SubagentDescendantListEntry = SubagentListEntry &amp; {
  *   or its routes are malformed or repeated. Disabled settings do not read or validate routes.
  */
 allowedRoutes(): AllowedModelRoute[] | undefined</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent/src/model-selection-settings.ts"><code>packages/subagent/tool-subagent/src/model-selection-settings.ts</code></a></p>
+<p>Source: <a href="/src/packages/subagent/tool-subagent/src/model-selection-settings.ts"><code>packages/subagent/tool-subagent/src/model-selection-settings.ts</code></a></p>
 <p><a id="ctxsubagents--subagentruntime" class="anch"></a></p>
 <h3 id="ctx.subagents-—-SubagentRuntime"><span id="ctxsubagents--subagentruntime" class="anch"></span><code>ctx.subagents</code> — <code>SubagentRuntime</code></h3>
 <p>Named provider registry with managed activations, durable discovery, and local child messaging.</p>
@@ -568,8 +568,8 @@ registerProvider(provider: SubagentProvider): () =&gt; void
  * @returns the provider, or undefined when absent.
  */
 getProvider(name: string): SubagentProvider | undefined</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">Agent</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">MessageId</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">Agent</a> · <a href="/src/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="/src/docs/subsystems/llm-streaming.zh.md">MessageId</a> · <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
 <p><a id="subagent-events" class="anch"></a></p>
 <h3 id="subagent/-events"><span id="subagent-events" class="anch"></span><code>subagent/*</code> events</h3>
 <p><a id="subagentend--emit" class="anch"></a></p>
@@ -583,8 +583,8 @@ getProvider(name: string): SubagentProvider | undefined</code></pre>
  * @mode emit
  */
 &#x27;subagent/end&#x27;(this: Scoped&lt;SubagentRuntime&gt;, info: SubagentRunEndInfo): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
 <p><a id="subagentprovider-added--emit" class="anch"></a></p>
 <h4 id="subagent/provider-added-—-emit"><code>subagent/provider-added</code> — emit</h4>
 <p>A provider became resolvable in the registry.</p>
@@ -594,7 +594,7 @@ getProvider(name: string): SubagentProvider | undefined</code></pre>
  * @mode emit
  */
 &#x27;subagent/provider-added&#x27;(provider: SubagentProvider): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
 <p><a id="subagentprovider-removed--emit" class="anch"></a></p>
 <h4 id="subagent/provider-removed-—-emit"><code>subagent/provider-removed</code> — emit</h4>
 <p>A provider left the registry. Accepted runs remain holder-owned.</p>
@@ -604,7 +604,7 @@ getProvider(name: string): SubagentProvider | undefined</code></pre>
  * @mode emit
  */
 &#x27;subagent/provider-removed&#x27;(name: string): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
 <p><a id="subagentstart--emit" class="anch"></a></p>
 <h4 id="subagent/start-—-emit"><code>subagent/start</code> — emit</h4>
 <p>A provider established a published child. For in-process providers, <code>ctx.agents.get(info.id)</code> resolves during this notification. Scope-filtered dispatch keys the carrier by the subagent tree root, so a root-scoped listener observes all subagent tree activations. Paired with <code>subagent/end</code>.</p>
@@ -618,8 +618,8 @@ getProvider(name: string): SubagentProvider | undefined</code></pre>
  * @mode emit
  */
 &#x27;subagent/start&#x27;(this: Scoped&lt;SubagentRuntime&gt;, info: SubagentRunInfo): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/subagent/subagent/src/index.ts"><code>packages/subagent/subagent/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/subagent">← 返回图谱并聚焦该文档</a></div>
   </main>

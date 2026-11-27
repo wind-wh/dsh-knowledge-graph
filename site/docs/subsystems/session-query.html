@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>会话查询</h1>
     <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session-query.md</div>
     <div class="body"><h1 id="会话查询">会话查询</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-query.md">English</a> | 中文</p>
-<p>本文定义逻辑会话语料库的查询词汇；当 live 数据存在时，该语料库优先使用 live 数据。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query">Service Definition 包</a>负责精确读取、来源优先级、关系追踪、语义提取，以及与提供方无关的过滤器；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query-sqlite">SQLite 提供方</a>负责具体全文索引的生命周期。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query/src/types.ts"><code>packages/session-query/session-query/src/types.ts</code></a></p>
+<p><a href="/src/docs/subsystems/session-query.md">English</a> | 中文</p>
+<p>本文定义逻辑会话语料库的查询词汇；当 live 数据存在时，该语料库优先使用 live 数据。<a href="/src/packages/session-query/session-query">Service Definition 包</a>负责精确读取、来源优先级、关系追踪、语义提取，以及与提供方无关的过滤器；<a href="/src/packages/session-query/session-query-sqlite">SQLite 提供方</a>负责具体全文索引的生命周期。</p>
+<p>源码：<a href="/src/packages/session-query/session-query/src/types.ts"><code>packages/session-query/session-query/src/types.ts</code></a></p>
 <h2 id="逻辑记录">逻辑记录</h2>
 <p><code>SessionRecord</code> 由全语料库列表返回。它除了克隆的、优先取自 live 源的 header 外，还单独公开各源的可用性。<code>SessionEventRecord</code> 是轻量的原始日志投影；分类使用与模型历史推导相同的 <code>foldSurface()</code> 状态转换。</p>
 <pre><code>/** Whether an event is current model context, replaced context, or raw-log-only. */
@@ -289,7 +289,7 @@ type SessionQueryErrorCode =
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsessionquery--sessionqueryengine-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.sessionQuery-—-SessionQueryEngine-abstract-seam"><span id="ctxsessionquery--sessionqueryengine-abstract-seam" class="anch"></span><code>ctx.sessionQuery</code> — <code>SessionQueryEngine</code> (abstract seam)</h3>
 <p>Unified live-preferred session query service.</p>
@@ -423,8 +423,8 @@ async traceEvent(request: SessionEventTraceRequest, signal?: AbortSignal): Promi
  * @returns cloned target and neighboring events.
  */
 async readEvent(request: SessionEventReadRequest, signal?: AbortSignal): Promise&lt;SessionEventWindow&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-title.zh.md">SessionTitleSnapshot</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session-query/session-query/src/index.ts"><code>packages/session-query/session-query/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a> · <a href="/src/docs/subsystems/core.zh.md">SessionId</a> · <a href="/src/docs/subsystems/session-title.zh.md">SessionTitleSnapshot</a></p>
+<p>Source: <a href="/src/packages/session-query/session-query/src/index.ts"><code>packages/session-query/session-query/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/session-query">← 返回图谱并聚焦该文档</a></div>
   </main>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -20,11 +20,11 @@
     <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-cordis-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
 <p>     更新时先运行 <code>pnpm run gen-cordis-catalog</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/cordis-api/context.md</code> 重新记录配对。 --&gt;</p>
 <h1 id="上下文">上下文</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/context.md">English</a> | 中文</p>
-<p>上下文是 Cordis 的核心对象：所有服务、事件和生命周期 API 都通过 <code>ctx</code> 访问。事件方法见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/events.zh.md">事件</a>，副作用与当前 fiber 见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/fiber.zh.md">Fiber</a>，插件加载见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/registry.zh.md">注册表</a>。</p>
+<p><a href="/src/docs/cordis-api/context.md">English</a> | 中文</p>
+<p>上下文是 Cordis 的核心对象：所有服务、事件和生命周期 API 都通过 <code>ctx</code> 访问。事件方法见<a href="/src/docs/cordis-api/events.zh.md">事件</a>，副作用与当前 fiber 见 <a href="/src/docs/cordis-api/fiber.zh.md">Fiber</a>，插件加载见<a href="/src/docs/cordis-api/registry.zh.md">注册表</a>。</p>
 <p>Cordis 插件的根依赖容器和子依赖容器。</p>
 <p>上下文是一个代理：普通属性读取通过服务解析器进行，而 <code>extend()</code>、<code>isolate()</code> 和 <code>intercept()</code> 会创建有作用域的子上下文，且不修改其父上下文。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L42">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L42">源码</a></p>
 <h3 id="ctx.extendmeta?">ctx.extend(meta?)</h3>
 <pre><code>/**
  * Create a child context with extra metadata on top of the current scope.
@@ -42,7 +42,7 @@ extend(meta = {}): this</code></pre>
 <li><code>meta</code>：要在子上下文上定义的自有属性，包括以 symbol 为键的属性。</li>
 </ul>
 <p><strong>返回</strong>继承自当前上下文的子上下文。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L101">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L101">源码</a></p>
 <h3 id="ctx.isolatename,-label?">ctx.isolate(name, label?)</h3>
 <pre><code>/**
  * Create a child context with an independent service scope for `name`.
@@ -67,7 +67,7 @@ isolate(name: string, label?: symbol)</code></pre>
 <li><code>label</code>：要加入的作用域标签；默认为一个新建的唯一 symbol。</li>
 </ul>
 <p><strong>返回</strong>一个子上下文，其 <code>name</code> 服务在新作用域中解析。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L126">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L126">源码</a></p>
 <h3 id="ctx.interceptname,-config">ctx.intercept(name, config)</h3>
 <pre><code>/**
  * Add service-specific intercept metadata for plugins started below this
@@ -91,58 +91,58 @@ intercept(name: string, config: any): this</code></pre>
 <li><code>config</code>：要为该服务合并的拦截元数据。</li>
 </ul>
 <p><strong>返回</strong>一个携带额外拦截条目的子上下文。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L145">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L145">源码</a></p>
 <h3 id="ctx.baseUrl">ctx.baseUrl</h3>
 <pre><code>/** Base URL used to resolve relative plugin/module specifiers, if the runtime sets one. */
 baseUrl?: string | undefined</code></pre>
 <p>用于解析相对插件／模块说明符的基础 URL，前提是运行时设置了该值。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L24">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L24">源码</a></p>
 <h3 id="ctx.events">ctx.events</h3>
 <pre><code>/** The event bus. Its methods are also mixed onto `ctx` (`ctx.on`, `ctx.emit`, ...). */
 events: EventsService</code></pre>
 <p>事件总线。它的方法也会混入 <code>ctx</code>（<code>ctx.on</code>、<code>ctx.emit</code> 等）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L26">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L26">源码</a></p>
 <h3 id="ctx.logger">ctx.logger</h3>
 <pre><code>/** The logging service. Call `ctx.logger(name)` for a named logger. */
 logger: LoggerService</code></pre>
 <p>日志服务。调用 <code>ctx.logger(name)</code> 可获取具名 logger。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L28">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L28">源码</a></p>
 <h3 id="ctx.reflect">ctx.reflect</h3>
 <pre><code>/** The reflection layer backing the context proxy (`ctx.get`, `ctx.provide`, ...). */
 reflect: ReflectService</code></pre>
 <p>为上下文代理提供支持的反射层（<code>ctx.get</code>、<code>ctx.provide</code> 等）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L30">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L30">源码</a></p>
 <h3 id="ctx.registry">ctx.registry</h3>
 <pre><code>/** The plugin registry. Its methods are mixed onto `ctx` (`ctx.plugin`, `ctx.inject`). */
 registry: RegistryService</code></pre>
 <p>插件注册表。它的方法会混入 <code>ctx</code>（<code>ctx.plugin</code>、<code>ctx.inject</code>）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L32">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L32">源码</a></p>
 <h2 id="静态成员">静态成员</h2>
 <h3 id="Context.root">Context.root</h3>
 <pre><code>/** Symbol key of the root context: `ctx[Context.root]` is the application&#x27;s root context, shared by every child context. */
 static readonly root: unique symbol</code></pre>
 <p>根上下文的 symbol 键：<code>ctx[Context.root]</code> 是应用的根上下文，所有子上下文共享它。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L44">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L44">源码</a></p>
 <h3 id="Context.effect">Context.effect</h3>
 <pre><code>/** Symbol key under which a disposer exposes its {@link EffectMeta} diagnostics tree. */
 static readonly effect: unique symbol</code></pre>
 <p>资源释放函数用于公开其 EffectMeta 诊断树的 symbol 键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L46">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L46">源码</a></p>
 <h3 id="Context.filter">Context.filter</h3>
 <pre><code>/** Symbol key for a context&#x27;s listener filter, consulted on every event dispatch. */
 static readonly filter: unique symbol</code></pre>
 <p>上下文监听器过滤器的 symbol 键，每次分派事件时都会查询该过滤器。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L48">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L48">源码</a></p>
 <h3 id="Context.isolate">Context.isolate</h3>
 <pre><code>/** Symbol key of the isolation map: `ctx[Context.isolate]` maps each service name to its scope label. */
 static readonly isolate: unique symbol</code></pre>
 <p>隔离映射的 symbol 键：<code>ctx[Context.isolate]</code> 将每个服务名称映射到其作用域标签。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L50">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L50">源码</a></p>
 <h3 id="Context.intercept">Context.intercept</h3>
 <pre><code>/** Symbol key of the intercept map: `ctx[Context.intercept]` maps each service name to its intercept metadata. */
 static readonly intercept: unique symbol</code></pre>
 <p>拦截映射的 symbol 键：<code>ctx[Context.intercept]</code> 将每个服务名称映射到其拦截元数据。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L52">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L52">源码</a></p>
 <h3 id="Context.isvalue">Context.is(value)</h3>
 <pre><code>/**
  * Returns true for Cordis context proxies and context prototypes.
@@ -160,7 +160,7 @@ static is(value: any): value is Context</code></pre>
 <li><code>value</code>：要测试的值。</li>
 </ul>
 <p><strong>返回</strong> <code>true</code> 时，<code>value</code> 是 Cordis 上下文，并会收窄其类型。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/context.ts#L63">源码</a></p>
+<p><a href="/src/vendor/cordis/src/context.ts#L63">源码</a></p>
 <h2 id="服务存储与混入">服务存储与混入</h2>
 <h3 id="ctx.getname,-strict?">ctx.get(name, strict?)</h3>
 <pre><code>/**
@@ -179,7 +179,7 @@ get(name: string, strict?: boolean): any</code></pre>
 <li><code>strict</code>：设为 <code>true</code>（默认值）时，仅返回其提供方 fiber 当前处于活动状态的实现。</li>
 </ul>
 <p><strong>返回</strong>服务值；如果尚未提供，则返回 <code>undefined</code>。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/reflect.ts#L17">源码</a></p>
+<p><a href="/src/vendor/cordis/src/reflect.ts#L17">源码</a></p>
 <h3 id="ctx.setname,-value">ctx.set(name, value)</h3>
 <pre><code>/**
  * Overwrite a provided service&#x27;s value.
@@ -198,7 +198,7 @@ set(name: string, value: any): void</code></pre>
 <li><code>name</code>：服务名称。</li>
 <li><code>value</code>：新的服务值。</li>
 </ul>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/reflect.ts#L29">源码</a></p>
+<p><a href="/src/vendor/cordis/src/reflect.ts#L29">源码</a></p>
 <h3 id="ctx.providename,-value">ctx.provide(name, value)</h3>
 <pre><code>/**
  * Register a service implementation owned by the current fiber.
@@ -221,7 +221,7 @@ provide(name: string, value?: any): () =&gt; void</code></pre>
 <li><code>value</code>：服务值。</li>
 </ul>
 <p><strong>返回</strong>一个用于取消注册该服务的资源释放函数。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/reflect.ts#L44">源码</a></p>
+<p><a href="/src/vendor/cordis/src/reflect.ts#L44">源码</a></p>
 <h3 id="ctx.accessorname,-options">ctx.accessor(name, options)</h3>
 <pre><code>/**
  * Define a computed context property backed by get/set hooks.
@@ -239,7 +239,7 @@ accessor(name: string, options: Omit&lt;Property.Accessor, &#x27;type&#x27;&gt;)
 <li><code>name</code>：上下文属性名称。</li>
 <li><code>options</code>：<code>get</code> 钩子和可选的 <code>set</code> 钩子。</li>
 </ul>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/reflect.ts#L56">源码</a></p>
+<p><a href="/src/vendor/cordis/src/reflect.ts#L56">源码</a></p>
 <h3 id="ctx.mixinname,-mixins">ctx.mixin(name, mixins)</h3>
 <pre><code>/**
  * Expose selected members of a service directly on `ctx`.
@@ -259,7 +259,7 @@ mixin&lt;T extends {}&gt;(source: T, mixins: (keyof this &amp; keyof T)[] | Dict
 <li><code>name</code>：存放源服务的上下文属性。</li>
 <li><code>mixins</code>：要转发的键，或从源键到 ctx 键的映射。</li>
 </ul>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/reflect.ts#L67">源码</a></p></div>
+<p><a href="/src/vendor/cordis/src/reflect.ts#L67">源码</a></p></div>
     <div class="back"><a href="/?focus=reference/cordis-api/context">← 返回图谱并聚焦该文档</a></div>
   </main>
 </div>

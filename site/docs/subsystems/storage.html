@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>存储</h1>
     <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/storage.md</div>
     <div class="body"><h1 id="存储">存储</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/storage.md">English</a> | 中文</p>
-<p>存储子系统持久保存一切不属于会话事件日志的数据（会话日志有自己的 seam——见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a>）。它是一项可选能力，不属于 agent loop（智能体循环）主干，并按<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a> 拆分：枢纽（hub）与 Service Definition（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage">dsh-storage</a>，<code>ctx.storage</code>）、Service Provider（注册为 <code>json</code> 的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-json">dsh-storage-json</a> 与注册为 <code>sqlite</code> 的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-sqlite">dsh-storage-sqlite</a>），以及 Consumer 数据形式（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain">dsh-storage-domain</a>，<code>ctx.storageDomain</code>，也可经 <code>ctx.storage.domain</code> 访问）——它是后端约定的唯一 Consumer，也是其他一切所使用的类型化 API。枢纽自身不做任何 IO：后端拥有介质，数据形式拥有语义，产品包绝不直接触碰后端。设计记录：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md">领域 KV 存储 Agent Note</a>。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage/src/backend.ts"><code>packages/storage/storage/src/backend.ts</code></a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain/src/spec.ts"><code>packages/storage/storage-domain/src/spec.ts</code></a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain/src/events.ts"><code>packages/storage/storage-domain/src/events.ts</code></a></p>
+<p><a href="/src/docs/subsystems/storage.md">English</a> | 中文</p>
+<p>存储子系统持久保存一切不属于会话事件日志的数据（会话日志有自己的 seam——见 <a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a>）。它是一项可选能力，不属于 agent loop（智能体循环）主干，并按<a href="/src/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a> 拆分：枢纽（hub）与 Service Definition（<a href="/src/packages/storage/storage">dsh-storage</a>，<code>ctx.storage</code>）、Service Provider（注册为 <code>json</code> 的 <a href="/src/packages/storage/storage-json">dsh-storage-json</a> 与注册为 <code>sqlite</code> 的 <a href="/src/packages/storage/storage-sqlite">dsh-storage-sqlite</a>），以及 Consumer 数据形式（<a href="/src/packages/storage/storage-domain">dsh-storage-domain</a>，<code>ctx.storageDomain</code>，也可经 <code>ctx.storage.domain</code> 访问）——它是后端约定的唯一 Consumer，也是其他一切所使用的类型化 API。枢纽自身不做任何 IO：后端拥有介质，数据形式拥有语义，产品包绝不直接触碰后端。设计记录：<a href="/src/.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md">领域 KV 存储 Agent Note</a>。</p>
+<p>源码：<a href="/src/packages/storage/storage/src/backend.ts"><code>packages/storage/storage/src/backend.ts</code></a> · <a href="/src/packages/storage/storage-domain/src/spec.ts"><code>packages/storage/storage-domain/src/spec.ts</code></a> · <a href="/src/packages/storage/storage-domain/src/events.ts"><code>packages/storage/storage-domain/src/events.ts</code></a></p>
 <h2 id="枢纽：ctx.storage">枢纽：<code>ctx.storage</code></h2>
 <p><code>Storage</code>（<a href="#ctxstorage--storage">签名</a>）是汇合点，不是存储本体。<code>ctx.storage.backend</code> 是一张名称 → 后端的表：多个后端并排保持挂载，哪个后端服务哪个消费方由该消费方自己的配置决定（即领域层的路由表），绝不是枢纽全局的选择。<code>register(name, backend)</code> 返回 disposer；重复名称与查找未知名称都抛出 <code>StorageError</code>。dispose（资源释放）只注销名称——由拥有它的插件在注销之后自行关闭后端。每个后端插件还会发布一个仅用于生命周期的服务键（<code>storageBackendServiceKey(name)</code>），数据形式提供方注入它，使自身激活不会与后端注册发生竞态。</p>
 <p>数据形式以一张可合并扩展的键 map 挂载到枢纽上：</p>
@@ -48,7 +48,7 @@ interface StorageBackend {
    */
   close(): Promise&lt;void&gt;
 }</code></pre>
-<p>一个后端拥有一个介质（一棵文件树的根目录、一个数据库文件），并提供可选的操作组；<code>kv</code> 是唯一已交付的操作组。<code>KvFacet.open(descriptor)</code> 打开一个具名 unit——<code>KvUnitDescriptor</code> 携带名称、当前格式版本、可选的兼容版本、表名清单，以及是否存在全局单例 slot——并返回提供 <code>loadAll</code>、<code>putRecord</code>、<code>deleteRecord</code>、<code>deleteRecords</code>、<code>setGlobal</code> 和 <code>close</code> 的 <code>KvUnit</code>。unit 名与表名必须匹配 <code>UNIT_NAME_RE</code>（既可安全用作文件名，也可安全用作 SQL 标识符片段）；记录键在 <code>single</code> 布局中是不透明字符串，在 <code>per-record</code> 布局中则是匹配 <code>[a-zA-Z0-9_-]+</code> 的路径片段。unit 不对并发写入做串行化——顺序由调用方负责——整文档与行存储调用在介质上是原子的，而逐记录批次在完成前中断时可能只应用一部分。写入完成后即已持久化；逐记录删除会在 POSIX 上同步目录变更。<code>deleteRecords</code> 以一次调用应用整批删除：所有列出的记录都从可读状态消失且后端接受该批后才 resolve，拒绝时通常整批未应用；无法建立或恢复批次状态的批量删除会以 <code>unknown-state</code> 拒绝，之后该 unit 的所有操作都以同一错误拒绝，直到 <code>close()</code> 释放它（关闭后的调用以 <code>closed</code> 拒绝）。<code>single</code> 布局在原子替换之后失败（目录 fsync 错误）时，新文件可能已落在介质上而调用方看到拒绝；必须关闭后端及其领域，再重新打开以检查已存状态，然后决定是否重试。<code>single</code> 介质上的版本不在当前版本和已声明兼容版本内时拒绝 <code>version-mismatch</code>；<code>per-record</code> 文档的版本在接受集合之外时读作不存在。无法按该 unit 解析的介质拒绝 <code>malformed-medium</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage/src/backend.ts"><code>backend.ts</code></a> 是逐条款的规范性约定，<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage/tests/contract.ts"><code>tests/contract.ts</code></a> 中的共享一致性套件会针对每个后端检查共享条款。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-json/README.zh.md">json 后端</a>以原子方式为每个 unit 整文件重新发布一份人类可读文件；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-sqlite/README.zh.md">sqlite 后端</a>在单个数据库中每行存储一份文档，用于频繁更新的数据。</p>
+<p>一个后端拥有一个介质（一棵文件树的根目录、一个数据库文件），并提供可选的操作组；<code>kv</code> 是唯一已交付的操作组。<code>KvFacet.open(descriptor)</code> 打开一个具名 unit——<code>KvUnitDescriptor</code> 携带名称、当前格式版本、可选的兼容版本、表名清单，以及是否存在全局单例 slot——并返回提供 <code>loadAll</code>、<code>putRecord</code>、<code>deleteRecord</code>、<code>deleteRecords</code>、<code>setGlobal</code> 和 <code>close</code> 的 <code>KvUnit</code>。unit 名与表名必须匹配 <code>UNIT_NAME_RE</code>（既可安全用作文件名，也可安全用作 SQL 标识符片段）；记录键在 <code>single</code> 布局中是不透明字符串，在 <code>per-record</code> 布局中则是匹配 <code>[a-zA-Z0-9_-]+</code> 的路径片段。unit 不对并发写入做串行化——顺序由调用方负责——整文档与行存储调用在介质上是原子的，而逐记录批次在完成前中断时可能只应用一部分。写入完成后即已持久化；逐记录删除会在 POSIX 上同步目录变更。<code>deleteRecords</code> 以一次调用应用整批删除：所有列出的记录都从可读状态消失且后端接受该批后才 resolve，拒绝时通常整批未应用；无法建立或恢复批次状态的批量删除会以 <code>unknown-state</code> 拒绝，之后该 unit 的所有操作都以同一错误拒绝，直到 <code>close()</code> 释放它（关闭后的调用以 <code>closed</code> 拒绝）。<code>single</code> 布局在原子替换之后失败（目录 fsync 错误）时，新文件可能已落在介质上而调用方看到拒绝；必须关闭后端及其领域，再重新打开以检查已存状态，然后决定是否重试。<code>single</code> 介质上的版本不在当前版本和已声明兼容版本内时拒绝 <code>version-mismatch</code>；<code>per-record</code> 文档的版本在接受集合之外时读作不存在。无法按该 unit 解析的介质拒绝 <code>malformed-medium</code>。<a href="/src/packages/storage/storage/src/backend.ts"><code>backend.ts</code></a> 是逐条款的规范性约定，<a href="/src/packages/storage/storage/tests/contract.ts"><code>tests/contract.ts</code></a> 中的共享一致性套件会针对每个后端检查共享条款。<a href="/src/packages/storage/storage-json/README.zh.md">json 后端</a>以原子方式为每个 unit 整文件重新发布一份人类可读文件；<a href="/src/packages/storage/storage-sqlite/README.zh.md">sqlite 后端</a>在单个数据库中每行存储一份文档，用于频繁更新的数据。</p>
 <h2 id="声明领域">声明领域</h2>
 <p>领域由其拥有包声明一次，形式是一个 spec 对象——它是该领域的身份、布局和记录 schema 的单一来源（schema 用 zod 编写，因此 <code>z.infer</code> 让消费方类型无需重复声明）：</p>
 <pre><code>/** Static declaration of one domain: identity, version, and record layout. */
@@ -90,13 +90,13 @@ interface DomainSpec {
   /** Table declarations keyed by table name; each name must match `UNIT_NAME_RE`. */
   readonly tables: Record&lt;string, DomainTableSpec&gt;
 }</code></pre>
-<p><code>defineDomain(spec)</code> 固定 spec 的字面量类型，并在拥有方的模块加载时、任何介质被触碰之前就明确报错：领域名或表名不匹配 <code>UNIT_NAME_RE</code>、版本不是非负整数、global schema 接受 <code>null</code>，这些都会抛出（<code>null</code> 是介质的「从未写入」哨兵值，可空的 global 一旦存储就无法往返还原）。<code>domainTable&lt;K, V&gt;(schema)</code> 声明一张表，其键类型是仅存在于编译期的 phantom 类型（通常是<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">品牌化 id</a>）；<code>descriptorOf(spec)</code> 投影出面向后端的 unit 描述符。</p>
+<p><code>defineDomain(spec)</code> 固定 spec 的字面量类型，并在拥有方的模块加载时、任何介质被触碰之前就明确报错：领域名或表名不匹配 <code>UNIT_NAME_RE</code>、版本不是非负整数、global schema 接受 <code>null</code>，这些都会抛出（<code>null</code> 是介质的「从未写入」哨兵值，可空的 global 一旦存储就无法往返还原）。<code>domainTable&lt;K, V&gt;(schema)</code> 声明一张表，其键类型是仅存在于编译期的 phantom 类型（通常是<a href="/src/docs/subsystems/core.zh.md">品牌化 id</a>）；<code>descriptorOf(spec)</code> 投影出面向后端的 unit 描述符。</p>
 <p><a id="domain-versioning" class="anch"></a></p>
 <h2 id="领域版本"><span id="domain-versioning" class="anch"></span>领域版本</h2>
 <p><code>version</code> 表示当前读写格式。<code>compatibleVersions</code> 列出拥有方可用当前 schema 解码其记录和全局值的旧版本；只允许小于 <code>version</code> 的非负整数。不声明兼容版本时，读取仍要求精确版本。接受旧版本不放宽记录校验，也不允许更新的未知版本。每行已存字段必须能无歧义地确定其含义；单元版本戳无法在混合行中区分相同字段的不同含义。</p>
 <p>普通兼容打开和读取不会重新盖戳或规范化已存值。整单元 JSON 用一次原子文件替换发布当前版本戳和修改后的数据；SQLite 将首次单元版本更新与修改放在同一事务中提交；批量删除始终使用一个事务。删除不存在的记录或空批次不会推进版本戳。版本戳标识可接受格式，不代表值规范化已经完成；读取器必须接受混合代际。采用单元级版本戳的后端会拒绝不支持的单元版本。</p>
 <p>发布前的序列化失败或成功的 SQLite 回滚会保留原有数据与版本戳。JSON 替换后的 I/O 失败或 SQLite 回滚本身失败时，即使操作被拒绝，已存结果也可能未知。必须停止使用并关闭后端及其领域，然后重新打开检查已存状态，再决定是否重试。各后端 README 定义了这些失败情况。</p>
-<p>JSON 的 <code>per-record</code> 布局独立检查和标记每份文档；不支持的文档读取为缺失。其已有整单元引导是只读加载的例外：它将接受的历史值复制到当前版本文档中，不转换其中的值。已有的已声明表目录（即使为空）或已声明全局文档会禁止引导。SQLite 无论布局请求为何都保持单元级版本检查。布局与恢复行为见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-json/README.zh.md">JSON 后端</a>和 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-sqlite/README.zh.md">SQLite 后端</a>。</p>
+<p>JSON 的 <code>per-record</code> 布局独立检查和标记每份文档；不支持的文档读取为缺失。其已有整单元引导是只读加载的例外：它将接受的历史值复制到当前版本文档中，不转换其中的值。已有的已声明表目录（即使为空）或已声明全局文档会禁止引导。SQLite 无论布局请求为何都保持单元级版本检查。布局与恢复行为见 <a href="/src/packages/storage/storage-json/README.zh.md">JSON 后端</a>和 <a href="/src/packages/storage/storage-sqlite/README.zh.md">SQLite 后端</a>。</p>
 <p>兼容后继版本需提升 <code>version</code>、在 <code>compatibleVersions</code> 中保留仍可读的版本戳，并扩展同一 schema 的解码和默认规则。消费者在重写选定记录时规范化值；Storage 不分配应用记录版本。验证历史版本与跨版本升级、混合值、不写入的读取、失败回滚、重启、其他单元隔离和未知版本拒绝。删表与布局变更各自需要保留及升级策略；兼容版本戳本身不定义这些策略。</p>
 <p>v2 单元可能包含未改动的 v1 值。接受版本戳 2 的 v3 读取器仍须解码这些值；对于跳过 v2 的用户，还必须接受版本戳 1。移除旧解码逻辑前必须重写并验证全部受影响记录，包括已处于当前单元版本戳下的记录。不兼容变更需要在用新 schema 打开前执行明确且可恢复的升级；存储领域没有值迁移执行器。</p>
 <p>如果需要回到旧读取器，必须在写入新格式前保留一致的备份：首次修改后，旧读取器可能拒绝新的版本戳。手工降低已存版本戳不会逆转值转换。领域兼容性不迁移 SQLite 物理 schema 或 JSON 外层格式，更改后端路由也不会转移已存数据。Session 格式迁移与 SQLite 物理布局版本各有拥有方，不迁移领域值。</p>
@@ -141,11 +141,11 @@ interface DomainChangedBase {
 }</code></pre>
 <pre><code>/** One durable domain change; a closed union — switch on `operation`. */
 type DomainChanged = DomainChangedPut | DomainChangedDeleted</code></pre>
-<p><code>put</code>（插入、覆写和 global 写入）在 <code>value</code> 中携带新快照——绝不携带旧值；需要做差异比较的消费方自行保留上一份快照。<code>deleted</code> 是不携带值的墓碑。该事件是通知，不是事务参与者：发出时提交点已经过去，因此同步抛出的监听器会被兜住并记录一条警告，而不会让已经持久的写入被拒绝；发出的值等于发出时刻的内存态。该事件仅限进程内；跨进程的变更推送是一项已记录的限制（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain/README.zh.md">包 README</a>）。</p>
+<p><code>put</code>（插入、覆写和 global 写入）在 <code>value</code> 中携带新快照——绝不携带旧值；需要做差异比较的消费方自行保留上一份快照。<code>deleted</code> 是不携带值的墓碑。该事件是通知，不是事务参与者：发出时提交点已经过去，因此同步抛出的监听器会被兜住并记录一条警告，而不会让已经持久的写入被拒绝；发出的值等于发出时刻的内存态。该事件仅限进程内；跨进程的变更推送是一项已记录的限制（<a href="/src/packages/storage/storage-domain/README.zh.md">包 README</a>）。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxstorage--storage" class="anch"></a></p>
 <h3 id="ctx.storage-—-Storage"><span id="ctxstorage--storage" class="anch"></span><code>ctx.storage</code> — <code>Storage</code></h3>
 <p>The storage hub service. Backends register under <code>backend</code>; data forms mount under their <code>StorageForms</code> key and are reached as <code>ctx.storage.&lt;form&gt;</code>.</p>
@@ -164,7 +164,7 @@ mount&lt;K extends keyof StorageForms&gt;(form: K, facility: StorageForms[K]): (
  * @returns the mounted facility.
  */
 form&lt;K extends keyof StorageForms&gt;(form: K): StorageForms[K]</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage/src/index.ts"><code>packages/storage/storage/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/storage/storage/src/index.ts"><code>packages/storage/storage/src/index.ts</code></a></p>
 <p><a id="ctxstoragedomain--domainfacility" class="anch"></a></p>
 <h3 id="ctx.storageDomain-—-DomainFacility"><span id="ctxstoragedomain--domainfacility" class="anch"></span><code>ctx.storageDomain</code> — <code>DomainFacility</code></h3>
 <p>The mounted domain facility. Opens declared domains over routed backends; one facility instance owns the open-domain table and enforces single-open per domain name.</p>
@@ -204,7 +204,7 @@ get(name: string): DomainImpl | undefined
  * @returns resolution after every unit is released.
  */
 async closeAll(): Promise&lt;void&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain/src/index.ts"><code>packages/storage/storage-domain/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/storage/storage-domain/src/index.ts"><code>packages/storage/storage-domain/src/index.ts</code></a></p>
 <p><a id="domain-events" class="anch"></a></p>
 <h3 id="domain/-events"><span id="domain-events" class="anch"></span><code>domain/*</code> events</h3>
 <p><a id="domainchanged--emit" class="anch"></a></p>
@@ -219,7 +219,7 @@ async closeAll(): Promise&lt;void&gt;</code></pre>
  * @mode emit
  */
 &#x27;domain/changed&#x27;(change: DomainChanged): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/storage/storage-domain/src/events.ts"><code>packages/storage/storage-domain/src/events.ts</code></a></p>
+<p>Source: <a href="/src/packages/storage/storage-domain/src/events.ts"><code>packages/storage/storage-domain/src/events.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/storage">← 返回图谱并聚焦该文档</a></div>
   </main>

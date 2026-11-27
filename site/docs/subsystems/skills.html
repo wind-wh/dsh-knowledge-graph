@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,12 +18,12 @@
     <h1>Skills</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/skills.md</div>
     <div class="body"><h1 id="Skills"><span id="ctxskills--skillregistry" class="anch"></span><span id="ctxupstreamskills--upstreamskills" class="anch"></span><span id="skills-events" class="anch"></span>Skills</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/skills.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill">skill（技能）能力族</a> 包含 Service Definition（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill">dsh-skill</a>，<code>ctx.skills</code>）、本地 Service Provider（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem">dsh-skill-filesystem</a>）、可选的随包提供方（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/skill-badge">dsh-skill-badge</a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-office">dsh-skill-office</a> 及 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-windows-acl">dsh-sandbox-windows-acl</a> 中的 Windows ACL 诊断提供方）和 Consumer（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/tool-skill">dsh-tool-skill</a>）。注册表在其宿主层与各 scope 层之间合并各提供方的目录；提供方贡献本地或随包 skill；Consumer 拥有初始目录和替换目录，以及面向模型的 <code>skill</code> 工具。skill 是可选的指令而非会话事件，因此其词汇定义在此处而非 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">core.md</a>。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem/src/index.ts"><code>packages/skill/skill-filesystem/src/index.ts</code></a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/skill-badge/src/index.ts"><code>packages/experimental/skill-badge/src/index.ts</code></a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-office/src/index.ts"><code>packages/skill/skill-office/src/index.ts</code></a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/sandbox/sandbox-windows-acl/src/acl-skill.ts"><code>packages/sandbox/sandbox-windows-acl/src/acl-skill.ts</code></a> 与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/tool-skill/src/index.ts"><code>packages/skill/tool-skill/src/index.ts</code></a>。</p>
+<p><a href="/src/docs/subsystems/skills.md">English</a> | 中文</p>
+<p><a href="/src/packages/skill">skill（技能）能力族</a> 包含 Service Definition（<a href="/src/packages/skill/skill">dsh-skill</a>，<code>ctx.skills</code>）、本地 Service Provider（<a href="/src/packages/skill/skill-filesystem">dsh-skill-filesystem</a>）、可选的随包提供方（<a href="/src/packages/experimental/skill-badge">dsh-skill-badge</a>、<a href="/src/packages/skill/skill-office">dsh-skill-office</a> 及 <a href="/src/packages/sandbox/sandbox-windows-acl">dsh-sandbox-windows-acl</a> 中的 Windows ACL 诊断提供方）和 Consumer（<a href="/src/packages/skill/tool-skill">dsh-tool-skill</a>）。注册表在其宿主层与各 scope 层之间合并各提供方的目录；提供方贡献本地或随包 skill；Consumer 拥有初始目录和替换目录，以及面向模型的 <code>skill</code> 工具。skill 是可选的指令而非会话事件，因此其词汇定义在此处而非 <a href="/src/docs/subsystems/core.zh.md">core.md</a>。</p>
+<p>源码：<a href="/src/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a>、<a href="/src/packages/skill/skill-filesystem/src/index.ts"><code>packages/skill/skill-filesystem/src/index.ts</code></a>、<a href="/src/packages/experimental/skill-badge/src/index.ts"><code>packages/experimental/skill-badge/src/index.ts</code></a>、<a href="/src/packages/skill/skill-office/src/index.ts"><code>packages/skill/skill-office/src/index.ts</code></a>、<a href="/src/packages/sandbox/sandbox-windows-acl/src/acl-skill.ts"><code>packages/sandbox/sandbox-windows-acl/src/acl-skill.ts</code></a> 与 <a href="/src/packages/skill/tool-skill/src/index.ts"><code>packages/skill/tool-skill/src/index.ts</code></a>。</p>
 <h2 id="提供方注册表">提供方注册表</h2>
 <p><code>ctx.skills</code> 组合本地、内嵌、远程或其他提供方。注册是同步的；远程初始化与发现属于 <code>list()</code> 的 await 阶段。提供方对象、选项与候选项以只读方式借用，语义字段会被校验。</p>
-<p>注册表采用宿主 + 按 scope 的分层结构，即<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">工具注册表</a>在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/scope">dsh-scope</a> 之上确立的形态：注册会落入调用方上下文 scope 对应的层——宿主行与 repository 插件落入全局层，由 agent（智能体） preset 常驻组合挂载的插件落入该 preset 的层——提供方名称在每层内唯一，而非进程级唯一。读取时将全局层与观察 scope 的链合并：最近层的条目直接赢得重名 skill，下文的 rank 顺序只在单层内裁决重名。发现缓存以解析后的 scope 链为键，因此重设 scope 父级（空会话重组）无需注册表变更即可被下一次读取看到。</p>
+<p>注册表采用宿主 + 按 scope 的分层结构，即<a href="/src/docs/subsystems/tools.zh.md">工具注册表</a>在 <a href="/src/packages/core/scope">dsh-scope</a> 之上确立的形态：注册会落入调用方上下文 scope 对应的层——宿主行与 repository 插件落入全局层，由 agent（智能体） preset 常驻组合挂载的插件落入该 preset 的层——提供方名称在每层内唯一，而非进程级唯一。读取时将全局层与观察 scope 的链合并：最近层的条目直接赢得重名 skill，下文的 rank 顺序只在单层内裁决重名。发现缓存以解析后的 scope 链为键，因此重设 scope 父级（空会话重组）无需注册表变更即可被下一次读取看到。</p>
 <p>在单层内，重名项依次按 rank、提供方顺序和本地顺序确定优先级；摘要按名称排序。提供方的 <code>list()</code> 被拒绝时，系统会记录日志，并从不完整观测中省略该提供方的结果；显式的不完整观测会提供可用候选项，但不会使结果变得可缓存；格式错误的候选项以带 <code>SKILL_INVALID_DEFINITION</code> 的 <code>SkillError</code> 快速失败。每个提供方工厂都会接收一项注册作用域内的控制能力；仅当该精确注册仍处于活动状态时，其 <code>invalidate()</code> 才会清除已完成目录；注册失败或 dispose（资源释放）时，其信号会中止。若提供方代次在发现进行期间发生变化，该发现会重试一次；若再次变化，则返回最新候选项，并将结果标为不完整且不予缓存。提供方和运行时变更会发出不带过滤条件的 <code>skills/change</code> 失效事件；该事件不携带 diff，因此消费方会使用自身的查找选项重新获取 <code>snapshot()</code>。</p>
 <p><code>SkillProvider.list()</code> 返回的数组是完整发现的简写形式。<code>SkillProviderObservation</code> 允许提供方公开仍可直接加载的候选项，同时报告该观测不具权威性。</p>
 <pre><code>/** Provider candidates plus whether the current discovery is authoritative. */
@@ -160,7 +160,7 @@ interface SkillViewOptions extends SkillLookupOptions {
   /** Viewing scope (the calling agent); omitted reads the global layer alone. */
   readonly scope?: ScopeKey | undefined
 }</code></pre>
-<p>注册表只拥有其发现缓存上限。本地提供方拥有文件系统根目录（<code>dshHome</code>、<code>agentsHome</code>、<code>customSkillDirs</code>，以及可选的 <code>bundledSkillDir</code>/<code>DSH_BUNDLED_SKILL_DIR</code>），以及 watcher 启用、轮询、稳定性、符号链接和项目容量控制。消费方拥有其目录描述上限。确切的默认值和校验规则见自动生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/config-catalog.zh.md">插件配置目录</a>。</p>
+<p>注册表只拥有其发现缓存上限。本地提供方拥有文件系统根目录（<code>dshHome</code>、<code>agentsHome</code>、<code>customSkillDirs</code>，以及可选的 <code>bundledSkillDir</code>/<code>DSH_BUNDLED_SKILL_DIR</code>），以及 watcher 启用、轮询、稳定性、符号链接和项目容量控制。消费方拥有其目录描述上限。确切的默认值和校验规则见自动生成的<a href="/src/docs/config-catalog.zh.md">插件配置目录</a>。</p>
 <pre><code>/** Skill registry configuration. */
 interface Config {
   /** Maximum number of completed cwd/provider catalogs kept in memory. */
@@ -175,7 +175,7 @@ interface Config {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsessionskillcatalog--sessionskillcatalog" class="anch"></a></p>
 <h3 id="ctx.sessionSkillCatalog-—-SessionSkillCatalog"><span id="ctxsessionskillcatalog--sessionskillcatalog" class="anch"></span><code>ctx.sessionSkillCatalog</code> — <code>SessionSkillCatalog</code></h3>
 <p>Host service backing <code>ctx.remote.skills</code> without activating a cold Agent.</p>
@@ -187,7 +187,7 @@ interface Config {
  * @throws RemoteError when the Session cannot be inspected or no registry can serve it.
  */
 @Remote async list(request: SkillListRequest, signal: AbortSignal): Promise&lt;SkillListValue&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/skill-catalog.ts"><code>packages/api/session-controller/src/skill-catalog.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/skill-catalog.ts"><code>packages/api/session-controller/src/skill-catalog.ts</code></a></p>
 <p><a id="ctxskills--skillregistry" class="anch"></a></p>
 <h3 id="ctx.skills-—-SkillRegistry"><span id="ctxskills--skillregistry" class="anch"></span><code>ctx.skills</code> — <code>SkillRegistry</code></h3>
 <p>Layered registry of skill providers, the host+per-scope shape the tools registry established. A registration files into the layer of its calling context's scope (scopeOf): host rows and repository plugins land in the global layer, while a plugin mounted by an agent preset's standing composition lands in that preset's layer. A read merges the global layer with the viewing scope's chain — the nearest layer's entry wins a duplicate name outright, and the rank order decides duplicates only within one layer. It exposes sorted invocation-neutral summaries and loads full skill bodies on demand.</p>
@@ -244,7 +244,7 @@ async snapshot(options: SkillViewOptions = {}): Promise&lt;SkillCatalogSnapshot&
  * @returns the full skill, including body content, or `undefined`.
  */
 async get(name: string, options: SkillViewOptions = {}): Promise&lt;SkillDefinition | undefined&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a></p>
 <p><a id="ctxupstreamskills--upstreamskills" class="anch"></a></p>
 <h3 id="ctx.upstreamSkills-—-UpstreamSkills"><span id="ctxupstreamskills--upstreamskills" class="anch"></span><code>ctx.upstreamSkills</code> — <code>UpstreamSkills</code></h3>
 <p>Holds what CLI app plugins register: for each plugin, the entry skill and the download of the upstream files it indexes.</p>
@@ -260,7 +260,7 @@ async get(name: string, options: SkillViewOptions = {}): Promise&lt;SkillDefinit
  *   skill provider named `name` is already registered.
  */
 register(registration: UpstreamSkillsRegistration): UpstreamSkillsHandle</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/connector/upstream-skills/src/index.ts"><code>packages/connector/upstream-skills/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/connector/upstream-skills/src/index.ts"><code>packages/connector/upstream-skills/src/index.ts</code></a></p>
 <p><a id="skills-events" class="anch"></a></p>
 <h3 id="skills/-events"><span id="skills-events" class="anch"></span><code>skills/*</code> events</h3>
 <p><a id="skillschange--emit" class="anch"></a></p>
@@ -274,7 +274,7 @@ register(registration: UpstreamSkillsRegistration): UpstreamSkillsHandle</code><
  * @mode emit
  */
 &#x27;skills/change&#x27;(): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/skill/skill/src/index.ts"><code>packages/skill/skill/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/skills">← 返回图谱并聚焦该文档</a></div>
   </main>

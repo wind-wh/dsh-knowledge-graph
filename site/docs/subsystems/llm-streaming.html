@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,13 +18,13 @@
     <h1>LLM（大语言模型）流式输出</h1>
     <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/llm-streaming.md</div>
     <div class="body"><h1 id="LLM（大语言模型）流式输出">LLM（大语言模型）流式输出</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/README.zh.md"><code>packages/llm</code></a> 提供对话与流式输出类型：持久 <code>Message</code> 值、仅供请求使用的 user 输入、共用的 <code>ContentBlock</code> 变体、完整组装的模型请求、原始 <code>StreamChunk</code> 协议、每个适配器必须实现的适配器约定（adapter contract），以及共享的 assembler。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">核心包</a>在每个轮次持有并记录这些值；本页声明它们。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
+<p><a href="/src/docs/subsystems/llm-streaming.md">English</a> | 中文</p>
+<p><a href="/src/packages/llm/README.zh.md"><code>packages/llm</code></a> 提供对话与流式输出类型：持久 <code>Message</code> 值、仅供请求使用的 user 输入、共用的 <code>ContentBlock</code> 变体、完整组装的模型请求、原始 <code>StreamChunk</code> 协议、每个适配器必须实现的适配器约定（adapter contract），以及共享的 assembler。<a href="/src/docs/subsystems/core.zh.md">核心包</a>在每个轮次持有并记录这些值；本页声明它们。</p>
+<p>源码：<a href="/src/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
 <p><a id="content-blocks-and-messages" class="anch"></a></p>
 <h2 id="内容块与消息"><span id="content-blocks-and-messages" class="anch"></span>内容块与消息</h2>
 <p>一段对话由 <code>Message</code> 组成；一条消息是一个类型化<strong>内容块</strong>的数组。块的联合类型从 <code>ContentBlockMap</code> 派生。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
+<p>源码：<a href="/src/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
 <pre><code>/**
  * Merge-extensible content blocks keyed by `type`. New core blocks must land
  * with adapter, UI, and compaction support. Tool-change blocks belong to
@@ -39,15 +39,15 @@ interface ContentBlockMap {
   &#x27;tool-addition&#x27;: ToolAdditionBlock
   &#x27;tool-removal&#x27;: ToolRemovalBlock
 }</code></pre>
-<p>各块接口（完整字段见源码）：<code>TextBlock</code>（<code>text</code>）、<code>ReasoningBlock</code>（thinking，区别于可见文本）、<code>ImageBlock</code>（一个持久的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/attachment.zh.md">图片附件</a>）、<code>FileBlock</code>（一个持久的原样<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/attachment.zh.md">文件附件</a>，请求组装对每条路由都把它投影为 handle 文本）和 <code>ToolCallBlock</code>（<code>id: ToolCallId</code>、<code>name</code>、原始 JSON <code>arguments</code>）。工具结果是一等 <code>ToolResultMessage</code>，含有 <code>toolCallId</code>、结果 <code>content</code> 与可选的 <code>isError</code>；它不是内容块。<code>ContentBlock = ContentBlockMap[ContentBlockType]</code>。仅当适配器、UI、压缩（compaction）和持久回放路径均支持某种新模态时，才将其纳入可合并扩展的 map。 Developer 工具变更块按已解析路由的能力投影。</p>
+<p>各块接口（完整字段见源码）：<code>TextBlock</code>（<code>text</code>）、<code>ReasoningBlock</code>（thinking，区别于可见文本）、<code>ImageBlock</code>（一个持久的<a href="/src/docs/subsystems/attachment.zh.md">图片附件</a>）、<code>FileBlock</code>（一个持久的原样<a href="/src/docs/subsystems/attachment.zh.md">文件附件</a>，请求组装对每条路由都把它投影为 handle 文本）和 <code>ToolCallBlock</code>（<code>id: ToolCallId</code>、<code>name</code>、原始 JSON <code>arguments</code>）。工具结果是一等 <code>ToolResultMessage</code>，含有 <code>toolCallId</code>、结果 <code>content</code> 与可选的 <code>isError</code>；它不是内容块。<code>ContentBlock = ContentBlockMap[ContentBlockType]</code>。仅当适配器、UI、压缩（compaction）和持久回放路径均支持某种新模态时，才将其纳入可合并扩展的 map。 Developer 工具变更块按已解析路由的能力投影。</p>
 <p>图片访问方式属于请求序列化，不属于持久附件或确定性请求图片版本。<code>resolveImageAttachmentAccess()</code> 把附件提供方可选的宿主对象路径，与消费方为当前工具执行文件系统提供的映射组合起来。结果只适用于本次请求，不参与 <code>variantId</code>。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/content.ts"><code>packages/llm/llm/src/content.ts</code></a></p>
+<p>源码：<a href="/src/packages/llm/llm/src/content.ts"><code>packages/llm/llm/src/content.ts</code></a></p>
 <pre><code>/** Execution-world path that model tools can use to read one normalized attachment. */
 interface ImageAttachmentAccess {
   /** Absolute path to immutable normalized bytes; callers must treat it as read-only. */
   readonlyPath: string
 }</code></pre>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/message.ts"><code>packages/llm/llm/src/message.ts</code></a></p>
+<p>源码：<a href="/src/packages/llm/llm/src/message.ts"><code>packages/llm/llm/src/message.ts</code></a></p>
 <p><code>Message</code> 是一个带标识且不可变的角色／来源／内容值。模型生成的 assistant 消息会在来源中记录生成它的提供方和模型，以及可选的适配器私有回放数据：</p>
 <pre><code>/** Provider/model identity and adapter-private replay data for an assistant message. */
 interface AssistantProviderMetadata {
@@ -64,8 +64,8 @@ interface AssistantProviderMetadata {
 }</code></pre>
 <pre><code>/** Any persisted conversation message, discriminated by its `role`. */
 type Message = MessageRoleMap[keyof MessageRoleMap]</code></pre>
-<p><code>DeveloperMessage</code> 以 <code>developer</code> 角色按对话顺序记录增量智能体 Session 变更。<code>ToolAdditionBlock.toolName</code> 激活由所在 Session 事件的历史请求头引用所选定的定义；<code>ToolRemovalBlock.toolName</code> 移除当前生效的定义。其他消息角色拒绝这两种内容块。<code>deferLoading</code> 独立控制工具定义的加载请求，不要求存在添加记录。请求头绑定见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/README.zh.md">Session</a>，提供方支持限制见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/README.zh.md">LLM 包</a>。 已解析和已准备模型元数据中的 <code>ToolUpdate</code> 为 <code>in-history</code> 或 <code>addition-only</code>。<code>GenerateOptions.toolHistory</code> 携带 <code>ToolHistory</code>：初始 <code>tools</code> 和有序 <code>updates</code>，每项把 developer <code>messageId</code> 绑定到已解析历史定义的 <code>additions</code>。运行时将此状态投影为提供方声明，不修改已记录请求头中的有效工具列表。</p>
-<p><code>SystemPromptMessageSource.sections</code> 将活跃指令与转换通知关联到具名来源。活跃记录通过 <code>contentIndex</code> 标识规范文本；来源拥有的通知使用 <code>noticeIndex</code>，其中退役通知的记录不包含规范文本。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">system-prompt 包</a>负责索引规则与已提交状态的重建。</p>
+<p><code>DeveloperMessage</code> 以 <code>developer</code> 角色按对话顺序记录增量智能体 Session 变更。<code>ToolAdditionBlock.toolName</code> 激活由所在 Session 事件的历史请求头引用所选定的定义；<code>ToolRemovalBlock.toolName</code> 移除当前生效的定义。其他消息角色拒绝这两种内容块。<code>deferLoading</code> 独立控制工具定义的加载请求，不要求存在添加记录。请求头绑定见 <a href="/src/packages/core/session/README.zh.md">Session</a>，提供方支持限制见 <a href="/src/packages/llm/llm/README.zh.md">LLM 包</a>。 已解析和已准备模型元数据中的 <code>ToolUpdate</code> 为 <code>in-history</code> 或 <code>addition-only</code>。<code>GenerateOptions.toolHistory</code> 携带 <code>ToolHistory</code>：初始 <code>tools</code> 和有序 <code>updates</code>，每项把 developer <code>messageId</code> 绑定到已解析历史定义的 <code>additions</code>。运行时将此状态投影为提供方声明，不修改已记录请求头中的有效工具列表。</p>
+<p><code>SystemPromptMessageSource.sections</code> 将活跃指令与转换通知关联到具名来源。活跃记录通过 <code>contentIndex</code> 标识规范文本；来源拥有的通知使用 <code>noticeIndex</code>，其中退役通知的记录不包含规范文本。<a href="/src/packages/core/system-prompt/README.zh.md">system-prompt 包</a>负责索引规则与已提交状态的重建。</p>
 <p>消息来源本身也是一个可合并扩展的和类型：</p>
 <pre><code>/**
  * Where a message (or injected content) came from, in the harness&#x27;s own
@@ -190,7 +190,7 @@ type StreamChunk =
 <h2 id="紧凑-Assistant-stream"><span id="compact-assistant-streams" class="anch"></span>紧凑 Assistant stream</h2>
 <p><code>AssistantStreamAccumulator</code> 把每个 <code>StreamChunk</code> 与其原始安全整数时间戳配对，并生成 <code>AssistantStreamRecord[]</code>。同一 block 的连续 text、reasoning 或 tool argument delta 会变成一个 record，使用 <code>time0</code>、精确时间戳间隔和每个原始 delta 对应的一个数组成员；其他 chunk 保留为带时间戳的 raw record。该表示会移除重复 event envelope，但不会合并 token 边界，也不会丢弃 terminal、usage、block、failure 或 replay 事实。</p>
 <p><code>snapshot()</code> 返回分离且不可变的 stream。<code>expandAssistantStream()</code> 会严格检查 record key、成员数、index、时间戳、tool-call identity 与无损 JSON，再重建精确的带时间 chunk 序列。Session 日志会把该 stream 嵌入作为 surface result 的 <code>assistant/message</code>，或嵌入没有 surface message 的 <code>assistant/attempt</code>。</p>
-<p>进程本地 <code>agent/assistant-stream</code> frame 承载实时呈现。持久回放与恢复校验仍会展开内嵌 settlement；遥测、token 记账与 Host 折叠直接读取紧凑记录。记录级读取器（<code>assistantStreamFirstTokenTime</code>、<code>assistantStreamHasVisibleContent</code>、<code>assistantStreamHasVisibleText</code>、<code>lastAssistantStreamChunk</code>、<code>assistantStreamChunks</code>、<code>joinAssistantStreamText</code>、<code>assembleAssistantStream</code> 以及按 run 的 <code>runFirstTokenTime</code> 与 <code>runFirstVisibleTime</code>）以提前退出在一次扫描内回答消费方问题，因此大历史每次结算的代价为 O(records) 而非 O(members) 展开（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/README.zh.md">折叠参考</a>）。<code>expandAssistantStream()</code> 仍是持久边界读取记录与需要每个成员的消费方的校验路径。</p>
+<p>进程本地 <code>agent/assistant-stream</code> frame 承载实时呈现。持久回放与恢复校验仍会展开内嵌 settlement；遥测、token 记账与 Host 折叠直接读取紧凑记录。记录级读取器（<code>assistantStreamFirstTokenTime</code>、<code>assistantStreamHasVisibleContent</code>、<code>assistantStreamHasVisibleText</code>、<code>lastAssistantStreamChunk</code>、<code>assistantStreamChunks</code>、<code>joinAssistantStreamText</code>、<code>assembleAssistantStream</code> 以及按 run 的 <code>runFirstTokenTime</code> 与 <code>runFirstVisibleTime</code>）以提前退出在一次扫描内回答消费方问题，因此大历史每次结算的代价为 O(records) 而非 O(members) 展开（<a href="/src/packages/llm/llm/README.zh.md">折叠参考</a>）。<code>expandAssistantStream()</code> 仍是持久边界读取记录与需要每个成员的消费方的校验路径。</p>
 <p><a id="llmfailure" class="anch"></a></p>
 <h2 id="LlmFailure"><span id="llmfailure" class="anch"></span><code>LlmFailure</code></h2>
 <p>每个抛出的失败或最终适配器的带内失败都会规范化为一种可序列化、提供方无关的 payload。<code>providerRetryAfterMs</code> 是经校验、由提供方请求的正数延迟，而不是重试决策；<code>ProviderRequestId</code> 是用于诊断的不透明品牌字符串。</p>
@@ -259,9 +259,9 @@ interface LlmImageRequestPricing {
 <li><strong>回放状态归适配器所有；其切分是共享词汇。</strong> 成功的 <code>finish</code> 可以携带一个 <code>ReplayEnvelope</code>：不透明的响应级元数据，加上与发射块序列对齐的可选逐块条目。对齐关系是 harness 的词汇——组装丢弃某个块时，同一位置的条目一并丢弃，因此存储的元数据始终描述存储的内容。循环把裁剪后的数据与组装后的 assistant 消息一起存储。后续请求中，仅当历史提供方与目标提供方当前注册到完全相同的适配器实例时，<code>LlmRuntime</code> 才会传递该状态。该适配器负责校验状态并拥有所有跨模型或跨提供方转换；其他适配器只会收到提供方无关的内容以及提供方／模型字段，不会收到私有状态。持久化内容保持权威：读取适配器无法使用的已存状态只会把这一条消息降级为提供方无关转换并带出诊断，而不是让请求失败。</li>
 </ul>
 <h2 id="ResolvedRetryPolicy"><code>ResolvedRetryPolicy</code></h2>
-<p>重试配置会在路由注册前解析为不可变的可辨识联合。normal mode 携带 <code>mode: 'normal'</code>、有限的 <code>maxRetries</code>、<code>retryableCodes</code>，以及必填的 <code>initialDelayMs</code>、<code>maxDelayMs</code> 与 <code>jitterRatio</code>；always mode 携带 <code>mode: 'always'</code> 和相同的必填退避字段，但没有有限上限。省略提供方策略时使用重试五次的 normal 默认值。分层 settings 在切换到 always 模式后可能保留仅属于 normal 的 <code>maxRetries</code> 或 <code>retryableCodes</code>；解析器会忽略这些未启用字段，并捕获纯 always 策略。<code>LlmRuntime.providerRetryPolicy(provider)</code> 返回注册值；调用选定实际提供服务的注册后，<code>llmRetryPolicyOf(stream)</code> 返回从中捕获的值，因此之后释放或替换路由都无法改变进行中失败的恢复策略。可选配置输入字段由<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/config-catalog.zh.md">生成的配置目录</a>列出。</p>
+<p>重试配置会在路由注册前解析为不可变的可辨识联合。normal mode 携带 <code>mode: 'normal'</code>、有限的 <code>maxRetries</code>、<code>retryableCodes</code>，以及必填的 <code>initialDelayMs</code>、<code>maxDelayMs</code> 与 <code>jitterRatio</code>；always mode 携带 <code>mode: 'always'</code> 和相同的必填退避字段，但没有有限上限。省略提供方策略时使用重试五次的 normal 默认值。分层 settings 在切换到 always 模式后可能保留仅属于 normal 的 <code>maxRetries</code> 或 <code>retryableCodes</code>；解析器会忽略这些未启用字段，并捕获纯 always 策略。<code>LlmRuntime.providerRetryPolicy(provider)</code> 返回注册值；调用选定实际提供服务的注册后，<code>llmRetryPolicyOf(stream)</code> 返回从中捕获的值，因此之后释放或替换路由都无法改变进行中失败的恢复策略。可选配置输入字段由<a href="/src/docs/config-catalog.zh.md">生成的配置目录</a>列出。</p>
 <h2 id="AppIdentity：应用归属"><code>AppIdentity</code>：应用归属</h2>
-<p>每个适配器都会向提供方发送的静态公开应用标识（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/attribution.ts"><code>packages/llm/llm/src/attribution.ts</code></a>）。<code>attributionHeaders(identity?)</code> 只把它映射到标准 <code>User-Agent</code> header；该约定有意不支持 OpenRouter 特有的应用归属 header。默认 <code>APP_IDENTITY</code> 从包 manifest（元数据清单）获取版本；每个字段都是公开产品事实——不含 secret、路径、会话 id 或逐用户标识，且任何逐请求信息都不得影响这些值。<code>APP_IDENTITY.suffix</code> 在每次使用时读取 <code>DSH_USER_AGENT_SUFFIX</code>，<code>userAgent()</code> 将其追加在注释之后；不是 RFC 9110 product token 的值使请求失败。<code>dsh</code> 启动器在任何插件加载前将其设为 <code>dsh-profile/&lt;profile&gt;</code>，并对 profile 名中 <code>tchar</code> 以外的字节及 <code>%</code> 本身做百分号编码，因此 Desktop 发送 <code>deepseek-harness/&lt;version&gt; (+&lt;url&gt;) dsh-profile/desktop</code>，名为 <code>my web</code> 的 profile 发送 <code>dsh-profile/my%20web</code>。dsh 子代理子进程报告自己的 profile，因为子进程不继承 <code>DSH_*</code> 变量。</p>
+<p>每个适配器都会向提供方发送的静态公开应用标识（<a href="/src/packages/llm/llm/src/attribution.ts"><code>packages/llm/llm/src/attribution.ts</code></a>）。<code>attributionHeaders(identity?)</code> 只把它映射到标准 <code>User-Agent</code> header；该约定有意不支持 OpenRouter 特有的应用归属 header。默认 <code>APP_IDENTITY</code> 从包 manifest（元数据清单）获取版本；每个字段都是公开产品事实——不含 secret、路径、会话 id 或逐用户标识，且任何逐请求信息都不得影响这些值。<code>APP_IDENTITY.suffix</code> 在每次使用时读取 <code>DSH_USER_AGENT_SUFFIX</code>，<code>userAgent()</code> 将其追加在注释之后；不是 RFC 9110 product token 的值使请求失败。<code>dsh</code> 启动器在任何插件加载前将其设为 <code>dsh-profile/&lt;profile&gt;</code>，并对 profile 名中 <code>tchar</code> 以外的字节及 <code>%</code> 本身做百分号编码，因此 Desktop 发送 <code>deepseek-harness/&lt;version&gt; (+&lt;url&gt;) dsh-profile/desktop</code>，名为 <code>my web</code> 的 profile 发送 <code>dsh-profile/my%20web</code>。dsh 子代理子进程报告自己的 profile，因为子进程不继承 <code>DSH_*</code> 变量。</p>
 <pre><code>/**
  * Static public application identity sent to LLM providers.
  *
@@ -307,7 +307,7 @@ interface TokenUsage {
 }</code></pre>
 <p><a id="blockassembler" class="anch"></a></p>
 <h2 id="BlockAssembler"><span id="blockassembler" class="anch"></span><code>BlockAssembler</code></h2>
-<p><code>BlockAssembler</code>（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/assembler.ts"><code>packages/llm/llm/src/assembler.ts</code></a>）是唯一的共享实现，负责把 <code>StreamChunk</code> 流折叠回 <code>ContentBlock</code>、usage、结束原因与回放状态。循环在记录原始分片的同时，把同一批分片送入 assembler，再将组装后的 assistant 内容连同生成它的提供方和模型一起存储。需要组装结果、又不想重新实现 fold 的消费方使用它。</p>
+<p><code>BlockAssembler</code>（<a href="/src/packages/llm/llm/src/assembler.ts"><code>packages/llm/llm/src/assembler.ts</code></a>）是唯一的共享实现，负责把 <code>StreamChunk</code> 流折叠回 <code>ContentBlock</code>、usage、结束原因与回放状态。循环在记录原始分片的同时，把同一批分片送入 assembler，再将组装后的 assistant 内容连同生成它的提供方和模型一起存储。需要组装结果、又不想重新实现 fold 的消费方使用它。</p>
 <p>内容与元数据共用同一次保留/丢弃决定：<code>max-tokens</code> 结束会丢弃每个工具调用，因为被截断的调用不能安全执行，而同一决定会在每个被丢弃的位置裁剪回放数据的逐块条目。无论组装移除什么，<code>blocks()</code> 与 <code>replayState</code> 都不可能不一致。</p>
 <pre><code>/**
  * Incrementally assembles raw {@link StreamChunk}s into complete
@@ -362,7 +362,7 @@ declare class BlockAssembler {
 <p><a id="the-model-request-and-result" class="anch"></a></p>
 <h2 id="模型请求"><span id="the-model-request-and-result" class="anch"></span>模型请求</h2>
 <p>一次模型调用是一个完全组装好的 <code>GenerateOptions</code>。适配器以原始 <a href="#streamchunk--the-raw-protocol"><code>StreamChunk</code></a> 流作答；消费方用 <a href="#blockassembler"><code>BlockAssembler</code></a> 组装它。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
+<p>源码：<a href="/src/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
 <p>提供方与模型发现使用小型、提供方无关的描述符。模型目录仅供参考：路由仍以已注册提供方为键。</p>
 <p>注册适配器会返回一个句柄：既是释放器，也带有原子的路由替换——路由集合由用户配置决定的插件正需要它。</p>
 <pre><code>/**
@@ -610,7 +610,7 @@ interface ToolSchema {
   /** JSON Schema object for the arguments. */
   parameters: Record&lt;string, unknown&gt;
 }</code></pre>
-<p>面向模型的 <code>ToolSchema</code> 是协议类型；产出它的已注册 <code>ToolDefinition</code>（schema + <code>execute</code>）在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/tools.zh.md">tools.md</a> 中。</p>
+<p>面向模型的 <code>ToolSchema</code> 是协议类型；产出它的已注册 <code>ToolDefinition</code>（schema + <code>execute</code>）在 <a href="/src/docs/subsystems/tools.zh.md">tools.md</a> 中。</p>
 <p>界面正在起草的提供方既没有路由也没有 catalog，因此询问被单独描述：请求携带用户正在编辑的草稿，回复是界面可以采纳的候选，而不是它必须服务的 catalog。</p>
 <pre><code>/**
  * One interrogation of a provider endpoint that configuration has not stored
@@ -654,10 +654,10 @@ interface LlmDiscoveredModel {
   inputModalities?: readonly ModelModality[]
 }</code></pre>
 <h3 id="请求信封：LlmCallConfig-与记录的-header">请求信封：<code>LlmCallConfig</code> 与记录的 header</h3>
-<p>循环从已记录状态构建每个请求。<code>EpochHeader</code> 记录调用配置，标记由适配器默认值提供的字段，并通过完整的 <code>request/header</code> 快照记录权威返回工具顺序（由 <code>toolOrder</code> 配置；未配置时按字典序）。系统提示词是派生历史：按表面顺序排列的初始 <code>system/message</code> 与后续章节更新。请求头与派生历史共同使请求可由会话日志重建。见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">session.md</a> 与<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-05-reconstructable-requests.zh.md">可重建性 Agent Note</a>。</p>
-<p>已弃用的 <code>agent/request</code> hook 仍可供现有监听器使用。新代码通过 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent/README.zh.md">Session 模型选择</a> 设置模型与推理强度。该 hook 收到基于步骤已捕获模型选择的冻结调用配置初值，可以替换采样等控制参数。替换值必须保留提供方、模型及可选的显式推理强度；要改变这些选择，需在下一个步骤之前记录新的 Session 选择。waterfall（瀑布式事件）开始前，循环会移除标记为适配器默认值的值，使确切模型准备过程填入所选路由的当前值；未带标记的显式设置仍保留在提议中。waterfall 结束后，准备过程会在轮次信号控制下拒绝显式指定但不受支持的推理强度 ID（不自动调整），并记录生效配置以及由适配器默认值提供的字段。步骤准入时，该 waterfall 与准备过程在组装和 <code>step/start</code> 之后、系统提示词与已接纳用户批次提交之前运行；在任一阶段取消都不会提交这两者。系统准入使用已组装的章节增量，不读取已准备调用的能力；调用直至分派完成始终持有同一项适配器注册。到达 <code>llm/stream</code> 的请求会被深度冻结，因此变更会抛异常；请求还携带进程本地循环标识，使观察者不会把单独记录的冻结辅助调用误认成对话请求。</p>
+<p>循环从已记录状态构建每个请求。<code>EpochHeader</code> 记录调用配置，标记由适配器默认值提供的字段，并通过完整的 <code>request/header</code> 快照记录权威返回工具顺序（由 <code>toolOrder</code> 配置；未配置时按字典序）。系统提示词是派生历史：按表面顺序排列的初始 <code>system/message</code> 与后续章节更新。请求头与派生历史共同使请求可由会话日志重建。见 <a href="/src/docs/subsystems/session.zh.md">session.md</a> 与<a href="/src/.agents/notes/implemented/architecture/2026-07-05-reconstructable-requests.zh.md">可重建性 Agent Note</a>。</p>
+<p>已弃用的 <code>agent/request</code> hook 仍可供现有监听器使用。新代码通过 <a href="/src/packages/core/agent/README.zh.md">Session 模型选择</a> 设置模型与推理强度。该 hook 收到基于步骤已捕获模型选择的冻结调用配置初值，可以替换采样等控制参数。替换值必须保留提供方、模型及可选的显式推理强度；要改变这些选择，需在下一个步骤之前记录新的 Session 选择。waterfall（瀑布式事件）开始前，循环会移除标记为适配器默认值的值，使确切模型准备过程填入所选路由的当前值；未带标记的显式设置仍保留在提议中。waterfall 结束后，准备过程会在轮次信号控制下拒绝显式指定但不受支持的推理强度 ID（不自动调整），并记录生效配置以及由适配器默认值提供的字段。步骤准入时，该 waterfall 与准备过程在组装和 <code>step/start</code> 之后、系统提示词与已接纳用户批次提交之前运行；在任一阶段取消都不会提交这两者。系统准入使用已组装的章节增量，不读取已准备调用的能力；调用直至分派完成始终持有同一项适配器注册。到达 <code>llm/stream</code> 的请求会被深度冻结，因此变更会抛异常；请求还携带进程本地循环标识，使观察者不会把单独记录的冻结辅助调用误认成对话请求。</p>
 <p>在适配器边界，循环构建的请求通过 <code>messages</code> 携带派生历史，不设置 <code>system</code> 字段。<code>GenerateOptions.system</code> 服务于标题提供方等直接单次调用方。章节变化与退出通知追加系统消息，不删除历史中的较早指令；其文本向模型说明哪些指令仍然适用。初始空系统节点保留在日志中，但不产生模型消息。</p>
-<p>适配器负责提供方请求中的分隔符。DeepSeek 与 pi-ai 适配器会裁剪每个系统文本块，丢弃空块，并以空行连接其余块。DeepSeek 会将开头的系统消息合并到顶层 <code>system</code> 字段，并在支持时原生传输后续更新；不支持时，则将所有系统文本按历史顺序合并。pi-ai 会将开头的系统消息合并到 <code>systemPrompt</code>，并将后续更新表示为原生系统消息或 user 角色的系统提醒。详见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek/README.zh.md">DeepSeek 序列化</a>与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai/README.zh.md">pi-ai 历史转换</a>。</p>
+<p>适配器负责提供方请求中的分隔符。DeepSeek 与 pi-ai 适配器会裁剪每个系统文本块，丢弃空块，并以空行连接其余块。DeepSeek 会将开头的系统消息合并到顶层 <code>system</code> 字段，并在支持时原生传输后续更新；不支持时，则将所有系统文本按历史顺序合并。pi-ai 会将开头的系统消息合并到 <code>systemPrompt</code>，并将后续更新表示为原生系统消息或 user 角色的系统提醒。详见 <a href="/src/packages/llm/llm-deepseek/README.zh.md">DeepSeek 序列化</a>与 <a href="/src/packages/llm/llm-pi-ai/README.zh.md">pi-ai 历史转换</a>。</p>
 <p>FIXME(call-config-shape)：重新审视其余哪些字段出于缓存目的确实属于 epoch 层级（<code>model</code> 和模型持有的推理强度已明确属于；采样标量目前出于谨慎保留在此）。</p>
 <pre><code>/** Concrete generation settings; omitted controls use the selected route&#x27;s defaults. */
 interface LlmCallControls {
@@ -699,11 +699,11 @@ interface LlmCallConfigAdapterDefaults {
 }</code></pre>
 <h2 id="DeepSeek-官方请求扩展">DeepSeek 官方请求扩展</h2>
 <p><code>ctx.deepseekLlmApiExtensions</code> 是用于向 <code>deepseek-official</code> 请求添加顶层字段的提供方特定注册表。贡献插件通过 <code>register(field, provider)</code> 认领一个字段；适配器在序列化基础正文后调用 <code>prepare(request)</code>，并在 HTTP 前合并返回字段。已准备的 <code>accept()</code> 事务会在 2xx 后运行，因此贡献方可以提交交付状态，而不会把传输失败或提供方拒绝当作接受。贡献方准备时抛错会被记录并在该次请求中省略，接受失败只记录告警而不使请求失败；与基础字段冲突时使用 <code>REQUEST_EXTENSION</code> 并使模型请求失败。合并后的正文无法序列化时，请求不带扩展字段发出，跳过接受，并由提供方插件记录被省略的字段名。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/deepseek-llm-api-wire-extensions.zh.md">协议参考</a>定义确切的请求标头、扩展事务、字段版本和接收方义务。随附组合会将 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-log-deepseek/README.zh.md"><code>dsh_session_log</code></a> 注册为无损增量权威日志后缀，并将 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/plugin-package-inventory-deepseek/README.zh.md"><code>dsh_plugin_packages</code></a> 注册为完整存活 Loader 包集合。这些字段仍位于模型消息之外，也不会进入 pi-ai 适配器路径。</p>
+<p><a href="/src/docs/deepseek-llm-api-wire-extensions.zh.md">协议参考</a>定义确切的请求标头、扩展事务、字段版本和接收方义务。随附组合会将 <a href="/src/packages/session/session-log-deepseek/README.zh.md"><code>dsh_session_log</code></a> 注册为无损增量权威日志后缀，并将 <a href="/src/packages/llm/plugin-package-inventory-deepseek/README.zh.md"><code>dsh_plugin_packages</code></a> 注册为完整存活 Loader 包集合。这些字段仍位于模型消息之外，也不会进入 pi-ai 适配器路径。</p>
 <h2 id="Pi-ai-请求头">Pi-ai 请求头</h2>
-<p><code>PiAiRequestHeaderContext</code> 包含已准备调用的 provider、model、解析后的模型 <code>baseURL</code>，以及可选 Session id 和辅助用途。它不可变且不含消息或认证字段，与本次请求独有的 <code>Headers</code> 一起传入同步的 <code>llm-pi-ai/request-headers</code> waterfall。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai/README.zh.md">适配器的请求头文档</a>定义贡献的所有权、应用标识的优先级与失败行为。此扩展点仅适用于 pi-ai 推理请求。</p>
+<p><code>PiAiRequestHeaderContext</code> 包含已准备调用的 provider、model、解析后的模型 <code>baseURL</code>，以及可选 Session id 和辅助用途。它不可变且不含消息或认证字段，与本次请求独有的 <code>Headers</code> 一起传入同步的 <code>llm-pi-ai/request-headers</code> waterfall。<a href="/src/packages/llm/llm-pi-ai/README.zh.md">适配器的请求头文档</a>定义贡献的所有权、应用标识的优先级与失败行为。此扩展点仅适用于 pi-ai 推理请求。</p>
 <h2 id="服务与提供方约定">服务与提供方约定</h2>
-<p><code>LlmAdapter</code> 是提供方约定：创建子类、实现 <code>stream()</code>，再用 <code>ctx.llm.registerAdapter(providers, adapter)</code> 注册一个适配器实例。<code>GenerateOptions.provider</code> 选择已注册适配器；<code>GenerateOptions.model</code> 会传给该适配器，无需在生命周期启动时注册。重复提供方路由会原子失败。可选的 <code>providerRetryPolicy()</code> 会按路由捕获并填入 normal 默认值，<code>providerInfo()</code> 与异步 <code>listModels()</code> 方法则为 <code>LlmRuntime.listProviders()</code> / <code>listModels()</code> 提供分离的 selector 元数据。该目录仅供参考，不是请求白名单：适配器仍是权威，并可接受未列出的模型 id。单次异步 <code>resolveModel()</code> 查询返回确切模型身份，以及可选的对正确性敏感的上下文容量、适配器配置的 <code>defaultMaxTokens</code>、由模型持有的有序推理强度 ID 和可选的部署默认值；字段缺失表示元数据不可用或保留提供方持有的行为，而不表示目录成员关系无效。解析器会接收可选的取消信号，并且必须在信号中止后迅速完成结算。<code>LlmRuntime.resolveModelInfo()</code> 会校验聚合结果并返回分离值。在最终适配器边界，<code>resolveCallConfig()</code> 仅在 <code>maxTokens</code> 缺失时填入输出默认值，并校验和填入推理强度，因此直接调用也无法绕过任何一项已配置行为；直接分派会在等待解析前捕获一项适配器注册。agent loop 则使用 <code>prepareCall()</code>，使模型解析、请求头持久记录和分派全程使用同一项注册，保留来自同一次查询的分离上下文元数据，并报告适配器填入的配置字段。适配器查找发生在 <code>llm/stream</code> waterfall 的终端 continuation，因此 listener 可以在查找前短路调用，或路由一个可变的一次性请求。AgentLoop 在外层 waterfall 返回流句柄时观察到一次请求尝试；这个有限边界不能证明惰性终端适配器已构造完成或开始提供方 I/O。<code>block-start</code> / <code>block-end</code> 的 <code>index</code> 关联与 assembler 共同意味着适配器只需 emit 格式正确的分片——块重组不是每个适配器各自的问题。<code>ctx.llm.stream()</code> 与 <code>llm/stream</code> waterfall 在一个轮次中的位置见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.zh.md">architecture.md</a>。</p>
+<p><code>LlmAdapter</code> 是提供方约定：创建子类、实现 <code>stream()</code>，再用 <code>ctx.llm.registerAdapter(providers, adapter)</code> 注册一个适配器实例。<code>GenerateOptions.provider</code> 选择已注册适配器；<code>GenerateOptions.model</code> 会传给该适配器，无需在生命周期启动时注册。重复提供方路由会原子失败。可选的 <code>providerRetryPolicy()</code> 会按路由捕获并填入 normal 默认值，<code>providerInfo()</code> 与异步 <code>listModels()</code> 方法则为 <code>LlmRuntime.listProviders()</code> / <code>listModels()</code> 提供分离的 selector 元数据。该目录仅供参考，不是请求白名单：适配器仍是权威，并可接受未列出的模型 id。单次异步 <code>resolveModel()</code> 查询返回确切模型身份，以及可选的对正确性敏感的上下文容量、适配器配置的 <code>defaultMaxTokens</code>、由模型持有的有序推理强度 ID 和可选的部署默认值；字段缺失表示元数据不可用或保留提供方持有的行为，而不表示目录成员关系无效。解析器会接收可选的取消信号，并且必须在信号中止后迅速完成结算。<code>LlmRuntime.resolveModelInfo()</code> 会校验聚合结果并返回分离值。在最终适配器边界，<code>resolveCallConfig()</code> 仅在 <code>maxTokens</code> 缺失时填入输出默认值，并校验和填入推理强度，因此直接调用也无法绕过任何一项已配置行为；直接分派会在等待解析前捕获一项适配器注册。agent loop 则使用 <code>prepareCall()</code>，使模型解析、请求头持久记录和分派全程使用同一项注册，保留来自同一次查询的分离上下文元数据，并报告适配器填入的配置字段。适配器查找发生在 <code>llm/stream</code> waterfall 的终端 continuation，因此 listener 可以在查找前短路调用，或路由一个可变的一次性请求。AgentLoop 在外层 waterfall 返回流句柄时观察到一次请求尝试；这个有限边界不能证明惰性终端适配器已构造完成或开始提供方 I/O。<code>block-start</code> / <code>block-end</code> 的 <code>index</code> 关联与 assembler 共同意味着适配器只需 emit 格式正确的分片——块重组不是每个适配器各自的问题。<code>ctx.llm.stream()</code> 与 <code>llm/stream</code> waterfall 在一个轮次中的位置见 <a href="/src/docs/architecture.zh.md">architecture.md</a>。</p>
 <pre><code>/** One model call whose config and adapter registration were resolved together. */
 interface PreparedLlmCall {
   /** Detached, deep-frozen config with any adapter-owned default materialized. */
@@ -811,7 +811,7 @@ declare abstract class LlmAdapter {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxdeepseekllmapiextensions--deepseekllmapiextensionregistry" class="anch"></a></p>
 <h3 id="ctx.deepseekLlmApiExtensions-—-DeepSeekLlmApiExtensionRegistry"><span id="ctxdeepseekllmapiextensions--deepseekllmapiextensionregistry" class="anch"></span><code>ctx.deepseekLlmApiExtensions</code> — <code>DeepSeekLlmApiExtensionRegistry</code></h3>
 <p>Registry of independently owned top-level fields for official DeepSeek requests.</p>
@@ -832,7 +832,7 @@ register&lt;K extends keyof DeepSeekLlmApiExtensionMap&gt;( field: K, provider: 
  * @returns detached fields and their idempotent joint acceptance transaction.
  */
 async prepare(request: DeepSeekLlmApiExtensionRequest): Promise&lt;PreparedDeepSeekLlmApiExtensions&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/deepseek-llm-api-extensions/src/index.ts"><code>packages/llm/deepseek-llm-api-extensions/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/llm/deepseek-llm-api-extensions/src/index.ts"><code>packages/llm/deepseek-llm-api-extensions/src/index.ts</code></a></p>
 <p><a id="ctxllm--llmruntime" class="anch"></a></p>
 <h3 id="ctx.llm-—-LlmRuntime"><span id="ctxllm--llmruntime" class="anch"></span><code>ctx.llm</code> — <code>LlmRuntime</code></h3>
 <p>The abstract <code>llm</code> service: an adapter registry plus a streaming model-call API, interceptable via the <code>llm/stream</code> waterfall.</p>
@@ -995,8 +995,8 @@ async prepareCall( config: LlmCallConfig, signal?: AbortSignal, configure?: Conf
  * @returns the chunk stream, possibly wrapped by `llm/stream` listeners.
  */
 stream(options: GenerateOptions): AsyncIterable&lt;StreamChunk&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/attachment.zh.md">FileAttachmentRef</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/attachment.zh.md">ImageAttachmentRef</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/attachment.zh.md">ImageRequestTarget</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/index.ts"><code>packages/llm/llm/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/attachment.zh.md">FileAttachmentRef</a> · <a href="/src/docs/subsystems/attachment.zh.md">ImageAttachmentRef</a> · <a href="/src/docs/subsystems/attachment.zh.md">ImageRequestTarget</a></p>
+<p>Source: <a href="/src/packages/llm/llm/src/index.ts"><code>packages/llm/llm/src/index.ts</code></a></p>
 <p><a id="llm-events" class="anch"></a></p>
 <h3 id="llm/-events"><span id="llm-events" class="anch"></span><code>llm/*</code> events</h3>
 <p><a id="llmadapters-updated--emit" class="anch"></a></p>
@@ -1012,7 +1012,7 @@ stream(options: GenerateOptions): AsyncIterable&lt;StreamChunk&gt;</code></pre>
  * @mode emit
  */
 &#x27;llm/adapters-updated&#x27;(): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
 <p><a id="llmmodels-updated--emit" class="anch"></a></p>
 <h4 id="llm/models-updated-—-emit"><code>llm/models-updated</code> — emit</h4>
 <p>A provider's advertised models or display metadata changed; consumers reload <code>listModels()</code>.</p>
@@ -1022,7 +1022,7 @@ stream(options: GenerateOptions): AsyncIterable&lt;StreamChunk&gt;</code></pre>
  * @param provider - route whose model catalog changed.
  */
 &#x27;llm/models-updated&#x27;(provider: string): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/llm/llm/src/types.ts"><code>packages/llm/llm/src/types.ts</code></a></p>
 <p><a id="llmstream--waterfall" class="anch"></a></p>
 <h4 id="llm/stream-—-waterfall"><code>llm/stream</code> — waterfall</h4>
 <p>Waterfall around every streaming model call (retry, replay, routing). Bound to the LlmRuntime; call <code>next()</code> to reach the resolved adapter's stream, or yield your own chunks to short-circuit.</p>
@@ -1039,7 +1039,7 @@ stream(options: GenerateOptions): AsyncIterable&lt;StreamChunk&gt;</code></pre>
  * @mode waterfall
  */
 &#x27;llm/stream&#x27;(this: LlmRuntime, options: GenerateOptions, next: () =&gt; AsyncIterable&lt;StreamChunk&gt;): AsyncIterable&lt;StreamChunk&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm/src/index.ts"><code>packages/llm/llm/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/llm/llm/src/index.ts"><code>packages/llm/llm/src/index.ts</code></a></p>
 <p><a id="llm-pi-ai-events" class="anch"></a></p>
 <h3 id="llm-pi-ai/-events"><span id="llm-pi-ai-events" class="anch"></span><code>llm-pi-ai/*</code> events</h3>
 <p><a id="llm-pi-airequest-headers--waterfall" class="anch"></a></p>
@@ -1059,7 +1059,7 @@ stream(options: GenerateOptions): AsyncIterable&lt;StreamChunk&gt;</code></pre>
  * @returns headers passed to pi-ai after Harness attribution is applied.
  */
 &#x27;llm-pi-ai/request-headers&#x27;(request: PiAiRequestHeaderContext, headers: Headers, next: () =&gt; Headers): Headers</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-pi-ai/src/index.ts"><code>packages/llm/llm-pi-ai/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/llm/llm-pi-ai/src/index.ts"><code>packages/llm/llm-pi-ai/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/llm-streaming">← 返回图谱并聚焦该文档</a></div>
   </main>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,8 +18,8 @@
     <h1>Cordis 入门</h1>
     <div class="meta">分组：概念 · 本地副本：.ua/docs-local/cordis-primer.md</div>
     <div class="body"><h1 id="Cordis-入门">Cordis 入门</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.md">English</a> | 中文</p>
-<p>Cordis 是 DeepSeek Harness 底层以 vendor 方式引入的插件框架。本文介绍 harness 插件作者在阅读<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">子系统页面</a>上生成的服务/事件参考之前需要了解的 Cordis 核心概念；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-tutorial/index.zh.md">Cordis 教程</a>则通过实践逐一讲解这些概念。vendor 源码与同步流程见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/README.md">vendor/README.md</a>。</p>
+<p><a href="/src/docs/cordis-primer.md">English</a> | 中文</p>
+<p>Cordis 是 DeepSeek Harness 底层以 vendor 方式引入的插件框架。本文介绍 harness 插件作者在阅读<a href="/src/docs/subsystems/core.zh.md">子系统页面</a>上生成的服务/事件参考之前需要了解的 Cordis 核心概念；<a href="/src/docs/cordis-tutorial/index.zh.md">Cordis 教程</a>则通过实践逐一讲解这些概念。vendor 源码与同步流程见 <a href="/src/vendor/README.md">vendor/README.md</a>。</p>
 <h2 id="五个核心概念">五个核心概念</h2>
 <ul>
 <li><strong>插件是实现 Service 的对象。</strong> 它可以是一个带有可选 <code>inject</code> 和 <code>apply(ctx)</code> 字段的函数，也可以是一个 <code>Service</code> 子类，其生命周期由 Cordis 挂载到当前上下文中。</li>

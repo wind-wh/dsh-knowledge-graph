@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,18 +18,18 @@
     <h1>压缩（compaction）</h1>
     <div class="meta">分组：模型与上下文 · 本地副本：.ua/docs-local/subsystems/compaction.md</div>
     <div class="body"><h1 id="压缩（compaction）">压缩（compaction）</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.md">English</a> | 中文</p>
-<p>压缩 seam 是一个<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>，与 bash 一样分为 Service Definition（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction">dsh-compaction</a>，<code>ctx.compaction</code>）、Service Provider（例如 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic">dsh-compaction-basic</a> 后端）和面向用户的 Consumer（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/command-compact">dsh-command-compact</a>）。压缩是<strong>一项可选能力</strong>，不属于 agent loop（智能体循环）主干，因此其词汇定义在此而非 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">core.md</a> 中。基于 tokenizer 或模板的后端是实现同一接口的兄弟包。与 bash 不同，该接口必然依赖 <code>dsh-session</code> 和 <code>dsh-llm</code>：其动词作用于 agent 所有的 <code>Session</code>，而其持久摘要事件使用 <code>ContentBlock</code> 词汇（见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction/README.zh.md">压缩能力 seam 参考</a>）。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction/src/types.ts"><code>packages/compaction/compaction/src/types.ts</code></a></p>
+<p><a href="/src/docs/subsystems/compaction.md">English</a> | 中文</p>
+<p>压缩 seam 是一个<a href="/src/.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md">能力 seam</a>，与 bash 一样分为 Service Definition（<a href="/src/packages/compaction/compaction">dsh-compaction</a>，<code>ctx.compaction</code>）、Service Provider（例如 <a href="/src/packages/compaction/compaction-basic">dsh-compaction-basic</a> 后端）和面向用户的 Consumer（<a href="/src/packages/compaction/command-compact">dsh-command-compact</a>）。压缩是<strong>一项可选能力</strong>，不属于 agent loop（智能体循环）主干，因此其词汇定义在此而非 <a href="/src/docs/subsystems/core.zh.md">core.md</a> 中。基于 tokenizer 或模板的后端是实现同一接口的兄弟包。与 bash 不同，该接口必然依赖 <code>dsh-session</code> 和 <code>dsh-llm</code>：其动词作用于 agent 所有的 <code>Session</code>，而其持久摘要事件使用 <code>ContentBlock</code> 词汇（见<a href="/src/packages/compaction/compaction/README.zh.md">压缩能力 seam 参考</a>）。</p>
+<p>源码：<a href="/src/packages/compaction/compaction/src/types.ts"><code>packages/compaction/compaction/src/types.ts</code></a></p>
 <h2 id="compaction/-会话事件"><code>compaction/*</code> 会话事件</h2>
-<p>压缩通过声明合并为 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md"><code>SessionEventMap</code></a> 扩展三种事件类型。三者都<strong>仅写入日志</strong>——它们记录锁、摘要、选中范围、被遮蔽事件 seq、token 数以及模型调用，绝不进入 surface。这里有意不扩展 <code>SurfaceEventType</code>（只有产生消息的事件才到达模型），因此摘要本身承载在另一条带有 <code>surfaceOp: { op: 'replace', startSeq, endSeq }</code> 的 <code>user/message</code> 上。下一次模型尝试通过普通 <code>system/message</code> 替换操作合并当前系统指令。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/feature/2026-06-18-compaction-capability-seam.md">历史Agent Note</a> 负责复用 <code>user/message</code> 的决策依据。</p>
+<p>压缩通过声明合并为 <a href="/src/docs/subsystems/session.zh.md"><code>SessionEventMap</code></a> 扩展三种事件类型。三者都<strong>仅写入日志</strong>——它们记录锁、摘要、选中范围、被遮蔽事件 seq、token 数以及模型调用，绝不进入 surface。这里有意不扩展 <code>SurfaceEventType</code>（只有产生消息的事件才到达模型），因此摘要本身承载在另一条带有 <code>surfaceOp: { op: 'replace', startSeq, endSeq }</code> 的 <code>user/message</code> 上。下一次模型尝试通过普通 <code>system/message</code> 替换操作合并当前系统指令。<a href="/src/.agents/notes/archived/feature/2026-06-18-compaction-capability-seam.md">历史Agent Note</a> 负责复用 <code>user/message</code> 的决策依据。</p>
 <table><thead><tr><th>事件</th><th>载荷</th><th>作用</th></tr></thead><tbody><tr><td><code>compaction/start</code></td><td><code>{ turn }</code></td><td>获取日志记录的锁；数字标识尚未结束的自动轮次，<code>null</code> 标识独立手动尝试</td></tr><tr><td><code>compaction/summary</code></td><td><code>{ summary, rawOutput?, llmStreamCall?, shadowedRange, shadowedSeqs, shadowedTokenCount, provider, model, maxTokens?, usage? }</code></td><td>安全摘要投影、可选的完整提供方输出与 usage、生成结果时恰好通过此上下文的 <code>ctx.llm.stream()</code> 发起一次调用所带的 <code>llmStreamCall: true</code> 标记（此时必须提供完整的 <code>rawOutput</code>）、被遮蔽的 surface 边界对（<code>start</code>/<code>end</code> seq——位置跨度，而非数值区间）、按 surface 顺序排列的被遮蔽 seq、估算 token 数，以及摘要调用的 envelope（<code>provider</code>、<code>model</code>，若有生成上限则还包括该上限）——写入日志后，该一次性请求可由日志 + 代码重建（见可重建性 Agent Note）；未带标记的 <code>rawOutput</code> 并不能判定调用路径</td></tr><tr><td><code>compaction/end</code></td><td><code>{ turn, error? }</code></td><td>使用相同的数字或 <code>null</code> 归属值释放锁（<code>error</code> 记录失败尝试）</td></tr></tbody></table>
 <p>锁括住<strong>整个</strong>操作：先追加 <code>compaction/start</code>，然后执行摘要生成、写入 <code>compaction/summary</code> 记录与 <code>user/message</code> 替换，最后才追加 <code>compaction/end</code>。最后释放锁意味着操作中途崩溃会表现为可检测的遗留锁（有 <code>compaction/start</code> 而无匹配的 <code>compaction/end</code>），而非一个虚假声称压缩已完成的 <code>compaction/end</code>。</p>
 <p>这些标记表示锁的时间点，而不是排他的容器。摘要等待期间，不相关的空闲注入可以出现在独立的手动 start 与 end 之间。手动路径只重新验证所选位置 span，因此替换检查点之后仍保留该注入上下文。活动的未匹配 start 会阻塞所有入口点；较新 <code>session/end-seed</code> 之前的未匹配 start 是先前生命周期留下的陈旧证据，会被忽略。</p>
 <p>这些变体在 <code>declare module '@deepseek-ai/dsh-session/types'</code> 块内合并，因此——与其他子系统页面上的顶层类型不同——它们不以漂移检查的 <code> </code>`<code>ts type-equiv </code> 块粘贴（<code>verify-type-equiv</code> 提取器只按名称匹配顶层声明）。上方的载荷表即为目录条目；权威字段请循源码链接查看。</p>
 <p><a id="image-offload" class="anch"></a></p>
 <h2 id="图片省略"><span id="image-offload" class="anch"></span>图片省略</h2>
-<p><code>compaction-image-offload</code> 拥有 <code>image/offload</code> 声明及其纯消息投影。每个目标指定当前输入节点和按深度优先计数的确切图片位置。事件保留节点和消息身份，不携带 <code>surfaceOp</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-image-offload/README.zh.md">包 README</a>负责恢复策略、注册和独立回放说明。</p>
+<p><code>compaction-image-offload</code> 拥有 <code>image/offload</code> 声明及其纯消息投影。每个目标指定当前输入节点和按深度优先计数的确切图片位置。事件保留节点和消息身份，不携带 <code>surfaceOp</code>。<a href="/src/packages/compaction/compaction-image-offload/README.zh.md">包 README</a>负责恢复策略、注册和独立回放说明。</p>
 <pre><code>/** Exact input-image occurrences selected by one durable offload decision. */
 interface ImageOffloadTarget {
   /** Current message-producing event containing these occurrences. */
@@ -71,7 +71,7 @@ interface CompactionResult {
 <p>自动调用方会说明策略为何运行；实现可以比普通压力更激进地处理已确认的溢出。</p>
 <pre><code>/** Why automatic policy is asking a backend to consider compaction. */
 type CompactionTrigger = &#x27;pressure&#x27; | &#x27;context-overflow&#x27;</code></pre>
-<p><code>CompactionEngine</code> 暴露 <code>compactIfNeeded(agent, trigger, signal)</code> 以执行自动 <code>pressure</code> 或 <code>context-overflow</code> 策略，暴露 <code>compactNow(agent, signal)</code> 以便即使未达到压力也对空闲会话进行一次有效缩减，还针对显式指定、两端均包含的平衡选区暴露 <code>compactRegion(...)</code>，不含开头的系统消息。<code>compactNow()</code> 作为轮次之间的 agent maintenance 运行；没有有效范围时返回 <code>null</code> 且不写入；在摘要前记录独立的 <code>turn: null</code> 标记对，并在后续排队提示词能够从新表层派生前 flush 已闭合尝试。每个后端都使用 <code>compactCheckpointSource(compactionId, sourceCommandId?)</code> 创建替换用 <code>user/message</code> 的源；client 与 wire 消费方从无 Cordis 的 <code>@deepseek-ai/dsh-compaction/checkpoint</code> 子路径导入该构造函数、<code>CompactionCheckpointSource</code> 和 <code>isCompactCheckpointSource()</code>，包根则为 host 消费方重新导出它们。必填的事务身份会关联替换检查点，而该判定函数使检查点识别不依赖任一特定后端。实现必须把传入的 signal 转发给摘要流程。该 seam 不拥有计价 API：单例 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/token-meter.zh.md"><code>ctx.tokenMeter</code></a> 直接拥有估算与回放，而 <code>dsh-compaction-basic</code> 拥有保留策略、事件排序、按路由执行的摘要调用及其配置。</p>
+<p><code>CompactionEngine</code> 暴露 <code>compactIfNeeded(agent, trigger, signal)</code> 以执行自动 <code>pressure</code> 或 <code>context-overflow</code> 策略，暴露 <code>compactNow(agent, signal)</code> 以便即使未达到压力也对空闲会话进行一次有效缩减，还针对显式指定、两端均包含的平衡选区暴露 <code>compactRegion(...)</code>，不含开头的系统消息。<code>compactNow()</code> 作为轮次之间的 agent maintenance 运行；没有有效范围时返回 <code>null</code> 且不写入；在摘要前记录独立的 <code>turn: null</code> 标记对，并在后续排队提示词能够从新表层派生前 flush 已闭合尝试。每个后端都使用 <code>compactCheckpointSource(compactionId, sourceCommandId?)</code> 创建替换用 <code>user/message</code> 的源；client 与 wire 消费方从无 Cordis 的 <code>@deepseek-ai/dsh-compaction/checkpoint</code> 子路径导入该构造函数、<code>CompactionCheckpointSource</code> 和 <code>isCompactCheckpointSource()</code>，包根则为 host 消费方重新导出它们。必填的事务身份会关联替换检查点，而该判定函数使检查点识别不依赖任一特定后端。实现必须把传入的 signal 转发给摘要流程。该 seam 不拥有计价 API：单例 <a href="/src/docs/subsystems/token-meter.zh.md"><code>ctx.tokenMeter</code></a> 直接拥有估算与回放，而 <code>dsh-compaction-basic</code> 拥有保留策略、事件排序、按路由执行的摘要调用及其配置。</p>
 <p>预期的手动失败使用 <code>ManualCompactionErrorCode</code>：</p>
 <pre><code>/** Expected failure classes for an explicit idle-session compaction request. */
 type ManualCompactionErrorCode =
@@ -82,10 +82,10 @@ type ManualCompactionErrorCode =
   | &#x27;commit&#x27;
   | &#x27;persistence&#x27;</code></pre>
 <p><code>changed</code> 和 <code>summary</code> 闭合失败尝试并将其持久化到日志，不写入摘要替换；恢复过程中记录的图片省略仍然有效。<code>commit</code> 可能发生在部分变更之后；<code>persistence</code> 表示内存中的标记对已闭合，但 flush 失败。取消独立于这些失败，并在完成必要清理后抛出原始 abort 原因。</p>
-<p>压力压缩在 <code>agent/pre-step</code> 按已提交请求 header 执行，也在 <code>agent/request</code> 按已改变的目标执行，先于其 header 记入日志。除非配置了显式摘要目标，已有助手消息的会话中每次摘要都使用产生最新一条助手消息的路由，因此第一次请求就溢出的目标不会为自己的溢出生成摘要；切换失败会保留该 header 与已完成的缩减。一旦压力或规范化溢出满足条件，compaction-basic 会在选择范围前调用可选的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-tool-result-pruner/README.zh.md"><code>ctx.toolResultPruner</code></a>，再通过 <code>ctx.tokenMeter</code> 重新测量，并且可以在不生成摘要的情况下推进 surface。失败请求的恢复在失败的步骤关闭后通过 <code>agent/request-error</code> 运行；仅当 surface replacement generation 前进时才返回重试动作，即便后续摘要工作在剪枝后抛异常亦如此；取消仍然优先。区域边界保持工具调用/结果配对，但不保持整个轮次，因此一个过大轮次中较早关闭的步骤可以被压缩。<code>dsh-compaction-basic</code> 拥有阈值、保留尾部策略、溢出上限与失败处理。</p>
-<p>该 Service Definition 导出 <code>toolPairingBalancedBefore(session, seq)</code> 与 <code>toolPairingBalancedAfter(session, seq)</code>，用于检查 seq 之前与之后的工具调用/结果配对。两者都会验证当前 surface 成员关系，并拒绝缺失的 seq 与遗留结果；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction/README.zh.md">包约定</a>定义其缓存行为。</p>
+<p>压力压缩在 <code>agent/pre-step</code> 按已提交请求 header 执行，也在 <code>agent/request</code> 按已改变的目标执行，先于其 header 记入日志。除非配置了显式摘要目标，已有助手消息的会话中每次摘要都使用产生最新一条助手消息的路由，因此第一次请求就溢出的目标不会为自己的溢出生成摘要；切换失败会保留该 header 与已完成的缩减。一旦压力或规范化溢出满足条件，compaction-basic 会在选择范围前调用可选的 <a href="/src/packages/compaction/compaction-tool-result-pruner/README.zh.md"><code>ctx.toolResultPruner</code></a>，再通过 <code>ctx.tokenMeter</code> 重新测量，并且可以在不生成摘要的情况下推进 surface。失败请求的恢复在失败的步骤关闭后通过 <code>agent/request-error</code> 运行；仅当 surface replacement generation 前进时才返回重试动作，即便后续摘要工作在剪枝后抛异常亦如此；取消仍然优先。区域边界保持工具调用/结果配对，但不保持整个轮次，因此一个过大轮次中较早关闭的步骤可以被压缩。<code>dsh-compaction-basic</code> 拥有阈值、保留尾部策略、溢出上限与失败处理。</p>
+<p>该 Service Definition 导出 <code>toolPairingBalancedBefore(session, seq)</code> 与 <code>toolPairingBalancedAfter(session, seq)</code>，用于检查 seq 之前与之后的工具调用/结果配对。两者都会验证当前 surface 成员关系，并拒绝缺失的 seq 与遗留结果；<a href="/src/packages/compaction/compaction/README.zh.md">包约定</a>定义其缓存行为。</p>
 <h2 id="工具结果剪枝产出">工具结果剪枝产出</h2>
-<p>可选的工具结果剪枝服务会报告每次持久内容替换以及 Unicode code point 的总减少量。其公开结果类型位于 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-tool-result-pruner/src/types.ts"><code>compaction-tool-result-pruner/src/types.ts</code></a>。</p>
+<p>可选的工具结果剪枝服务会报告每次持久内容替换以及 Unicode code point 的总减少量。其公开结果类型位于 <a href="/src/packages/compaction/compaction-tool-result-pruner/src/types.ts"><code>compaction-tool-result-pruner/src/types.ts</code></a>。</p>
 <pre><code>/** Cited source event and size accounting for one landed surface replacement. */
 interface PrunedEntry {
   /** Full-fidelity tool-result event shadowed by the replacement. */
@@ -109,7 +109,7 @@ interface PruneResult {
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxcompaction--compactionengine-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.compaction-—-CompactionEngine-abstract-seam"><span id="ctxcompaction--compactionengine-abstract-seam" class="anch"></span><code>ctx.compaction</code> — <code>CompactionEngine</code> (abstract seam)</h3>
 <p>Abstract compaction service. Implementations own trigger policy, retention, and summarization, and may consume a separate measurement service. A successful run replaces the selected surface span with one summary node and prevents concurrent compaction of the same session. The replacement user message uses compactCheckpointSource with the transaction identity so consumers recognize and correlate it independently of the backend. Load one implementation per context as <code>ctx.compaction</code>.</p>
@@ -170,8 +170,8 @@ abstract compactNow( agent: ManualCompactAgentContext, signal: AbortSignal, sour
  * @returns the appended event seqs, summary, replaced range, and token accounting.
  */
 abstract compactRegion( start: SessionSeq, end: SessionSeq, agent: CompactionAgentContext, signal?: AbortSignal, ): Promise&lt;CompactionResult&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/commands.zh.md">CommandId</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionSeq</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction/src/index.ts"><code>packages/compaction/compaction/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/commands.zh.md">CommandId</a> · <a href="/src/docs/subsystems/session.zh.md">SessionSeq</a></p>
+<p>Source: <a href="/src/packages/compaction/compaction/src/index.ts"><code>packages/compaction/compaction/src/index.ts</code></a></p>
 <p><a id="ctxtoolresultpruner--toolresultpruner" class="anch"></a></p>
 <h3 id="ctx.toolResultPruner-—-ToolResultPruner"><span id="ctxtoolresultpruner--toolresultpruner" class="anch"></span><code>ctx.toolResultPruner</code> — <code>ToolResultPruner</code></h3>
 <p>Deterministic head/middle/tail pruning for current tool-result surface nodes.</p>
@@ -204,8 +204,8 @@ pruneContent(blocks: readonly ContentBlock[]): ContentBlock[] | null
  * earlier in the pass remain durable.
  */
 pruneSession(session: Session): PruneResult</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-tool-result-pruner/src/index.ts"><code>packages/compaction/compaction-tool-result-pruner/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/llm-streaming.zh.md">ContentBlock</a> · <a href="/src/docs/subsystems/session.zh.md">Session</a></p>
+<p>Source: <a href="/src/packages/compaction/compaction-tool-result-pruner/src/index.ts"><code>packages/compaction/compaction-tool-result-pruner/src/index.ts</code></a></p>
 <p><a id="compaction-events" class="anch"></a></p>
 <h3 id="compaction/-events"><span id="compaction-events" class="anch"></span><code>compaction/*</code> events</h3>
 <p><a id="compactionsummary-error--waterfall" class="anch"></a></p>
@@ -225,8 +225,8 @@ pruneSession(session: Session): PruneResult</code></pre>
  * @mode waterfall
  */
 &#x27;compaction/summary-error&#x27;(payload: { session: Session; sourceEventSeqs: readonly SessionSeq[]; error: unknown; signal?: AbortSignal }, next: () =&gt; boolean): boolean</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">Session</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.zh.md">SessionSeq</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction/src/index.ts"><code>packages/compaction/compaction/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/session.zh.md">Session</a> · <a href="/src/docs/subsystems/session.zh.md">SessionSeq</a></p>
+<p>Source: <a href="/src/packages/compaction/compaction/src/index.ts"><code>packages/compaction/compaction/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/compaction">← 返回图谱并聚焦该文档</a></div>
   </main>

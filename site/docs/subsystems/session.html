@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,11 +18,11 @@
     <h1>会话</h1>
     <div class="meta">分组：会话与持久化 · 本地副本：.ua/docs-local/subsystems/session.md</div>
     <div class="body"><h1 id="会话">会话</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session">dsh-session</a> 的内存事件溯源模型。<code>Session</code> 是一份由类型化 <code>SessionEvent</code> 组成的<strong>仅追加日志</strong>，是 agent（智能体）完整交互历史的唯一真源。LLM（大语言模型）消息历史从日志*派生*而来，从不单独存储；回放即从同一组事件重新派生。日志如何实现<strong>持久化</strong>（持久化 seam、后端、崩溃恢复）是兄弟文档 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a> 的关注点。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/types.ts"><code>packages/core/session/src/types.ts</code></a></p>
+<p><a href="/src/docs/subsystems/session.md">English</a> | 中文</p>
+<p><a href="/src/packages/core/session">dsh-session</a> 的内存事件溯源模型。<code>Session</code> 是一份由类型化 <code>SessionEvent</code> 组成的<strong>仅追加日志</strong>，是 agent（智能体）完整交互历史的唯一真源。LLM（大语言模型）消息历史从日志*派生*而来，从不单独存储；回放即从同一组事件重新派生。日志如何实现<strong>持久化</strong>（持久化 seam、后端、崩溃恢复）是兄弟文档 <a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a> 的关注点。</p>
+<p>源码：<a href="/src/packages/core/session/src/types.ts"><code>packages/core/session/src/types.ts</code></a></p>
 <h2 id="SessionEventMap：事件词汇"><code>SessionEventMap</code>：事件词汇</h2>
-<p>仅追加的事件类型。可通过声明合并扩展：插件通过 declaration merging 声明额外的事件类型。例如<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.zh.md">压缩（compaction） seam</a> 添加了 <code>compaction/start</code> / <code>compaction/summary</code> / <code>compaction/end</code>，<code>@deepseek-ai/dsh-hook-protocol</code> 为钩子桥接添加了仅记录日志的 <code>hook/invoked</code> / <code>hook/result</code> 记录。与 <code>compaction/*</code> 一样，这些都不是 <code>SurfaceEventType</code>（没有 <code>surfaceOp</code>）。生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/persistence-catalog.zh.md">持久化日志事件目录</a>列举了所有成员（核心与合并扩展的），包含其 payload、surface 标记与声明位置。</p>
+<p>仅追加的事件类型。可通过声明合并扩展：插件通过 declaration merging 声明额外的事件类型。例如<a href="/src/docs/subsystems/compaction.zh.md">压缩（compaction） seam</a> 添加了 <code>compaction/start</code> / <code>compaction/summary</code> / <code>compaction/end</code>，<code>@deepseek-ai/dsh-hook-protocol</code> 为钩子桥接添加了仅记录日志的 <code>hook/invoked</code> / <code>hook/result</code> 记录。与 <code>compaction/*</code> 一样，这些都不是 <code>SurfaceEventType</code>（没有 <code>surfaceOp</code>）。生成的<a href="/src/docs/persistence-catalog.zh.md">持久化日志事件目录</a>列举了所有成员（核心与合并扩展的），包含其 payload、surface 标记与声明位置。</p>
 <pre><code>/** A user-role specialization of the shared message representation. */
 interface UserMessage extends MessageBase {
   readonly role: &#x27;user&#x27;
@@ -183,7 +183,7 @@ interface SessionEventMap {
 <p><code>UserMessage</code> 是普通提示词、注入上下文、steering（中途引导）与实时收件箱事件共享的带标识且冻结的 user-role 值。事件包装层只会增加事件本地的位置或结果事实；条目待处理期间，loop 只额外附加驱动器自有的路由状态。</p>
 <p><a id="the-request-header-event-requestheader" class="anch"></a></p>
 <h3 id="请求头事件：request/header"><span id="the-request-header-event-requestheader" class="anch"></span>请求头事件：<code>request/header</code></h3>
-<p>请求信封（即 <code>EpochHeader</code>：调用配置 + 适配器所提供默认值的标记 + 已组装的工具 schema）会作为会话状态写入日志，因此每个对话请求都是日志的纯函数（见可重建性 Agent Note）。渲染后的系统提示词不属于请求头：它是派生历史，即 surface 第 0 号节点上的 <code>system/message</code> 事件以及任何后续的历史内系统节点（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md">决策</a>），因此普通提示词变更追加系统节点，而请求头保持不变。带有 reason <code>'initial'</code> 或 <code>'resume'</code> 的完整 <code>request/header</code> 快照记录每个 agent loop 实例的边界；请求变化时会追加 reason 为 <code>'change'</code> 的快照；未变的信封显式开启消息序列或跟随 surface 替换时，会追加 reason 为 <code>'series'</code> 的快照。如果 <code>'initial'</code>、<code>'resume'</code> 或 <code>'change'</code> 快照所属请求同时开启序列，它会携带 <code>startsSeries: true</code>；reason <code>'series'</code> 已记录这一事实。普通的仅追加后续 Turn，以及同一模型消息序列内的后续 Step 与重试沿用最新快照。<code>foldRequestHeader(events)</code> 通过选择最新快照重建请求头。该事件不是 <code>SurfaceEventType</code>，不产生 LLM 消息。</p>
+<p>请求信封（即 <code>EpochHeader</code>：调用配置 + 适配器所提供默认值的标记 + 已组装的工具 schema）会作为会话状态写入日志，因此每个对话请求都是日志的纯函数（见可重建性 Agent Note）。渲染后的系统提示词不属于请求头：它是派生历史，即 surface 第 0 号节点上的 <code>system/message</code> 事件以及任何后续的历史内系统节点（<a href="/src/.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md">决策</a>），因此普通提示词变更追加系统节点，而请求头保持不变。带有 reason <code>'initial'</code> 或 <code>'resume'</code> 的完整 <code>request/header</code> 快照记录每个 agent loop 实例的边界；请求变化时会追加 reason 为 <code>'change'</code> 的快照；未变的信封显式开启消息序列或跟随 surface 替换时，会追加 reason 为 <code>'series'</code> 的快照。如果 <code>'initial'</code>、<code>'resume'</code> 或 <code>'change'</code> 快照所属请求同时开启序列，它会携带 <code>startsSeries: true</code>；reason <code>'series'</code> 已记录这一事实。普通的仅追加后续 Turn，以及同一模型消息序列内的后续 Step 与重试沿用最新快照。<code>foldRequestHeader(events)</code> 通过选择最新快照重建请求头。该事件不是 <code>SurfaceEventType</code>，不产生 LLM 消息。</p>
 <pre><code>/**
  * Logged request state outside derived history: call config and tools. The
  * system prompt is derived history — the initial and subsequent `system/message` nodes.
@@ -202,7 +202,7 @@ interface EpochHeader {
    */
   system?: never
 }</code></pre>
-<p>当前事件接纳要求 <code>request/header.header</code> 为规范形式：禁止任何 <code>system</code> 字段，必须省略 <code>tools: []</code> 与 <code>adapterDefaults: {}</code>。仅含空白的系统消息内容、<code>config.stop: []</code> 与嵌套扩展保持不变。seed、append 与当前持久化读取拒绝非规范 header，而不会静默规范化；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-09-06-v3-canonical-session-envelopes.zh.md">V3 信封决策</a>负责历史转换。包含旧版 <code>request/header-delta</code> 事件或完整快照原因为 <code>fallback</code> 的旧版 v0 日志，会被拒绝，而不会以不完整方式回放。</p>
+<p>当前事件接纳要求 <code>request/header.header</code> 为规范形式：禁止任何 <code>system</code> 字段，必须省略 <code>tools: []</code> 与 <code>adapterDefaults: {}</code>。仅含空白的系统消息内容、<code>config.stop: []</code> 与嵌套扩展保持不变。seed、append 与当前持久化读取拒绝非规范 header，而不会静默规范化；<a href="/src/.agents/notes/implemented/architecture/2026-09-06-v3-canonical-session-envelopes.zh.md">V3 信封决策</a>负责历史转换。包含旧版 <code>request/header-delta</code> 事件或完整快照原因为 <code>fallback</code> 的旧版 v0 日志，会被拒绝，而不会以不完整方式回放。</p>
 <h3 id="路由容量事件：request/context">路由容量事件：<code>request/context</code></h3>
 <p>路由上下文元数据是独立的已记录状态，仅在提供方、模型、容量或 <code>systemPromptUpdate</code> 变化时，于同一步骤内紧随 <code>request/header</code> 追加。这些字段描述已准备路由，位于 <code>EpochHeader</code> 之外；它们不选择系统准入，也不产生 LLM 消息。<code>session.requestContext()</code> 以增量方式归并最新记录。缺失的 <code>contextWindow</code> 或 <code>systemPromptUpdate</code> 会清除上一条路由的对应值。</p>
 <pre><code>/** Registration-bound metadata for one resolved model route. */
@@ -268,7 +268,7 @@ type SessionEvent&lt;T extends SessionEventType = SessionEventType&gt; = {
 <p>每个 surface 事件都要求 <code>surfaceOp</code>；已知仅日志事件禁止两个 surface 元数据字段。原生未知或已退役的可忽略信封保持不透明。<code>assistant/message</code> 嵌入其提供方 stream，并禁止 <code>sourceEventSeqs</code>。System、user 与 tool surface 事件可以在来源归属或替换覆盖需要时引用完整、非空且唯一的较早事件集合。<code>tool/result</code> 仅在消息带有 <code>isError: true</code> 时可以携带 <code>data.error</code>；失败结果的失败身份仍可省略。</p>
 <p><a id="surface-types" class="anch"></a></p>
 <h2 id="Surface-类型"><span id="surface-types" class="anch"></span>Surface 类型</h2>
-<p>产生消息的类型（<code>SurfaceEventType</code>：<code>system/message</code>、<code>developer/message</code>、<code>user/message</code>、<code>assistant/message</code>、<code>tool/result</code>）声明其在有序派生 surface 中的位置。系统消息包含段更新和完整重置；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/system-prompt/README.zh.md">system-prompt 包</a> 规定其含义。第 0 号节点的系统消息只允许系统消息恰好替换该节点；后续系统节点可以被压缩遮蔽。见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-18-session-surface.zh.md">session surface Agent Note</a>。</p>
+<p>产生消息的类型（<code>SurfaceEventType</code>：<code>system/message</code>、<code>developer/message</code>、<code>user/message</code>、<code>assistant/message</code>、<code>tool/result</code>）声明其在有序派生 surface 中的位置。系统消息包含段更新和完整重置；<a href="/src/packages/core/system-prompt/README.zh.md">system-prompt 包</a> 规定其含义。第 0 号节点的系统消息只允许系统消息恰好替换该节点；后续系统节点可以被压缩遮蔽。见 <a href="/src/.agents/notes/implemented/architecture/2026-06-18-session-surface.zh.md">session surface Agent Note</a>。</p>
 <h3 id="SurfaceEventType：事件类型中产生消息的子集"><code>SurfaceEventType</code>：事件类型中产生消息的子集</h3>
 <pre><code>/**
  * The subset of {@link SessionEventType} values whose events produce LLM
@@ -314,11 +314,11 @@ type SurfaceIntent&lt;T extends SurfaceEventType = SurfaceEventType&gt; = {
   /** Complete non-empty set of known earlier source-event seqs. */
   sourceEventSeqs?: SessionSeq[]
 })</code></pre>
-<p>对 <code>SurfaceEventType</code> 事件必填：每个产生消息的事件都必须声明它如何加入 surface（派生模型历史的唯一来源）。面向人类的 transcript（文本记录）是另一个投影，读取的是日志中追加来源的事件，因为 surface 会有意遮蔽替换所概括的范围（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/README.zh.md">dsh-session</a> 的 <code>isAppendSurfaceEvent</code>）。非 surface 类型在编译期拒绝此参数。</p>
+<p>对 <code>SurfaceEventType</code> 事件必填：每个产生消息的事件都必须声明它如何加入 surface（派生模型历史的唯一来源）。面向人类的 transcript（文本记录）是另一个投影，读取的是日志中追加来源的事件，因为 surface 会有意遮蔽替换所概括的范围（见 <a href="/src/packages/core/session/README.zh.md">dsh-session</a> 的 <code>isAppendSurfaceEvent</code>）。非 surface 类型在编译期拒绝此参数。</p>
 <p><code>assistant/message</code> 不能携带 <code>sourceEventSeqs</code>；它的 <code>stream</code> 拥有精确 provider 证据。其他 surface event 不引用较早 event 时省略该字段，需要引用时使用完整非空 list。</p>
 <p><a id="plugin-owned-message-projections" class="anch"></a></p>
 <h3 id="插件拥有的消息投影"><span id="plugin-owned-message-projections" class="anch"></span>插件拥有的消息投影</h3>
-<p>修改内容的插件用 <code>@messageProjection</code> 标记事件声明，并通过 <code>ctx.sessions.registerMessageProjection()</code> 注册纯处理器。Session 在提交前通过处理器校验完整决策，应用其不可变消息更新，并推进 <code>contentGeneration</code>。缺少处理器时拒绝操作，包括恢复和独立折叠，卸载已经使用的处理器后也会拒绝读取缓存。独立读取器将处理器显式传给 <code>foldSurface(events, projections)</code>，并通过 <code>deriveEventMessage()</code> 应用 <code>projectedMessages</code>。当前格式目录为离线读取器装配第一方处理器。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.zh.md">图片省略插件</a>拥有图片专用的事件及解释逻辑。</p>
+<p>修改内容的插件用 <code>@messageProjection</code> 标记事件声明，并通过 <code>ctx.sessions.registerMessageProjection()</code> 注册纯处理器。Session 在提交前通过处理器校验完整决策，应用其不可变消息更新，并推进 <code>contentGeneration</code>。缺少处理器时拒绝操作，包括恢复和独立折叠，卸载已经使用的处理器后也会拒绝读取缓存。独立读取器将处理器显式传给 <code>foldSurface(events, projections)</code>，并通过 <code>deriveEventMessage()</code> 应用 <code>projectedMessages</code>。当前格式目录为离线读取器装配第一方处理器。<a href="/src/docs/subsystems/compaction.zh.md">图片省略插件</a>拥有图片专用的事件及解释逻辑。</p>
 <pre><code>/** Readonly history immediately before a message-projection event. */
 interface SessionMessageProjectionContext {
   /** Current message-producing event sequences in model-visible order. */
@@ -641,7 +641,7 @@ declare class Session {
 <p>显式 <code>boundary</code> 允许调用者从任意稳定的轮次间位置 fork，包括之前的 <code>turn/end</code> 或更晚的独立纯日志事件，即使源会话有更新的事件或正在进行的轮次。API 拒绝结束于开放轮次内的前缀，而不是静默截断。<code>dsh-subagent-fork-in-process</code> 保留其已完成前缀截断逻辑，因为工具调用时的委托通常在父轮次仍然打开时启动；普通的会话分支应显式指定请求的 boundary。</p>
 <p><a id="why-a-turn-ended-turnendreasonmap" class="anch"></a></p>
 <h2 id="轮次的结束原因：TurnEndReasonMap"><span id="why-a-turn-ended-turnendreasonmap" class="anch"></span>轮次的结束原因：<code>TurnEndReasonMap</code></h2>
-<p><code>turn/start</code> 没有 trigger 字段。已进入的 <code>user/message</code> 批次记录进入每个步骤的内容，<code>llm/retry</code> 记录请求恢复，idle 注入则保持待处理，直到唤醒交付抵达后续 pre-step。实时轮次会保留停止驱动器的类型化 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md"><code>AgentCancelCause</code></a>；只有在导入受支持的粗粒度取消记录且记录未保存调用方时，持久化才使用额外的 <code>{ kind: 'legacy' }</code> 原因。</p>
+<p><code>turn/start</code> 没有 trigger 字段。已进入的 <code>user/message</code> 批次记录进入每个步骤的内容，<code>llm/retry</code> 记录请求恢复，idle 注入则保持待处理，直到唤醒交付抵达后续 pre-step。实时轮次会保留停止驱动器的类型化 <a href="/src/docs/subsystems/core.zh.md"><code>AgentCancelCause</code></a>；只有在导入受支持的粗粒度取消记录且记录未保存调用方时，持久化才使用额外的 <code>{ kind: 'legacy' }</code> 原因。</p>
 <pre><code>/** Durable cancellation cause, including imports whose original coarse record carried no cause. */
 type TurnEndCancelCause = AgentCancelCause | { readonly kind: &#x27;legacy&#x27; }</code></pre>
 <pre><code>/**
@@ -677,21 +677,21 @@ interface TurnEndReasonMap {
    */
   forked: { kind: &#x27;forked&#x27; }
 }</code></pre>
-<p><code>max-tokens</code> 与模型调用中同名的 <code>FinishReason</code> 对应：只要轮次内有任何步骤以 <code>max-tokens</code> 结束，整个轮次就以 <code>max-tokens</code> 而不是 <code>completed</code> 结束（即使之后继续执行，截断事实仍优先），让消费方能够区分正常停止和截断停止。取消和错误仍是不同的结果。loop 不会实时发出 <code>interrupted</code> 或 <code>forked</code>：崩溃恢复合成 <code>interrupted</code>（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a>），而 fork 种子构造合成 <code>forked</code>。该 map 可通过合并扩展。</p>
+<p><code>max-tokens</code> 与模型调用中同名的 <code>FinishReason</code> 对应：只要轮次内有任何步骤以 <code>max-tokens</code> 结束，整个轮次就以 <code>max-tokens</code> 而不是 <code>completed</code> 结束（即使之后继续执行，截断事实仍优先），让消费方能够区分正常停止和截断停止。取消和错误仍是不同的结果。loop 不会实时发出 <code>interrupted</code> 或 <code>forked</code>：崩溃恢复合成 <code>interrupted</code>（见 <a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a>），而 fork 种子构造合成 <code>forked</code>。该 map 可通过合并扩展。</p>
 <h2 id="执行封闭与独立事件">执行封闭与独立事件</h2>
 <p>一个轮次包围一次模型循环执行，而不是整个会话日志。AgentLoop 只会在轮次内进入 pre-step 批次时记录注入的 <code>user/message</code> 事件；插件所属的纯日志事件仍可出现在 <code>turn/end</code> 与下一个 <code>turn/start</code> 之间，占用事件 seq 但不递增轮次编号。持久化会将每个连续且已接受的事件纳入有界持久化批次，而崩溃修复只关闭确实仍处于开放状态的尾部轮次。需要即时持久性屏障的生产方会显式等待 <code>ctx.sessions.flush(session)</code>。</p>
-<p>可合并扩展事件的关系由声明它的插件拥有，因此核心不会仅因没有开放轮次就拒绝未知事件。见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md">独立事件决策</a>。</p>
+<p>可合并扩展事件的关系由声明它的插件拥有，因此核心不会仅因没有开放轮次就拒绝未知事件。见<a href="/src/.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md">独立事件决策</a>。</p>
 <h2 id="种子结束边界：session/end-seed">种子结束边界：<code>session/end-seed</code></h2>
 <p><code>buildForkSeed</code> 在精确的 inherited-prefix cut 追加 <code>session/end-seed { inherited: true }</code>，然后添加合成的 fork 结束事件。<code>Session</code> constructor 保留该预先构造的 marker，或在 seed 仅含 inherited prefix 时追加 marker。restore 保留 tagged marker，并且只在完整 stored seed 尚未以 marker 结尾时追加普通 <code>session/end-seed {}</code>。两种形式都只进入 log 且不产生 message；只有 constructor 和 <code>buildForkSeed</code> 可以创建它们。</p>
 <p>对于 fork lineage，定位 payload 携带 <code>inherited: true</code> 的最后一个 marker；当前格式 decoding 只在 <code>SessionHeader.isSeeded</code> 为 true 时要求该 marker，并从其 seq 推导 <code>inheritedEventCount</code>。对于 lifecycle ownership，定位任一形式的最后一个 <code>session/end-seed</code>。重新打开已经以任一 marker 结尾的 seed 时，不会再追加普通 marker。</p>
 <p>它之所以必要，是因为种子历史与实时工作在字节层面完全相同，这会让任何拥有独立开／闭括号的插件失效：一个未配对的 <code>compaction/start</code>，无论写入方是在压缩中途崩溃、还是此刻正在压缩，读起来都一样。在 <code>session/end-seed</code> 之前的开启标记来自构造种子，并且属于一个已结束的生命周期，无论结束原因为何（崩溃、进程接替，或从仍在运行的父会话 fork 出来），因此其所有方可以视之为已死。这只覆盖*本*会话继承的括号：另一个并发存活的会话可能在同一段历史上持有开放括号，而它自己的边界在别处，因此容忍并发写入方还需要日志之外的存活信号。核心写入该边界但不从中读取任何内容——括号的词汇表仍归其所属插件，这也正是崩溃修复只关闭轮次／步骤／工具边界而从不处理 <code>compaction/*</code> 的原因。</p>
 <p>按真人活动排序 Session 的消费方会排除该边界：接手 Session 不算工作，因此按日志尾部排序会把每个打开过的 Session 顶到最前。</p>
 <h2 id="插件贡献的仅日志事件">插件贡献的仅日志事件</h2>
-<p>插件可以通过 declaration merging 添加额外的 <code>SessionEventMap</code> 类型。这些是<strong>仅日志</strong>事件：不是 <code>SurfaceEventType</code>（不携带 <code>surfaceOp</code>，不参与派生历史）。事件所有方决定它们属于一个开放的执行轮次，还是可以独立位于轮次之间。生成的<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/persistence-catalog.zh.md">持久化日志事件目录</a>会列出每个核心或插件贡献的事件；压缩 seam 的 <code>compaction/*</code> 语义在 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.zh.md">compaction.md</a> 中讨论。</p>
-<p>如果同一个插件事件族中的多条事件要组装成一个 Web Client Conversation Node，该事件族中的每条 start、update、result、resource 或 interruption 事件都必须携带或独立推导出同一个稳定业务 id。此要求只约束需要关联的 Node 事件族，并不要求每条 Session 事件都有业务 id；Client 因此无须根据相邻关系猜测归属，也无须扫描历史。参见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/conversation.zh.md">Conversation 子系统</a>。</p>
+<p>插件可以通过 declaration merging 添加额外的 <code>SessionEventMap</code> 类型。这些是<strong>仅日志</strong>事件：不是 <code>SurfaceEventType</code>（不携带 <code>surfaceOp</code>，不参与派生历史）。事件所有方决定它们属于一个开放的执行轮次，还是可以独立位于轮次之间。生成的<a href="/src/docs/persistence-catalog.zh.md">持久化日志事件目录</a>会列出每个核心或插件贡献的事件；压缩 seam 的 <code>compaction/*</code> 语义在 <a href="/src/docs/subsystems/compaction.zh.md">compaction.md</a> 中讨论。</p>
+<p>如果同一个插件事件族中的多条事件要组装成一个 Web Client Conversation Node，该事件族中的每条 start、update、result、resource 或 interruption 事件都必须携带或独立推导出同一个稳定业务 id。此要求只约束需要关联的 Node 事件族，并不要求每条 Session 事件都有业务 id；Client 因此无须根据相邻关系猜测归属，也无须扫描历史。参见 <a href="/src/docs/subsystems/conversation.zh.md">Conversation 子系统</a>。</p>
 <p>钩子桥接层的 <code>hook/invoked</code> / <code>hook/result</code> 对（来自 <code>@deepseek-ai/dsh-hook-protocol</code>）通过 <code>handlerId</code> 关联。<code>UserPromptSubmit</code>、<code>PreToolUse</code>、<code>PostToolUse</code> 与 <code>Stop</code> 在 loop 已打开的轮次内触发，因此其 <code>hook/*</code> 记录天然位于轮次之内。<code>SessionStart</code> 不生成 <code>hook/*</code> 记录，因为它在轮次 1 之前运行；其上下文会在 inbox 中保持待处理，直到唤醒交付打开一个轮次。</p>
 <h3 id="插件记录">插件记录</h3>
-<p>实验性包在 <code>PluginRecordMap</code> 中声明插件自有的状态：<code>appendPluginRecord()</code> 根据每项声明约束名称与 payload 类型，并在 <code>plugin:</code> 命名空间中追加一条带 <code>ignorable: true</code> 标记的事件。<code>pluginRecordOf()</code> 读取已存记录，其 payload 为未知类型，不受当前声明约束。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/experimental-persistence-catalog.zh.md">实验性持久化目录</a>列出当前声明。调用方限制、保留方式与读取路径见<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/README.zh.md">包 README</a>。</p>
+<p>实验性包在 <code>PluginRecordMap</code> 中声明插件自有的状态：<code>appendPluginRecord()</code> 根据每项声明约束名称与 payload 类型，并在 <code>plugin:</code> 命名空间中追加一条带 <code>ignorable: true</code> 标记的事件。<code>pluginRecordOf()</code> 读取已存记录，其 payload 为未知类型，不受当前声明约束。<a href="/src/docs/experimental-persistence-catalog.zh.md">实验性持久化目录</a>列出当前声明。调用方限制、保留方式与读取路径见<a href="/src/packages/core/session/README.zh.md">包 README</a>。</p>
 <pre><code>/**
  * Event type of an experimental plugin record: `plugin:` followed by
  * slash-separated segments of lowercase letters, digits, `.`, `_`, and `-`,
@@ -723,14 +723,14 @@ interface PluginRecord {
   readonly data: unknown
 }</code></pre>
 <h2 id="持久性约定">持久性约定</h2>
-<p>持久化后端依赖的约定如下：持久日志无损保存每个事件，每个 Assistant attempt 都是一个 <code>assistant/message</code> 或 <code>assistant/attempt</code>，其嵌入式紧凑 stream 会保留原始带时间 chunk。<code>seq</code> 在这些 settlement 与所有交错事件之间保持连续。后端可以为事件批次选择自己的存储 framing，只要句柄的 <code>read()</code> 返回与追加时完全一致的事件即可；当前 JSONL 每个事件写一行（见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a>）。所有 <code>event.data</code> 都必须可序列化为 JSON；<code>Session.append</code> 会从源头强制这一要求（遇到不可序列化数据时抛出），因此错误事件绝不会进入日志，<code>session.snapshotEvents()</code> 始终与后端可持久化的内容一致。新增会携带不可序列化数据、破坏核心执行嵌套或违反事件所有方声明关系的事件类型，都会构成磁盘格式的破坏性变更。</p>
-<p>消费此约定的后端见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">persistence.md</a>。</p>
+<p>持久化后端依赖的约定如下：持久日志无损保存每个事件，每个 Assistant attempt 都是一个 <code>assistant/message</code> 或 <code>assistant/attempt</code>，其嵌入式紧凑 stream 会保留原始带时间 chunk。<code>seq</code> 在这些 settlement 与所有交错事件之间保持连续。后端可以为事件批次选择自己的存储 framing，只要句柄的 <code>read()</code> 返回与追加时完全一致的事件即可；当前 JSONL 每个事件写一行（见 <a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a>）。所有 <code>event.data</code> 都必须可序列化为 JSON；<code>Session.append</code> 会从源头强制这一要求（遇到不可序列化数据时抛出），因此错误事件绝不会进入日志，<code>session.snapshotEvents()</code> 始终与后端可持久化的内容一致。新增会携带不可序列化数据、破坏核心执行嵌套或违反事件所有方声明关系的事件类型，都会构成磁盘格式的破坏性变更。</p>
+<p>消费此约定的后端见 <a href="/src/docs/subsystems/persistence.zh.md">persistence.md</a>。</p>
 <h2 id="Remote-目录与-workspace-打开">Remote 目录与 workspace 打开</h2>
 <p><code>ModelCatalog</code> 是 <code>session/modelCatalog</code> 返回的 Host generation 模型目录：它携带部署默认值、可路由 provider id、成功的 provider 分组与相互隔离的 provider 失败。它不由某个 Session 派生，因此与 Session projection 分开保存。</p>
 <p><code>SessionOpenWorkspacePathRequest</code> 携带绝对路径或已按 workspace 解析的 <code>path</code>。<code>SessionOpenWorkspacePathValue</code> 确认 Host 已接受原生交接。Session-aware Client 会在已知当前 Session cwd 时据此解析相对路径；controller 将路径原样交给打开器，并通过 Session Remote 错误词汇表报告无效请求、取消与打开器失败。 可选的 <code>action: "reveal"</code> 选择文件管理器导航；省略时使用默认应用打开。</p>
 <p>可选的 <code>application</code> 指定文件关联应用，不修改系统默认值；<code>workspacePathApplications({ path })</code> 在校验 Host 路径后返回当前关联应用、名称、图标和默认项。</p>
 <h2 id="Session-日志上传排除条件">Session 日志上传排除条件</h2>
-<p><code>ctx.sessionLogDeepSeek.registerExclusion()</code> 注册归调用方所有的判断函数，输入为 <code>SessionLogUploadRequest</code>。任意条件匹配时，在读取 Session 事件前省略日志贡献与接受回调。没有条件匹配时保留普通上传资格判断。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-log-deepseek/README.zh.md">包 README</a> 定义失败与释放行为。</p>
+<p><code>ctx.sessionLogDeepSeek.registerExclusion()</code> 注册归调用方所有的判断函数，输入为 <code>SessionLogUploadRequest</code>。任意条件匹配时，在读取 Session 事件前省略日志贡献与接受回调。没有条件匹配时保留普通上传资格判断。<a href="/src/packages/session/session-log-deepseek/README.zh.md">包 README</a> 定义失败与释放行为。</p>
 <pre><code>/** Request identity inspected before preparing a Session-log contribution. */
 interface SessionLogUploadRequest {
   /** Live Session whose canonical log would be contributed. */
@@ -747,7 +747,7 @@ type SessionLogUploadExclusion = (request: SessionLogUploadRequest) =&gt; boolea
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsessioncontroller--sessioncontroller" class="anch"></a></p>
 <h3 id="ctx.sessionController-—-SessionController"><span id="ctxsessioncontroller--sessioncontroller" class="anch"></span><code>ctx.sessionController</code> — <code>SessionController</code></h3>
 <p>Host service backing the generated <code>ctx.remote.session</code> namespace.</p>
@@ -948,8 +948,8 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: &#x27;finde
  * @returns one complete baseline followed by live replacement frames.
  */
 @Remote({ mode: &#x27;stream&#x27; }) async *control(signal: AbortSignal): AsyncIterable&lt;SessionControlFrame&gt;</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-query.zh.md">SessionSearchRequest</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/index.ts"><code>packages/api/session-controller/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a> · <a href="/src/docs/subsystems/session-query.zh.md">SessionSearchRequest</a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/index.ts"><code>packages/api/session-controller/src/index.ts</code></a></p>
 <p><a id="ctxsessionlogdeepseek--sessionlogdeepseekservice" class="anch"></a></p>
 <h3 id="ctx.sessionLogDeepSeek-—-SessionLogDeepSeekService"><span id="ctxsessionlogdeepseek--sessionlogdeepseekservice" class="anch"></span><code>ctx.sessionLogDeepSeek</code> — <code>SessionLogDeepSeekService</code></h3>
 <p>Incremental Session-log contributor with caller-owned upload exclusions.</p>
@@ -962,7 +962,7 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: &#x27;finde
  * @returns effect disposer that removes this registration when called or when the caller unloads.
  */
 registerExclusion(exclude: SessionLogUploadExclusion): () =&gt; Promise&lt;void&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-log-deepseek/src/index.ts"><code>packages/session/session-log-deepseek/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/session/session-log-deepseek/src/index.ts"><code>packages/session/session-log-deepseek/src/index.ts</code></a></p>
 <p><a id="ctxsessions--sessionstore" class="anch"></a></p>
 <h3 id="ctx.sessions-—-SessionStore"><span id="ctxsessions--sessionstore" class="anch"></span><code>ctx.sessions</code> — <code>SessionStore</code></h3>
 <p>In-memory session store (<code>ctx.sessions</code>).</p>
@@ -1101,8 +1101,8 @@ list(): Session[]
  * @returns The created live child session.
  */
 fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionId): Session</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">CreateSessionOptions</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/persistence.zh.md">PrepareSessionOptions</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/persistence.zh.md">CreateSessionOptions</a> · <a href="/src/docs/subsystems/persistence.zh.md">PrepareSessionOptions</a> · <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
 <p><a id="api-session-events" class="anch"></a></p>
 <h3 id="api-session/-events"><span id="api-session-events" class="anch"></span><span id="session-events" class="anch"></span><code>api-session/*</code> events</h3>
 <p><a id="api-sessionactivity--emit" class="anch"></a></p>
@@ -1115,8 +1115,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param updatedAt - durable message time used for list ordering.
  */
 &#x27;api-session/activity&#x27;(sessionId: SessionId, updatedAt: number): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
 <p><a id="api-sessionadded--emit" class="anch"></a></p>
 <h4 id="api-session/added-—-emit"><code>api-session/added</code> — emit</h4>
 <p>A Session became visible or its Agent was created or disposed. Consumers upsert the summary and replace its current running and availability state.</p>
@@ -1127,7 +1127,7 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param summary - current list row for the Session.
  */
 &#x27;api-session/added&#x27;(summary: SessionSummary): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
 <p><a id="api-sessionerror--emit" class="anch"></a></p>
 <h4 id="api-session/error-—-emit"><code>api-session/error</code> — emit</h4>
 <p>One Agent failed outside a durable turn position.</p>
@@ -1138,8 +1138,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param message - user-safe failure chain.
  */
 &#x27;api-session/error&#x27;(sessionId: SessionId, message: string): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
 <p><a id="api-sessionremoved--emit" class="anch"></a></p>
 <h4 id="api-session/removed-—-emit"><code>api-session/removed</code> — emit</h4>
 <p>A Session left the live Host registry.</p>
@@ -1149,8 +1149,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param sessionId - removed Session identity.
  */
 &#x27;api-session/removed&#x27;(sessionId: SessionId): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
 <p><a id="api-sessionstatus--emit" class="anch"></a></p>
 <h4 id="api-session/status-—-emit"><code>api-session/status</code> — emit</h4>
 <p>One Agent changed running state.</p>
@@ -1161,8 +1161,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param running - whether the Agent is running.
  */
 &#x27;api-session/status&#x27;(sessionId: SessionId, running: boolean): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.zh.md">SessionId</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/core.zh.md">SessionId</a></p>
+<p>Source: <a href="/src/packages/api/session-controller/src/types.ts"><code>packages/api/session-controller/src/types.ts</code></a></p>
 <p><a id="session-events" class="anch"></a></p>
 <h3 id="session/-events"><span id="api-session-events" class="anch"></span><span id="session-events" class="anch"></span><code>session/*</code> events</h3>
 <p><a id="sessioncreated--emit" class="anch"></a></p>
@@ -1181,8 +1181,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @mode emit
  */
 &#x27;session/created&#x27;(this: Scoped&lt;Session&gt;, session: Session): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
 <p><a id="sessiondisposed--emit" class="anch"></a></p>
 <h4 id="session/disposed-—-emit"><code>session/disposed</code> — emit</h4>
 <p>Emitted once when an announced session leaves the store, including publication rollback, but never for an entry whose creation announcement did not begin. Listener failures are logged and contained. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>) reuses the owner scope.</p>
@@ -1195,8 +1195,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @mode emit
  */
 &#x27;session/disposed&#x27;(this: Scoped&lt;Session&gt;, session: Session): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
 <p><a id="sessionevent--emit" class="anch"></a></p>
 <h4 id="session/event-—-emit"><code>session/event</code> — emit</h4>
 <p>Post-commit, fire-and-forget append feed. The listener snapshot resolves before the log push, but callbacks run after it; observer failures are logged and contained without making the committed append fail. Array append commits every member before publishing them in order; <code>session.seq</code> and <code>session.surface</code> already include the complete batch. <code>session.currentBatchPublication</code> identifies the member being delivered. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>): agent-scoped listeners receive only events from sessions entered through that agent's context.</p>
@@ -1214,8 +1214,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @mode emit
  */
 &#x27;session/event&#x27;(this: Scoped&lt;Session&gt;, session: Session, event: SessionEvent): void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
 <p><a id="sessionflush--parallel" class="anch"></a></p>
 <h4 id="session/flush-—-parallel"><code>session/flush</code> — parallel</h4>
 <p>Awaited parallel durability checkpoint: every listener runs and the caller awaits all of them, with no waterfall veto. Scope-filtered dispatch (<code>@deepseek-ai/dsh-scope</code>) reuses the session's owner scope.</p>
@@ -1227,8 +1227,8 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @mode parallel
  */
 &#x27;session/flush&#x27;(this: Scoped&lt;Session&gt;, session: Session): Promise&lt;void&gt; | void</code></pre>
-<p>Types: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.zh.md">Scoped</a></p>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
+<p>Types: <a href="/src/docs/subsystems/scope.zh.md">Scoped</a></p>
+<p>Source: <a href="/src/packages/core/session/src/index.ts"><code>packages/core/session/src/index.ts</code></a></p>
 <p><a id="timeline-events" class="anch"></a></p>
 <h3 id="timeline/-events"><span id="timeline-events" class="anch"></span><code>timeline/*</code> events</h3>
 <p><a id="timelinepriority--emit" class="anch"></a></p>
@@ -1240,7 +1240,7 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
  * @param session - the session that owns the task.
  */
 &#x27;timeline/priority&#x27;(session: Session): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/timeline/src/storage.ts"><code>packages/experimental/timeline/src/storage.ts</code></a></p>
+<p>Source: <a href="/src/packages/experimental/timeline/src/storage.ts"><code>packages/experimental/timeline/src/storage.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/session">← 返回图谱并聚焦该文档</a></div>
   </main>

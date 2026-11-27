@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,7 +18,7 @@
     <h1>实操手册：添加 LLM（大语言模型）适配器</h1>
     <div class="meta">分组：Cookbook · 本地副本：.ua/docs-local/cookbook/adding-an-llm-adapter.md</div>
     <div class="body"><h1 id="实操手册：添加-LLM（大语言模型）适配器">实操手册：添加 LLM（大语言模型）适配器</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cookbook/adding-an-llm-adapter.md">English</a> | 中文</p>
+<p><a href="/src/docs/cookbook/adding-an-llm-adapter.md">English</a> | 中文</p>
 <p>如何接入一个新的模型提供方。参考实现：<code>packages/llm/llm-deepseek</code>（直接 HTTP，SSE（Server-Sent Events）由 <code>eventsource-parser</code> 分帧）与 <code>packages/llm/llm-pi-ai</code>（封装 LLM 库）。请先阅读 <code>packages/llm/llm/src/types.ts</code> 中的 <code>StreamChunk</code> 文档——它记录了两个适配器都经过验证的协议约定。</p>
 <h2 id="基本形态">基本形态</h2>
 <pre><code>class MyAdapter extends LlmAdapter {
@@ -45,9 +45,9 @@ export function apply(ctx: Context, config: Config) {
 </ul>
 <p>提供方特有的思考模式开关仍放在适配器的 Config 中。确切模型元数据使用一处提供方无关的能力 seam：实现 <code>resolveModel()</code>，返回提供方/模型身份以及可选的 <code>context</code> 和 <code>reasoning</code> 字段；仅当存在配置指定的默认值时才声明 <code>defaultEffort</code>；遵守解析模型时传入的可选 <code>AbortSignal</code>。推理（reasoning）强度是由适配器映射到提供方请求的有序不透明 ID。请保留适配器给出的权威可选列表，包括适配器在支持时定义的 <code>off</code>；不得暴露最终协议值的具体拼写，也不得自动调整不支持的值。ID 无需与其协议表示相同。</p>
 <h2 id="实现结构">实现结构</h2>
-<p>让协议格式（wire format）类型、请求序列化、传输解析、分片转换和适配器类分别承担独立职责；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/llm/llm-deepseek/README.zh.md"><code>llm-deepseek</code></a> 是参考布局。</p>
+<p>让协议格式（wire format）类型、请求序列化、传输解析、分片转换和适配器类分别承担独立职责；<a href="/src/packages/llm/llm-deepseek/README.zh.md"><code>llm-deepseek</code></a> 是参考布局。</p>
 <h2 id="验证">验证</h2>
-<p>遵循<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/testing.zh.md">仓库测试策略</a>，该策略负责适配器覆盖、真实提供方检查和已发布入口要求。</p></div>
+<p>遵循<a href="/src/docs/testing.zh.md">仓库测试策略</a>，该策略负责适配器覆盖、真实提供方检查和已发布入口要求。</p></div>
     <div class="back"><a href="/?focus=reference/cookbook/adding-an-llm-adapter">← 返回图谱并聚焦该文档</a></div>
   </main>
 </div>

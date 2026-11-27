@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,8 +18,8 @@
     <h1>插件配置表单</h1>
     <div class="meta">分组：平台与接入 · 本地副本：.ua/docs-local/subsystems/settings.md</div>
     <div class="body"><h1 id="插件配置表单">插件配置表单</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/settings.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/README.zh.md">设置服务</a> 从活动 profile 条目投影 volatile Config 字段。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/config-editor/README.zh.md">配置编辑器</a> 通过 Cordis patch 持久化编辑。业务消费者对自己的 Config 引用调用 <code>.get()</code>。</p>
+<p><a href="/src/docs/subsystems/settings.md">English</a> | 中文</p>
+<p><a href="/src/packages/settings/settings/README.zh.md">设置服务</a> 从活动 profile 条目投影 volatile Config 字段。<a href="/src/packages/boot/config-editor/README.zh.md">配置编辑器</a> 通过 Cordis patch 持久化编辑。业务消费者对自己的 Config 引用调用 <code>.get()</code>。</p>
 <h2 id="标识与值">标识与值</h2>
 <p>表单命名空间是当前 profile 中可唯一定位条目的本地 id。多个插件实例在条目 id 不同时拥有独立表单。普通字段被排除。描述符包含实际值、继承值、显式 profile 覆盖值和乐观修订号。</p>
 <h2 id="编辑">编辑</h2>
@@ -28,7 +28,7 @@
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsettings--settingsforms" class="anch"></a></p>
 <h3 id="ctx.settings-—-SettingsForms"><span id="ctxsettings--settingsforms" class="anch"></span><code>ctx.settings</code> — <code>SettingsForms</code></h3>
 <p>Project Config schemas into forms and own optional instance-level UI policy.</p>
@@ -71,7 +71,7 @@ async replace(ns: string, section: object, expectedRevision?: number): Promise&l
  * @param expectedRevision Revision returned by describe.
  */
 async mutate(ns: string, ops: readonly SettingsPathOp[], expectedRevision?: number): Promise&lt;void&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/src/index.ts"><code>packages/settings/settings/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/settings/settings/src/index.ts"><code>packages/settings/settings/src/index.ts</code></a></p>
 <p><a id="ctxsettingscontroller--settingscontroller" class="anch"></a></p>
 <h3 id="ctx.settingsController-—-SettingsController"><span id="ctxsettingscontroller--settingscontroller" class="anch"></span><code>ctx.settingsController</code> — <code>SettingsController</code></h3>
 <p>Host service backing the generated <code>ctx.remote.settings</code> namespace. Every remote read uses <code>redactSecrets: true</code>, so a <code>role('secret')</code> field cannot ride a response. Writes expose the settings service's merge, replacement, and path-addressed operations, and classify every provider refusal as <code>settings/conflict</code> or <code>settings/rejected</code> with the service's message.</p>
@@ -122,7 +122,7 @@ async mutate(ns: string, ops: readonly SettingsPathOp[], expectedRevision?: numb
  * @throws RemoteError when no document exists, preparation fails, or opening fails.
  */
 @Remote async openSettingsDocument(signal: AbortSignal): Promise&lt;SettingsDocumentOpenValue&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/api/settings-controller/src/index.ts"><code>packages/api/settings-controller/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/api/settings-controller/src/index.ts"><code>packages/api/settings-controller/src/index.ts</code></a></p>
 <p><a id="settings-events" class="anch"></a></p>
 <h3 id="settings/-events"><span id="settings-events" class="anch"></span><code>settings/*</code> events</h3>
 <p><a id="settingsdocument-updated--emit" class="anch"></a></p>
@@ -136,7 +136,7 @@ async mutate(ns: string, ops: readonly SettingsPathOp[], expectedRevision?: numb
  * @mode emit
  */
 &#x27;settings/document-updated&#x27;(ns: SettingsNamespace, revision: number): void</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/settings/settings/src/types.ts"><code>packages/settings/settings/src/types.ts</code></a></p>
+<p>Source: <a href="/src/packages/settings/settings/src/types.ts"><code>packages/settings/settings/src/types.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/settings">← 返回图谱并聚焦该文档</a></div>
   </main>

@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>作用域注册</h1>
     <div class="meta">分组：内核与作用域 · 本地副本：.ua/docs-local/subsystems/scope.md</div>
     <div class="body"><h1 id="作用域注册">作用域注册</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/scope.md">English</a> | 中文</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/scope">scope 包</a>提供身份、载体与作用域层词汇，使同一注册上下文同时表达每个 agent（智能体）的可见性和共享生命周期所有权。它是库原语，而不是 Cordis 服务；生命周期设计理由由 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/agent-loop/README.zh.md">agent-scope 运行时设计 reference</a>规定，可调用 API 与过滤语义则由包 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/scope/README.zh.md">README</a>规定。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/scope/src/index.ts"><code>packages/core/scope/src/index.ts</code></a> 与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/scope/src/store.ts"><code>packages/core/scope/src/store.ts</code></a>。</p>
+<p><a href="/src/docs/subsystems/scope.md">English</a> | 中文</p>
+<p><a href="/src/packages/core/scope">scope 包</a>提供身份、载体与作用域层词汇，使同一注册上下文同时表达每个 agent（智能体）的可见性和共享生命周期所有权。它是库原语，而不是 Cordis 服务；生命周期设计理由由 <a href="/src/packages/core/agent-loop/README.zh.md">agent-scope 运行时设计 reference</a>规定，可调用 API 与过滤语义则由包 <a href="/src/packages/core/scope/README.zh.md">README</a>规定。</p>
+<p>源码：<a href="/src/packages/core/scope/src/index.ts"><code>packages/core/scope/src/index.ts</code></a> 与 <a href="/src/packages/core/scope/src/store.ts"><code>packages/core/scope/src/store.ts</code></a>。</p>
 <p><a id="identity-and-dispatch-carrier" class="anch"></a></p>
 <h2 id="身份标识与分发载体"><span id="identity-and-dispatch-carrier" class="anch"></span>身份标识与分发载体</h2>
 <p><code>ScopeKey</code> 是一个不透明的对象身份标识。已交付的 agent loop（智能体循环）使用活跃的 <code>Agent</code> 对象作为自身的 key，但该原语从不检视该对象。</p>

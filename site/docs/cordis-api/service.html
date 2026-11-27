@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -20,57 +20,57 @@
     <div class="body"><p>&lt;!-- 英文源文件由 scripts/gen-cordis-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。</p>
 <p>     更新时先运行 <code>pnpm run gen-cordis-catalog</code> 更新英文，再更新本文件并运行 <code>pnpm run verify-translation-pairing --write docs/cordis-api/service.md</code> 重新记录配对。 --&gt;</p>
 <h1 id="Service">Service</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/service.md">English</a> | 中文</p>
+<p><a href="/src/docs/cordis-api/service.md">English</a> | 中文</p>
 <p>上下文服务的基类。以插件形式加载的子类会将自身注册为 <code>ctx.&lt;name&gt;</code>。</p>
 <p>用于在 <code>ctx</code> 上公开具名 API 的服务基类。</p>
 <p>子类在构造函数中调用 <code>super(ctx, name)</code>。服务会立即注册，并随所属 fiber 自动移除。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L12">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L12">源码</a></p>
 <h3 id="service.name">service.name</h3>
 <pre><code>/** The service name this instance is registered under. */
 public name!: string</code></pre>
 <p>此实例注册时使用的服务名称。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L33">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L33">源码</a></p>
 <h2 id="静态成员">静态成员</h2>
 <h3 id="Service.init">Service.init</h3>
 <pre><code>/** Symbol key of an instance method run after construction (class plugins). */
 static readonly init: unique symbol</code></pre>
 <p>构造完成后运行的实例方法所使用的符号键（类插件）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L14">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L14">源码</a></p>
 <h3 id="Service.check">Service.check</h3>
 <pre><code>/** Symbol key of the availability predicate passed to `ctx.provide()`. */
 static readonly check: unique symbol</code></pre>
 <p>传给 <code>ctx.provide()</code> 的可用性谓词所使用的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L16">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L16">源码</a></p>
 <h3 id="Service.invoke">Service.invoke</h3>
 <pre><code>/** Symbol key of the call body making a service callable (e.g. `ctx.logger()`). */
 static readonly invoke: unique symbol</code></pre>
 <p>使服务可被调用的调用体所使用的符号键（例如 <code>ctx.logger()</code>）。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L18">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L18">源码</a></p>
 <h3 id="Service.metadata">Service.metadata</h3>
 <pre><code>/** Symbol key of the phantom intercept-metadata type parameter. */
 static readonly metadata: unique symbol</code></pre>
 <p>虚设拦截元数据类型参数所使用的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L20">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L20">源码</a></p>
 <h3 id="Service.extend">Service.extend</h3>
 <pre><code>/** Symbol key of the helper deriving an extended service instance. */
 static readonly extend: unique symbol</code></pre>
 <p>用于派生扩展服务实例的辅助方法所使用的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L22">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L22">源码</a></p>
 <h3 id="Service.tracker">Service.tracker</h3>
 <pre><code>/** Symbol key of the tracker metadata used for context tracing. */
 static readonly tracker: unique symbol</code></pre>
 <p>上下文追踪所用跟踪器元数据的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L24">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L24">源码</a></p>
 <h3 id="Service.mergeIntercept">Service.mergeIntercept</h3>
 <pre><code>/** Symbol key of the intercept-metadata merge hook below. */
 static readonly mergeIntercept: unique symbol</code></pre>
 <p>下述拦截元数据合并钩子所使用的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L26">源码</a></p>
+<p><a href="/src/vendor/cordis/src/service.ts#L26">源码</a></p>
 <h3 id="Service.resolveIntercept">Service.resolveIntercept</h3>
 <pre><code>/** Symbol key of the intercept-metadata resolution helper below. */
 static readonly resolveIntercept: unique symbol</code></pre>
 <p>下述拦截元数据解析辅助方法所使用的符号键。</p>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/vendor/cordis/src/service.ts#L28">源码</a></p></div>
+<p><a href="/src/vendor/cordis/src/service.ts#L28">源码</a></p></div>
     <div class="back"><a href="/?focus=reference/cordis-api/service">← 返回图谱并聚焦该文档</a></div>
   </main>
 </div>

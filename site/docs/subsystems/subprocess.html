@@ -6,7 +6,7 @@
 </head><body>
 <header class="top">
   <a class="brand" href="/">DSH 知识图谱</a>
-  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">GitHub ↗</a></nav>
+  <nav><a href="/">图谱首页</a><a href="/docs/">文档站</a><a href="https://github.com/wind-wh/dsh-knowledge-graph" target="_blank">GitHub ↗</a></nav>
 </header>
 <div class="wrap">
   <aside class="side">
@@ -18,9 +18,9 @@
     <h1>子进程</h1>
     <div class="meta">分组：执行与工具 · 本地副本：.ua/docs-local/subsystems/subprocess.md</div>
     <div class="body"><h1 id="子进程">子进程</h1>
-<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/subprocess.md">English</a> | 中文</p>
-<p>子进程 seam 分为 Service Definition（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess">dsh-subprocess</a>，<code>ctx.subprocess</code>）与 Service Provider（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess-local">dsh-subprocess-local</a>）；它的 Consumer 是其他能力 seam 与进程外后端：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/shell.zh.md">bash 执行器家族</a>使用收集模式的批量输出，LSP 使用原始协议管道，PTY 后端使用终端原语，ACP（Agent Client Protocol）subagent 后端则使用通过管道传输的 ndjson，并让 stderr 采用 inherit。该 seam 拥有受管的 <code>DSH_*</code> 环境命名空间、共享的凭据清除（<code>scrubbedParentEnv</code>）与 <code>CollectedOutput</code> 形状；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/shell/shell">dsh-shell</a> 重导出这套词汇，使 bash 消费方保持单一导入入口。</p>
-<p>源码：<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/src/types.ts"><code>packages/subprocess/subprocess/src/types.ts</code></a> 与 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/src/index.ts"><code>packages/subprocess/subprocess/src/index.ts</code></a></p>
+<p><a href="/src/docs/subsystems/subprocess.md">English</a> | 中文</p>
+<p>子进程 seam 分为 Service Definition（<a href="/src/packages/subprocess/subprocess">dsh-subprocess</a>，<code>ctx.subprocess</code>）与 Service Provider（<a href="/src/packages/subprocess/subprocess-local">dsh-subprocess-local</a>）；它的 Consumer 是其他能力 seam 与进程外后端：<a href="/src/docs/subsystems/shell.zh.md">bash 执行器家族</a>使用收集模式的批量输出，LSP 使用原始协议管道，PTY 后端使用终端原语，ACP（Agent Client Protocol）subagent 后端则使用通过管道传输的 ndjson，并让 stderr 采用 inherit。该 seam 拥有受管的 <code>DSH_*</code> 环境命名空间、共享的凭据清除（<code>scrubbedParentEnv</code>）与 <code>CollectedOutput</code> 形状；<a href="/src/packages/shell/shell">dsh-shell</a> 重导出这套词汇，使 bash 消费方保持单一导入入口。</p>
+<p>源码：<a href="/src/packages/subprocess/subprocess/src/types.ts"><code>packages/subprocess/subprocess/src/types.ts</code></a> 与 <a href="/src/packages/subprocess/subprocess/src/index.ts"><code>packages/subprocess/subprocess/src/index.ts</code></a></p>
 <h2 id="可执行文件查找">可执行文件查找</h2>
 <p>一个提供方的 spawn 工作目录、可执行文件路径、普通进程与终端会话，和挂载的文件系统提供方处于同一路径与进程命名空间。<code>resolveExecutable(command, env?, signal?)</code> 验证绝对可执行文件路径，或通过提供方清理后的 <code>PATH</code> 加有意覆盖来解析裸名称。</p>
 <h2 id="受管环境命名空间与捕获的输出">受管环境命名空间与捕获的输出</h2>
@@ -205,15 +205,15 @@ interface SubprocessOutcome {
 }</code></pre>
 <h2 id="终端进程原语">终端进程原语</h2>
 <p><code>spawnTerminal(spec)</code> 是非管道进程原语。提供方分配控制终端，并负责 UTF-8 文本传输、前台进程组检查与信号发送，以及一项须等待的 TERM→KILL 操作；该操作会使提供方仍可观察到的每个会话成员完全停稳，提供方则会记录执行基底特有的可观察性限制。PTY 后端仍负责提示符检测、就绪推断、scrollback、沙箱策略和持久会话所有权；普通 <code>spawn()</code> 无法重建控制终端语义。</p>
-<p>终端 spec 完全指定 argv、cwd、环境覆盖、终端类型、尺寸、清理宽限期与可选的分配取消和 shell 活动观察。其句柄公开 <code>pid</code>、有序输出、<code>done</code>、<code>write</code>、<code>resize</code>、<code>inspectForeground</code>、<code>inspectActivity</code>、<code>signalForeground</code> 和须等待的 <code>terminate</code>；<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/src/types.ts"><code>SubprocessTerminalSpawnSpec</code> 与 <code>SubprocessTerminalHandle</code></a> 定义这些字段和操作。<code>resize(cols, rows)</code> 更新正在运行的 PTY 尺寸，进程退出后拒绝调用。</p>
-<p><code>inspectActivity()</code> 返回 <code>SubprocessTerminalActivity</code>：<code>state</code> 为 <code>idle</code>、<code>busy</code> 或 <code>unknown</code>，<code>revision</code> 随 provider 观察到的活动或输入变化。终端请求通过 <code>shellActivity</code> 启用受支持的 shell 生命周期观察；各 provider 的支持范围和保守返回 unknown 的情况见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess-local/README.zh.md">subprocess-local</a>。</p>
+<p>终端 spec 完全指定 argv、cwd、环境覆盖、终端类型、尺寸、清理宽限期与可选的分配取消和 shell 活动观察。其句柄公开 <code>pid</code>、有序输出、<code>done</code>、<code>write</code>、<code>resize</code>、<code>inspectForeground</code>、<code>inspectActivity</code>、<code>signalForeground</code> 和须等待的 <code>terminate</code>；<a href="/src/packages/subprocess/subprocess/src/types.ts"><code>SubprocessTerminalSpawnSpec</code> 与 <code>SubprocessTerminalHandle</code></a> 定义这些字段和操作。<code>resize(cols, rows)</code> 更新正在运行的 PTY 尺寸，进程退出后拒绝调用。</p>
+<p><code>inspectActivity()</code> 返回 <code>SubprocessTerminalActivity</code>：<code>state</code> 为 <code>idle</code>、<code>busy</code> 或 <code>unknown</code>，<code>revision</code> 随 provider 观察到的活动或输入变化。终端请求通过 <code>shellActivity</code> 启用受支持的 shell 生命周期观察；各 provider 的支持范围和保守返回 unknown 的情况见 <a href="/src/packages/subprocess/subprocess-local/README.zh.md">subprocess-local</a>。</p>
 <p><code>terminalEnvironment(signal?)</code> 返回 <code>SubprocessTerminalEnvironment</code>：执行环境平台（<code>posix</code> 或 <code>windows</code>）与可选的 <code>defaultShell</code>。这些事实来自提供方，而非 Web 服务器或浏览器。<code>resolveExecutable</code> 验证候选 shell；<code>SubprocessExecutableNotFoundError</code> 表示可执行文件不存在，提供方与传输故障仍作为错误报告。</p>
 <h2 id="服务行为">服务行为</h2>
-<p>抽象的 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/src/index.ts"><code>SubprocessRuntime</code></a> Service Definition 规定执行世界坐标、可执行文件查找、普通 <code>spawn</code> 与 <code>spawnTerminal</code>。<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess-local/src/index.ts"><code>LocalSubprocessRuntime</code></a> 以平台选择的 managed range、按处置方式接线、凭据清除、<code>node-pty</code>、平台进程检查，以及先终止再等待退出的资源释放提供这些能力。Service Definition 约定见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/README.zh.md"><code>dsh-subprocess</code></a>，本地机制见 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess-local/README.zh.md"><code>dsh-subprocess-local</code></a>。</p>
+<p>抽象的 <a href="/src/packages/subprocess/subprocess/src/index.ts"><code>SubprocessRuntime</code></a> Service Definition 规定执行世界坐标、可执行文件查找、普通 <code>spawn</code> 与 <code>spawnTerminal</code>。<a href="/src/packages/subprocess/subprocess-local/src/index.ts"><code>LocalSubprocessRuntime</code></a> 以平台选择的 managed range、按处置方式接线、凭据清除、<code>node-pty</code>、平台进程检查，以及先终止再等待退出的资源释放提供这些能力。Service Definition 约定见 <a href="/src/packages/subprocess/subprocess/README.zh.md"><code>dsh-subprocess</code></a>，本地机制见 <a href="/src/packages/subprocess/subprocess-local/README.zh.md"><code>dsh-subprocess-local</code></a>。</p>
 <p>&lt;!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers --&gt;</p>
 <p><a id="cordis-surface" class="anch"></a></p>
 <h2 id="Cordis-API"><span id="cordis-surface" class="anch"></span>Cordis API</h2>
-<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
+<p>Generated from source by <code>scripts/gen-cordis-catalog.ts</code> (verified fresh by <code>pnpm run verify-cordis-catalog</code> in doc-sync; regenerate with <code>pnpm run gen-cordis-catalog</code>) — the language sides differ only in locale-specific paired document paths. Signature blocks use a <code>ts cordis-catalog</code> fence and keep the original source JSDoc; dispatch modes are defined in the <a href="/src/docs/cordis-primer.zh.md">primer</a>, and the framework-inherited <code>ctx</code> API lives in <a href="/src/docs/cordis-api/inherited.md">cordis-api/inherited.md</a>.</p>
 <p><a id="ctxsubprocess--subprocessruntime-abstract-seam" class="anch"></a></p>
 <h3 id="ctx.subprocess-—-SubprocessRuntime-abstract-seam"><span id="ctxsubprocess--subprocessruntime-abstract-seam" class="anch"></span><code>ctx.subprocess</code> — <code>SubprocessRuntime</code> (abstract seam)</h3>
 <p>Abstract subprocess service. Subclass, implement spawn, and load the subclass as a plugin — it registers as <code>ctx.subprocess</code> (one implementation per context; loading a second throws, which is cordis' standard duplicate-service behavior).</p>
@@ -263,7 +263,7 @@ abstract spawn(spec: SubprocessSpawnSpec): SubprocessHandle
  * @returns the live terminal handle after allocation succeeds.
  */
 abstract spawnTerminal(spec: SubprocessTerminalSpawnSpec): Promise&lt;SubprocessTerminalHandle&gt;</code></pre>
-<p>Source: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subprocess/subprocess/src/index.ts"><code>packages/subprocess/subprocess/src/index.ts</code></a></p>
+<p>Source: <a href="/src/packages/subprocess/subprocess/src/index.ts"><code>packages/subprocess/subprocess/src/index.ts</code></a></p>
 <p>&lt;!-- END GENERATED cordis-surface --&gt;</p></div>
     <div class="back"><a href="/?focus=reference/subsystems/subprocess">← 返回图谱并聚焦该文档</a></div>
   </main>
